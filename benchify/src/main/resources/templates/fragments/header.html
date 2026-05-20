@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<header th:fragment="header(active)" class="site-header">
+    <div class="container">
+        <a th:href="@{/}" class="brand" aria-label="Benchify · Ir al inicio">
+            <svg class="brand-logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 11h16v2H4zm-1 4v4h2v-2h14v2h2v-4zM7 4v6h2V6h6v4h2V4z"/>
+            </svg>
+            <span>Benchify</span>
+        </a>
+
+        <button type="button" class="mobile-toggle" aria-expanded="false" aria-label="Menú">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
+
+        <nav class="nav-links" aria-label="Navegación principal">
+            <a th:href="@{/}" class="nav-link" th:classappend="${active == 'home'} ? 'active'">Inicio</a>
+            <a th:href="@{/mapa}" class="nav-link" th:classappend="${active == 'mapa'} ? 'active'">Mapa</a>
+
+            <a sec:authorize="isAuthenticated()" th:href="@{/bancos/nuevo}"
+               class="nav-link" th:classappend="${active == 'subir'} ? 'active'">+ Subir banco</a>
+
+            <a sec:authorize="hasAnyRole('MODERADOR','ADMIN')" th:href="@{/admin}"
+               class="nav-link" th:classappend="${active == 'admin'} ? 'active'">Admin</a>
+
+            <a sec:authorize="isAuthenticated()" th:href="@{/mi-perfil}" class="nav-link">Mi perfil</a>
+
+            <form sec:authorize="isAuthenticated()" th:action="@{/auth/logout}" method="post" style="margin:0;">
+                <button type="submit" class="nav-link" style="border:0;background:transparent;cursor:pointer;font:inherit;">
+                    Salir
+                </button>
+            </form>
+
+            <a sec:authorize="isAnonymous()" th:href="@{/auth/login}" class="nav-link">Acceder</a>
+            <a sec:authorize="isAnonymous()" th:href="@{/auth/registro}" class="btn btn-primary btn-sm">Crear cuenta</a>
+        </nav>
+    </div>
+</header>
+</body>
+</html>

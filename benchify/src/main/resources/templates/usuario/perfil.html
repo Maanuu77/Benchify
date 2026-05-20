@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head(${perfil.nombre}, 'Perfil de usuario en Benchify')}"></head>
+<body>
+<header th:replace="~{fragments/header :: header('')}"></header>
+
+<main class="page">
+    <div class="container" style="max-width: 920px; padding-top: var(--space-8); padding-bottom: var(--space-12);">
+
+        <!-- Cabecera del perfil -->
+        <div class="flex items-center gap-6" style="flex-wrap:wrap;">
+            <div style="width:96px; height:96px; border-radius:var(--radius-full);
+                        background:var(--color-primary-bg); display:inline-flex; align-items:center;
+                        justify-content:center; color:var(--color-primary); font-size:var(--font-size-3xl);
+                        font-weight:700;"
+                 th:text="${perfil.nombre.substring(0,1).toUpperCase()}">B</div>
+            <div>
+                <h1 style="margin-bottom: var(--space-1);" th:text="${perfil.nombre}">Nombre</h1>
+                <p class="text-muted" style="margin:0;" th:if="${perfil.ciudad != null}" th:text="${perfil.ciudad}">Ciudad</p>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 grid-cols-sm-2 grid-cols-md-2 grid-cols-lg-4 mt-8" style="gap: var(--space-4);">
+            <div class="card card-body text-center">
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-primary);"
+                     th:text="${perfil.numBancosSubidos}">0</div>
+                <p class="text-xs text-muted" style="margin:0;">Bancos subidos</p>
+            </div>
+            <div class="card card-body text-center">
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-primary);"
+                     th:text="${perfil.numResenas}">0</div>
+                <p class="text-xs text-muted" style="margin:0;">Reseñas</p>
+            </div>
+            <div class="card card-body text-center">
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-primary);"
+                     th:text="${perfil.numFavoritos}">0</div>
+                <p class="text-xs text-muted" style="margin:0;">Favoritos</p>
+            </div>
+            <div class="card card-body text-center">
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-primary);"
+                     th:text="${perfil.numCheckIns}">0</div>
+                <p class="text-xs text-muted" style="margin:0;">Check-ins</p>
+            </div>
+        </div>
+
+        <!-- Bancos subidos recientemente -->
+        <section class="mt-12">
+            <h2>Bancos recientes</h2>
+
+            <div class="grid grid-cols-1 grid-cols-sm-2 grid-cols-lg-3 mt-4"
+                 th:if="${perfil.bancosRecientes != null and !perfil.bancosRecientes.isEmpty()}">
+                <div th:each="banco : ${perfil.bancosRecientes}"
+                     th:replace="~{fragments/banco-card :: card(${banco})}"></div>
+            </div>
+
+            <div th:if="${perfil.bancosRecientes == null or perfil.bancosRecientes.isEmpty()}" class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <path d="M4 11h16v2H4zm-1 4v4h2v-2h14v2h2v-4zM7 4v6h2V6h6v4h2V4z"/>
+                </svg>
+                <p>Aún no ha subido ningún banco.</p>
+                <a th:href="@{/bancos/nuevo}" class="btn btn-primary mt-4" th:if="${esPropio != null and esPropio}">
+                    + Sube tu primer banco
+                </a>
+            </div>
+        </section>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+<th:block th:replace="~{fragments/scripts :: scripts}"></th:block>
+</body>
+</html>

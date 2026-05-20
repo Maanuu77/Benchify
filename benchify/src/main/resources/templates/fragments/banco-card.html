@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Card reutilizable para listar bancos en listings, perfil, etc. -->
+<a th:fragment="card(banco)" th:href="@{'/bancos/' + ${banco.id}}" class="banco-card">
+    <th:block th:if="${banco.imagenesUrls != null and !banco.imagenesUrls.isEmpty()}">
+        <img th:src="${banco.imagenesUrls[0]}" th:alt="${banco.titulo}" class="banco-card-img" loading="lazy">
+    </th:block>
+    <div th:if="${banco.imagenesUrls == null or banco.imagenesUrls.isEmpty()}"
+         class="banco-card-img banco-card-img-placeholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M4 11h16v2H4zm-1 4v4h2v-2h14v2h2v-4zM7 4v6h2V6h6v4h2V4z"/>
+        </svg>
+    </div>
+
+    <div class="banco-card-body">
+        <h3 class="banco-card-title" th:text="${banco.titulo}">Título</h3>
+
+        <div class="flex items-center gap-2">
+            <span class="stars" th:attr="data-stars=${banco.puntuacionMedia}" aria-label="Puntuación"></span>
+            <span class="text-xs text-muted">
+                <span th:text="${#numbers.formatDecimal(banco.puntuacionMedia, 1, 1)}">0.0</span>
+                · <span th:text="${banco.numResenas}">0</span> reseñas
+            </span>
+        </div>
+
+        <p class="text-xs text-muted mt-2" style="margin:0;"
+           th:if="${banco.ciudad != null}" th:text="${banco.ciudad}">Ciudad</p>
+
+        <div class="tag-list mt-2" th:if="${banco.etiquetas != null and !banco.etiquetas.isEmpty()}">
+            <span class="tag" th:each="et : ${banco.etiquetas}" th:text="${et}">etiqueta</span>
+        </div>
+    </div>
+</a>
+</body>
+</html>

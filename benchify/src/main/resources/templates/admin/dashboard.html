@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Panel de administración', null)}"></head>
+<body>
+<header th:replace="~{fragments/header :: header('admin')}"></header>
+
+<main class="page">
+    <div class="container" style="padding-top: var(--space-8); padding-bottom: var(--space-12);">
+
+        <h1>Panel de administración</h1>
+        <p class="text-muted mb-8">Vista general de la actividad y la cola de moderación.</p>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 grid-cols-sm-2 grid-cols-lg-4" style="gap: var(--space-4);">
+            <div class="card card-body">
+                <p class="text-xs text-muted" style="margin:0;">Total bancos</p>
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-primary);"
+                     th:text="${estadisticas.totalBancos}">0</div>
+            </div>
+            <div class="card card-body">
+                <p class="text-xs text-muted" style="margin:0;">Pendientes</p>
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-warning);"
+                     th:text="${estadisticas.bancosPendientes}">0</div>
+            </div>
+            <div class="card card-body">
+                <p class="text-xs text-muted" style="margin:0;">Publicados</p>
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-success);"
+                     th:text="${estadisticas.bancosPublicados}">0</div>
+            </div>
+            <div class="card card-body">
+                <p class="text-xs text-muted" style="margin:0;">Ocultos</p>
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-text-muted);"
+                     th:text="${estadisticas.bancosOcultos}">0</div>
+            </div>
+            <div class="card card-body">
+                <p class="text-xs text-muted" style="margin:0;">Usuarios</p>
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-primary);"
+                     th:text="${estadisticas.totalUsuarios}">0</div>
+            </div>
+            <div class="card card-body">
+                <p class="text-xs text-muted" style="margin:0;">Reseñas</p>
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-primary);"
+                     th:text="${estadisticas.totalResenas}">0</div>
+            </div>
+            <div class="card card-body">
+                <p class="text-xs text-muted" style="margin:0;">Reseñas reportadas</p>
+                <div style="font-size:var(--font-size-3xl); font-weight:700; color:var(--color-danger);"
+                     th:text="${estadisticas.resenasPendientesModeracion}">0</div>
+            </div>
+        </div>
+
+        <!-- Acciones -->
+        <section class="mt-12">
+            <h2>Cola de moderación</h2>
+            <div class="grid grid-cols-1 grid-cols-md-2 mt-4">
+                <a th:href="@{/admin/bancos}" class="card card-body card-hover" style="text-decoration:none; color:inherit;">
+                    <h3 style="font-size:var(--font-size-lg);">Bancos pendientes</h3>
+                    <p class="text-muted" style="margin:0;">
+                        <span th:text="${estadisticas.bancosPendientes}">0</span>
+                        bancos esperando aprobación.
+                    </p>
+                </a>
+                <a th:href="@{/admin/resenas}" class="card card-body card-hover" style="text-decoration:none; color:inherit;">
+                    <h3 style="font-size:var(--font-size-lg);">Reseñas reportadas</h3>
+                    <p class="text-muted" style="margin:0;">
+                        <span th:text="${estadisticas.resenasPendientesModeracion}">0</span>
+                        reseñas marcadas como inapropiadas.
+                    </p>
+                </a>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+<th:block th:replace="~{fragments/scripts :: scripts}"></th:block>
+</body>
+</html>
