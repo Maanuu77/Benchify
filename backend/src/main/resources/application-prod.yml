@@ -10,6 +10,9 @@ spring:
 benchify:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID}
+    storage-bucket: ${FIREBASE_STORAGE_BUCKET}
 
 logging:
   level:

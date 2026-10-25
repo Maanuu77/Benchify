@@ -10,6 +10,11 @@ benchify:
     allowed-origins:
       - http://localhost:4200
       - http://127.0.0.1:4200
+  firebase:
+    # "demo-*" projects only exist in the Emulator Suite: no real credentials needed
+    emulator:
+      auth-host: ${FIREBASE_AUTH_EMULATOR_HOST:localhost:9099}
+      storage-host: ${FIREBASE_STORAGE_EMULATOR_URL:http://localhost:9199}
 
 logging:
   level:

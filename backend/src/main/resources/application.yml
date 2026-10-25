@@ -35,6 +35,9 @@ server:
 benchify:
   cors:
     allowed-origins: []
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:demo-benchify}
+    storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}
 
 logging:
   level:
