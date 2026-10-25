@@ -1,0 +1,39 @@
+package com.benchify.banco.application.port.out;
+
+import com.benchify.banco.domain.Banco;
+import com.benchify.banco.domain.BancoCercano;
+import com.benchify.banco.domain.BoundingBox;
+import com.benchify.banco.domain.EstadoBanco;
+import com.benchify.banco.domain.FiltroBancos;
+import com.benchify.banco.domain.Ubicacion;
+import com.benchify.shared.domain.PageQuery;
+import com.benchify.shared.domain.PageResult;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/** Puerto de persistencia de bancos. Otras features (reseñas, moderación) también lo usan. */
+public interface BancoRepository {
+
+    Banco save(Banco banco);
+
+    Optional<Banco> findById(UUID id);
+
+    boolean existsPublicado(UUID id);
+
+    /** Publicados dentro del área, mejor valorados primero. */
+    List<Banco> findPublicadosEnArea(BoundingBox area, FiltroBancos filtro, int limite);
+
+    /** Publicados a menos de {@code radioMetros}, del más cercano al más lejano. */
+    PageResult<BancoCercano> findPublicadosCercanos(Ubicacion centro, int radioMetros, FiltroBancos filtro,
+            PageQuery page);
+
+    /** Bancos de un autor (excepto eliminados), del más reciente al más antiguo. */
+    PageResult<Banco> findByAutor(String autorId, boolean soloPublicados, PageQuery page);
+
+    /** Bancos en un estado, del más antiguo al más reciente (cola de moderación). */
+    PageResult<Banco> findByEstado(EstadoBanco estado, PageQuery page);
+
+    long countByEstado(EstadoBanco estado);
+}
