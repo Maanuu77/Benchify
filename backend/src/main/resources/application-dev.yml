@@ -1,0 +1,16 @@
+# Local development: PostgreSQL + PostGIS and Firebase emulators from docker-compose
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/benchify}
+    username: ${DB_USERNAME:benchify}
+    password: ${DB_PASSWORD:benchify}
+
+benchify:
+  cors:
+    allowed-origins:
+      - http://localhost:4200
+      - http://127.0.0.1:4200
+
+logging:
+  level:
+    com.benchify: DEBUG
