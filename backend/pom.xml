@@ -6,29 +6,24 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.6</version>
+		<version>4.1.2</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.benchify</groupId>
-	<artifactId>benchify</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>benchify</name>
-	<description />
-	<url />
-	<licenses>
-		<license />
-	</licenses>
-	<developers>
-		<developer />
-	</developers>
+	<artifactId>benchify-backend</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<name>benchify-backend</name>
+	<description>Benchify REST API: collaborative map of public benches</description>
+	<url>https://github.com/Maanuu77/Benchify</url>
+
 	<scm>
-		<connection />
-		<developerConnection />
-		<tag />
-		<url />
+		<url>https://github.com/Maanuu77/Benchify</url>
+		<connection>scm:git:https://github.com/Maanuu77/Benchify.git</connection>
 	</scm>
+
 	<properties>
 		<java.version>21</java.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 	<dependencies>
 		<dependency>
