@@ -4,6 +4,9 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/benchify}
     username: ${DB_USERNAME:benchify}
     password: ${DB_PASSWORD:benchify}
+  flyway:
+    # Sample benches around Seville, only in development
+    locations: classpath:db/migration,classpath:db/seed
 
 benchify:
   cors:
