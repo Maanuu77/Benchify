@@ -1,14 +1,11 @@
 package com.benchify.shared.infrastructure.security;
 
 import com.benchify.shared.domain.Actor;
-import com.benchify.shared.infrastructure.web.CorsConfig;
+import com.benchify.support.ApiControllerTest;
 import com.benchify.support.StubIdTokenVerifier;
-import com.benchify.support.TestSecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,9 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@WebMvcTest(controllers = SecurityConfigTest.ProbeController.class)
-@Import({SecurityConfig.class, CorsConfig.class, TestSecurityConfig.class, SecurityConfigTest.ProbeController.class})
-@ActiveProfiles("test")
+@ApiControllerTest(SecurityConfigTest.ProbeController.class)
+@Import(SecurityConfigTest.ProbeController.class)
 class SecurityConfigTest {
 
     @Autowired

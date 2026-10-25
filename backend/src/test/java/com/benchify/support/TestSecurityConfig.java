@@ -11,4 +11,9 @@ public class TestSecurityConfig {
     IdTokenVerifier stubIdTokenVerifier() {
         return new StubIdTokenVerifier();
     }
+
+    @Bean
+    RecordingIdentityProvider recordingIdentityProvider() {
+        return new RecordingIdentityProvider();
+    }
 }
