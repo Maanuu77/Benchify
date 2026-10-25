@@ -5,6 +5,7 @@ import com.benchify.security.UserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.config.Customizer;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -38,6 +39,8 @@ public class SecurityConfig {
 
             // API stateless con token en la cabecera Authorization: CSRF no aplica
             .csrf(csrf -> csrf.disable())
+            // Usa el CorsConfigurationSource definido por perfil (CorsConfig)
+            .cors(Customizer.withDefaults())
 
             // La consola H2 carga en un <iframe>; permitir same-origin para que se vea.
             .headers(headers -> headers
