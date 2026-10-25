@@ -39,7 +39,7 @@ Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 | #7  | Perfiles `dev` / `test` / `prod` y CORS configurable por perfil | `feature/backend-profiles-cors` | ⬜ |
 | #8  | Esquema con Flyway + PostGIS (sustituye `data.sql` y `ddl-auto`) | `feature/backend-flyway-postgis` | ⬜ |
 | #9  | Núcleo compartido: errores RFC 9457 (`ProblemDetail`), paginación, validación | `feature/backend-shared-kernel` | ⬜ |
-| #48 | Retirar la implementación por capas heredada antes de reescribir por features | `refactor/backend-remove-legacy` | ⬜ |
+| #48 | Retirar la implementación por capas heredada antes de reescribir por features | `refactor/backend-remove-legacy` | ✅ |
 | #10 | Autenticación con Firebase: filtro que verifica el ID token, roles por custom claims, eliminar JWT propio | `feature/backend-firebase-auth` | ⬜ |
 | #11 | Feature `usuario` (hexagonal): alta automática, perfil, cambio de rol | `feature/backend-usuario` | ⬜ |
 | #12 | Feature `banco` (hexagonal): CRUD, etiquetas, bounding box | `feature/backend-banco` | ⬜ |
