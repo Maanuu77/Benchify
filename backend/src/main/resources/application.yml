@@ -36,12 +36,6 @@ benchify:
   cors:
     allowed-origins: []
 
-app:
-  jwt:
-    secret: ${JWT_SECRET:benchify-secret-key-change-this-in-production-must-be-at-least-256-bits-long-enough}
-    expiration-ms: 86400000
-    refresh-expiration-ms: 604800000
-
 logging:
   level:
     org.springframework.security: WARN
