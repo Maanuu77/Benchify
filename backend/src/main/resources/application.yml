@@ -17,6 +17,12 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        # Loads lazy collections (bench tags) in batches instead of one query per row
+        default_batch_fetch_size: 50
+  jackson:
+    deserialization:
+      # Jackson 3 rejects omitted primitives by default; an omitted boolean flag means "false"
+      fail-on-null-for-primitives: false
   flyway:
     locations: classpath:db/migration
     # Never wipe a real database by accident
