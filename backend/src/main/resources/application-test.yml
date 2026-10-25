@@ -3,6 +3,9 @@ benchify:
   cors:
     allowed-origins:
       - http://localhost:4200
+  firebase:
+    # Tests use StubIdTokenVerifier instead of the Admin SDK
+    enabled: false
 
 logging:
   level:
