@@ -11,11 +11,16 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      # Flyway owns the schema; Hibernate only checks the mappings match it
+      ddl-auto: validate
     properties:
       hibernate:
         jdbc:
           time_zone: UTC
+  flyway:
+    locations: classpath:db/migration
+    # Never wipe a real database by accident
+    clean-disabled: true
   servlet:
     multipart:
       max-file-size: 10MB

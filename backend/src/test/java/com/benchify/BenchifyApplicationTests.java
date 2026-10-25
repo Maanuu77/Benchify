@@ -1,15 +1,21 @@
 package com.benchify;
 
+import com.benchify.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
-@SpringBootTest
-@ActiveProfiles("test")
-class BenchifyApplicationTests {
+import static org.assertj.core.api.Assertions.assertThat;
 
-	@Test
-	void contextLoads() {
-	}
+class BenchifyApplicationTests extends AbstractIntegrationTest {
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void contextLoadsAndMigrationsEnablePostgis() {
+        String version = jdbcTemplate.queryForObject("SELECT postgis_lib_version()", String.class);
+
+        assertThat(version).startsWith("3.");
+    }
 }
