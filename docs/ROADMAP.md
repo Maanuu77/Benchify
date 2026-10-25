@@ -26,9 +26,9 @@ Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 | #  | Issue | Rama | Estado |
 |----|-------|------|--------|
 | #1 | Crear `develop` y el roadmap con el backlog por sprints | `docs/roadmap` | ✅ |
-| #2 | Reestructurar en monorepo: `/backend`, `/frontend`, `/docs` | `chore/monorepo-structure` | ⬜ |
-| #3 | Eliminar `target/`, `node_modules/` y ficheros de IDE; `.gitignore` raíz | `chore/monorepo-structure` | ⬜ |
-| #4 | Proceso de ADRs y decisiones iniciales (monorepo, versión de Spring Boot, hexagonal) | `docs/adr-initial` | ⬜ |
+| #2 | Reestructurar en monorepo: `/backend`, `/frontend`, `/docs` | `chore/monorepo-structure` | ✅ |
+| #3 | Eliminar `target/`, `node_modules/` y ficheros de IDE; `.gitignore` raíz | `chore/monorepo-structure` | ✅ |
+| #4 | Proceso de ADRs y decisiones iniciales (monorepo, versión de Spring Boot, hexagonal) | `docs/adr-initial` | ✅ |
 
 ## Sprint 1 — Backend: API REST hexagonal
 
