@@ -16,11 +16,6 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
-    # data.sql runs after Hibernate creates the tables
-    defer-datasource-initialization: true
-  sql:
-    init:
-      mode: always
   servlet:
     multipart:
       max-file-size: 10MB
