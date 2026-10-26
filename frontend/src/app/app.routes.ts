@@ -10,6 +10,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/mapa/mapa-page').then((m) => m.MapaPage),
   },
   {
+    path: 'bancos/:id',
+    title: 'Banco · Benchify',
+    loadComponent: () => import('./features/bancos/detalle/banco-detalle-page').then((m) => m.BancoDetallePage),
+  },
+  {
     path: 'login',
     title: 'Iniciar sesión · Benchify',
     canActivate: [anonymousGuard],

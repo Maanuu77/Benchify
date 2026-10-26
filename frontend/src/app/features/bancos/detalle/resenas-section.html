@@ -1,0 +1,70 @@
+<section aria-labelledby="titulo-resenas">
+  <h2 id="titulo-resenas">Reseñas ({{ total() }})</h2>
+
+  @if (puedeEscribir()) {
+    <form class="formulario" (ngSubmit)="enviar()">
+      <h3>{{ editando() ? 'Editar tu reseña' : '¿Qué te ha parecido?' }}</h3>
+      <bf-star-rating [editable]="true" [(value)]="puntuacion" label="Tu puntuación" />
+      <mat-form-field appearance="outline" class="comentario">
+        <mat-label>Comentario (opcional)</mat-label>
+        <textarea matInput name="comentario" [(ngModel)]="comentario" maxlength="1000" rows="3"></textarea>
+        <mat-hint align="end">{{ comentario.length }}/1000</mat-hint>
+      </mat-form-field>
+      <div class="acciones">
+        @if (editando()) {
+          <button mat-button type="button" (click)="cancelarEdicion()">Cancelar</button>
+        }
+        <button mat-flat-button type="submit" [disabled]="enviando()">
+          {{ editando() ? 'Guardar cambios' : 'Publicar reseña' }}
+        </button>
+      </div>
+    </form>
+  } @else if (!auth.isAuthenticated() && publicado()) {
+    <p class="aviso"><a routerLink="/login">Inicia sesión</a> para dejar tu reseña.</p>
+  }
+
+  @if (error(); as mensaje) {
+    <bf-error-state [message]="mensaje" (retry)="recargar()" />
+  } @else if (!cargando() && resenas().length === 0) {
+    <bf-empty-state icon="rate_review" message="Todavía nadie ha reseñado este banco." />
+  } @else {
+    <ul class="lista">
+      @for (resena of resenas(); track resena.id) {
+        <li class="resena" [class.propia]="resena.autorId === miUid()">
+          <header>
+            <a [routerLink]="['/usuarios', resena.autorId]" class="autor">{{ resena.autorNombre ?? 'Usuario' }}</a>
+            <bf-star-rating [value]="resena.puntuacion" />
+            <time [attr.datetime]="resena.fecha">{{ resena.fecha | date: 'mediumDate' }}</time>
+            @if (resena.fechaEdicion) {
+              <span class="editada">(editada)</span>
+            }
+          </header>
+          @if (resena.comentario) {
+            <p>{{ resena.comentario }}</p>
+          }
+          @if (resena.autorId === miUid()) {
+            <div class="acciones">
+              <button mat-button type="button" (click)="empezarEdicion(resena)">
+                <mat-icon aria-hidden="true">edit</mat-icon> Editar
+              </button>
+              <button mat-button type="button" (click)="borrar(resena)">
+                <mat-icon aria-hidden="true">delete</mat-icon> Borrar
+              </button>
+            </div>
+          } @else if (auth.isAuthenticated()) {
+            <div class="acciones">
+              <button mat-button type="button" (click)="reportar(resena)" [attr.aria-label]="'Reportar la reseña de ' + (resena.autorNombre ?? 'usuario')">
+                <mat-icon aria-hidden="true">flag</mat-icon> Reportar
+              </button>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+    @if (cargando()) {
+      <bf-loading-state message="Cargando reseñas…" />
+    } @else if (hayMas()) {
+      <button mat-stroked-button type="button" class="mas" (click)="cargarMas()">Ver más reseñas</button>
+    }
+  }
+</section>
