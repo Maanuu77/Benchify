@@ -45,6 +45,21 @@ benchify:
     project-id: ${FIREBASE_PROJECT_ID:demo-benchify}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      # /actuator/health/liveness and /readiness for Cloud Run startup and liveness probes
+      probes:
+        enabled: true
+      show-details: never
+  info:
+    build:
+      enabled: true
+
 springdoc:
   api-docs:
     path: /v3/api-docs
