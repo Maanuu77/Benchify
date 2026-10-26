@@ -5,7 +5,6 @@ import com.benchify.shared.infrastructure.security.CurrentActor;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.IntegerSchema;
@@ -52,8 +51,7 @@ public class OpenApiConfig {
                         .description("""
                                 API REST del mapa colaborativo de bancos: búsqueda por cercanía, reseñas, \
                                 favoritos, check-ins y moderación. Las operaciones protegidas requieren el \
-                                ID token de Firebase Authentication en la cabecera `Authorization: Bearer`.""")
-                        .license(new License().name("MIT").url("https://opensource.org/licenses/MIT")))
+                                ID token de Firebase Authentication en la cabecera `Authorization: Bearer`."""))
                 .components(new Components()
                         .addSecuritySchemes(SECURITY_SCHEME, new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
