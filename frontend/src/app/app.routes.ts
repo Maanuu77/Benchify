@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { anonymousGuard, authGuard } from './core/auth/guards';
+import { adminGuard, anonymousGuard, authGuard } from './core/auth/guards';
 
 /** Cada feature se carga bajo demanda (lazy loading) para mantener pequeño el bundle inicial. */
 export const routes: Routes = [
@@ -36,6 +36,11 @@ export const routes: Routes = [
     path: 'usuarios/:id',
     title: 'Perfil · Benchify',
     loadComponent: () => import('./features/perfil/perfil-page').then((m) => m.PerfilPage),
+  },
+  {
+    path: 'admin',
+    canMatch: [adminGuard],
+    loadChildren: () => import('./features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
   },
   {
     path: 'login',
