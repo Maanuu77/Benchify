@@ -75,6 +75,11 @@ class BancoPersistenceAdapter implements BancoRepository, EtiquetaRepository {
     }
 
     @Override
+    public List<Banco> findAllById(List<UUID> ids) {
+        return cargarEnOrden(ids);
+    }
+
+    @Override
     public boolean existsPublicado(UUID id) {
         return bancos.existsByIdAndEstado(id, EstadoBanco.PUBLICADO);
     }
