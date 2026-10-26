@@ -1,12 +1,10 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { Shell } from './core/layout/shell';
 
 @Component({
   selector: 'bf-root',
-  imports: [RouterOutlet],
-  templateUrl: './app.html',
-  styleUrl: './app.scss'
+  imports: [Shell],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `<bf-shell />`,
 })
-export class App {
-  protected readonly title = signal('benchify-web');
-}
+export class App {}
