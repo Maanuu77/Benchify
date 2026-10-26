@@ -1,10 +1,14 @@
-import { provideHttpClient, withFetch } from '@angular/common/http';
-import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { registerLocaleData } from '@angular/common';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import localeEs from '@angular/common/locales/es';
+import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { initializeApp, provideFirebaseApp } from '@angular/fire/app';
+import { connectAuthEmulator, getAuth, provideAuth } from '@angular/fire/auth';
+import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 
+import { environment } from '../environments/environment';
 import { routes } from './app.routes';
+import { authInterceptor } from './core/auth/auth.interceptor';
 
 registerLocaleData(localeEs);
 
@@ -12,7 +16,15 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
-    provideHttpClient(withFetch()),
+    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+    provideFirebaseApp(() => initializeApp(environment.firebase)),
+    provideAuth(() => {
+      const auth = getAuth();
+      if (environment.emulators) {
+        connectAuthEmulator(auth, environment.emulators.auth, { disableWarnings: true });
+      }
+      return auth;
+    }),
     { provide: LOCALE_ID, useValue: 'es-ES' },
   ],
 };
