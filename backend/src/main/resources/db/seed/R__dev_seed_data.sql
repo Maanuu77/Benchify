@@ -62,3 +62,23 @@ FROM (VALUES
 ) AS b(id, etiqueta)
 JOIN etiquetas e ON e.nombre = b.etiqueta
 ON CONFLICT DO NOTHING;
+
+INSERT INTO resenas (id, banco_id, usuario_id, puntuacion, comentario, fecha) VALUES
+    ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', 'dev-user', 5,
+     'Las mejores vistas del río al atardecer.', now() - interval '20 days'),
+    ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000003', 'dev-user', 4,
+     'Mucha sombra, perfecto para leer.', now() - interval '15 days'),
+    ('10000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000004', 'dev-user', 5,
+     'Precioso, aunque en verano hay mucha gente.', now() - interval '10 days'),
+    ('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000002', 'dev-admin', 4,
+     'Clásico de Triana.', now() - interval '9 days'),
+    ('10000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-000000000005', 'dev-admin', 3,
+     'Agradable, algo ruidoso por las noches.', now() - interval '4 days')
+ON CONFLICT (id) DO NOTHING;
+
+-- Mantiene la valoración desnormalizada de los bancos de ejemplo coherente con sus reseñas
+UPDATE bancos b
+SET puntuacion_media = coalesce(r.media, 0), num_resenas = coalesce(r.total, 0)
+FROM (SELECT banco_id, round(avg(puntuacion)::numeric, 1)::double precision AS media, count(*) AS total
+      FROM resenas GROUP BY banco_id) r
+WHERE b.id = r.banco_id AND b.id::text LIKE '00000000-0000-4000-8000-%';
