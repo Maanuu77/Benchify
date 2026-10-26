@@ -9,8 +9,10 @@ import com.benchify.shared.domain.Rol;
 import com.benchify.usuario.application.port.in.AdministrarUsuariosUseCase;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase;
 import com.benchify.usuario.application.port.in.SincronizarUsuarioUseCase;
+import com.benchify.usuario.application.port.out.EstadisticasUsuarioPort;
 import com.benchify.usuario.application.port.out.ProveedorIdentidadPort;
 import com.benchify.usuario.application.port.out.UsuarioRepository;
+import com.benchify.usuario.domain.EstadisticasUsuario;
 import com.benchify.usuario.domain.IdentidadUsuario;
 import com.benchify.usuario.domain.Usuario;
 import com.benchify.usuario.domain.UsuarioNotFoundException;
@@ -25,11 +27,14 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
 
     private final UsuarioRepository usuarios;
     private final ProveedorIdentidadPort proveedorIdentidad;
+    private final EstadisticasUsuarioPort estadisticas;
     private final Clock clock;
 
-    public UsuarioService(UsuarioRepository usuarios, ProveedorIdentidadPort proveedorIdentidad, Clock clock) {
+    public UsuarioService(UsuarioRepository usuarios, ProveedorIdentidadPort proveedorIdentidad,
+            EstadisticasUsuarioPort estadisticas, Clock clock) {
         this.usuarios = usuarios;
         this.proveedorIdentidad = proveedorIdentidad;
+        this.estadisticas = estadisticas;
         this.clock = clock;
     }
 
@@ -52,6 +57,15 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
     public Usuario actualizarPerfil(Actor actor, ActualizarPerfilCommand command) {
         Usuario usuario = obtener(actor.userId());
         return usuarios.save(usuario.actualizarPerfil(command.nombre(), command.ciudad()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EstadisticasUsuario estadisticas(String usuarioId) {
+        if (!usuarios.existsById(usuarioId)) {
+            throw new UsuarioNotFoundException(usuarioId);
+        }
+        return estadisticas.contar(usuarioId);
     }
 
     @Override
