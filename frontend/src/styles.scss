@@ -38,6 +38,10 @@ body {
   height: 100%;
 }
 
+a {
+  color: var(--mat-sys-primary);
+}
+
 // ── Marcadores del mapa (Leaflet divIcon) ─────────────────────────────────────
 .bf-marker {
   display: flex;
