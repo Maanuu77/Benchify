@@ -1,0 +1,15 @@
+target/
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.factorypath
+*.log
+.env
+.env.*
+serviceAccount*.json
+*firebase-adminsdk*.json
+Dockerfile
+.dockerignore
