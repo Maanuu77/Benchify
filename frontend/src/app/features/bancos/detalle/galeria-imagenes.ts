@@ -44,7 +44,15 @@ export function validarImagen(file: File): string | null {
         <ul class="galeria">
           @for (imagen of imagenes(); track imagen.id; let i = $index) {
             <li>
-              <img [src]="imagen.url" [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy" />
+              @if (rotas().has(imagen.id)) {
+                <div class="rota" role="img" [attr.aria-label]="'Foto ' + (i + 1) + ' no disponible'">
+                  <mat-icon aria-hidden="true">broken_image</mat-icon>
+                  <span>Foto no disponible</span>
+                </div>
+              } @else {
+                <img [src]="imagen.url" [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy"
+                     (error)="marcarRota(imagen.id)" />
+              }
               @if (imagen.estado === 'PENDIENTE') {
                 <span class="pendiente">Pendiente de revisión</span>
               }
@@ -92,6 +100,18 @@ export function validarImagen(file: File): string | null {
       border-radius: 8px;
       display: block;
     }
+    .rota {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      aspect-ratio: 4 / 3;
+      border-radius: 8px;
+      background: var(--mat-sys-surface-container-high);
+      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-label-medium);
+    }
     .pendiente {
       position: absolute;
       left: 8px;
@@ -124,6 +144,8 @@ export class GaleriaImagenes {
   protected readonly imagenes = signal<Imagen[]>([]);
   protected readonly error = signal<string | null>(null);
   protected readonly subiendo = signal(false);
+  /** Imágenes cuyo fichero no se ha podido descargar (borrado o sin conexión con Storage). */
+  protected readonly rotas = signal(new Set<string>());
   protected readonly miUid = computed(() => this.auth.session()?.uid ?? null);
 
   constructor() {
@@ -153,6 +175,10 @@ export class GaleriaImagenes {
     } finally {
       this.subiendo.set(false);
     }
+  }
+
+  protected marcarRota(id: string): void {
+    this.rotas.update((actuales) => new Set(actuales).add(id));
   }
 
   protected async borrar(imagen: Imagen): Promise<void> {
