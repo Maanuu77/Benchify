@@ -32,6 +32,9 @@ HELP.md
 node_modules/
 dist/
 .angular/
+.sass-cache/
+out-tsc/
+*.tsbuildinfo
 coverage/
 npm-debug.log*
 yarn-error.log*
