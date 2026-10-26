@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -97,6 +98,12 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void concurrentUpdatesAreConflicts() {
+        assertThat(mvc.get().uri("/stale")).hasStatus(409)
+                .bodyJson().extractingPath("$.code").isEqualTo("CONFLICTO_CONCURRENTE");
+    }
+
+    @Test
     void hidesUnexpectedErrorDetails() {
         assertThat(mvc.get().uri("/boom"))
                 .hasStatus(500)
@@ -154,6 +161,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/too-big")
         void tooBig() {
             throw new MaxUploadSizeExceededException(10 * 1024 * 1024);
+        }
+
+        @GetMapping("/stale")
+        void stale() {
+            throw new OptimisticLockingFailureException("version mismatch");
         }
 
         @GetMapping("/boom")

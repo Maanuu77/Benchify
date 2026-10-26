@@ -8,6 +8,8 @@ import com.benchify.shared.domain.NotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -57,6 +59,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     ProblemDetail handleBusinessRule(BusinessRuleException ex) {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex);
+    }
+
+    /** Dos escrituras simultáneas sobre el mismo recurso (versión optimista o bloqueo). */
+    @ExceptionHandler({OptimisticLockingFailureException.class, PessimisticLockingFailureException.class})
+    ProblemDetail handleConcurrentUpdate(RuntimeException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "El recurso se ha modificado a la vez desde otra petición; vuelve a intentarlo");
+        problem.setProperty(CODE, "CONFLICTO_CONCURRENTE");
+        return problem;
     }
 
     @ExceptionHandler(AccessDeniedException.class)
