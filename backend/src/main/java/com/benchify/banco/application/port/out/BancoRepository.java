@@ -26,6 +26,9 @@ public interface BancoRepository {
      */
     Optional<Banco> findByIdForUpdate(UUID id);
 
+    /** Carga varios bancos respetando el orden de {@code ids}; los inexistentes se omiten. */
+    List<Banco> findAllById(List<UUID> ids);
+
     boolean existsPublicado(UUID id);
 
     /** Publicados dentro del área, mejor valorados primero. */
