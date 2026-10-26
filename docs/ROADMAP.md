@@ -59,17 +59,17 @@ Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 | #   | Issue | Rama | Estado |
 |-----|-------|------|--------|
 | #23 | Workspace Angular 21: standalone, zoneless, signals, control flow, estructura core/shared/features, Angular Material | `feature/frontend-scaffold` | ✅ |
-| #24 | Firebase Auth en cliente (AngularFire): email/contraseña y Google | `feature/frontend-auth` | ⬜ |
-| #25 | Interceptor HTTP con el ID token y guards por rol | `feature/frontend-auth` | ⬜ |
-| #26 | Cliente de la API: modelos y servicios por feature | `feature/frontend-api-client` | ⬜ |
-| #27 | Mapa con Leaflet: marcadores, clustering, búsqueda por cercanía | `feature/frontend-map` | ⬜ |
-| #28 | Detalle de banco: reseñas, favorito, check-in, galería | `feature/frontend-bench-detail` | ⬜ |
-| #29 | Alta de banco con selección en mapa y subida de imágenes | `feature/frontend-bench-create` | ⬜ |
-| #30 | Perfil de usuario: favoritos, check-ins y bancos subidos | `feature/frontend-profile` | ⬜ |
-| #31 | Panel de administración y moderación | `feature/frontend-admin` | ⬜ |
-| #32 | Estados de carga/error, diseño responsive y accesibilidad | (transversal) | ⬜ |
-| #33 | Tests unitarios de servicios y componentes (Vitest) | (transversal) | ⬜ |
-| #34 | Tests e2e básicos con Playwright | `feature/frontend-e2e` | ⬜ |
+| #24 | Firebase Auth en cliente (AngularFire): email/contraseña y Google | `feature/frontend-auth` | ✅ |
+| #25 | Interceptor HTTP con el ID token y guards por rol | `feature/frontend-auth` | ✅ |
+| #26 | Cliente de la API: modelos y servicios por feature | `feature/frontend-api-client` | ✅ |
+| #27 | Mapa con Leaflet: marcadores, clustering, búsqueda por cercanía | `feature/frontend-map` | ✅ |
+| #28 | Detalle de banco: reseñas, favorito, check-in, galería | `feature/frontend-bench-detail` | ✅ |
+| #29 | Alta de banco con selección en mapa y subida de imágenes | `feature/frontend-bench-create` | ✅ |
+| #30 | Perfil de usuario: favoritos, check-ins y bancos subidos | `feature/frontend-profile` | ✅ |
+| #31 | Panel de administración y moderación | `feature/frontend-admin` | ✅ |
+| #32 | Estados de carga/error, diseño responsive y accesibilidad | (en cada rama de frontend) | ✅ |
+| #33 | Tests unitarios de servicios y componentes (Vitest) | (en cada rama de frontend) | ✅ |
+| #34 | Tests e2e básicos con Playwright | `feature/frontend-e2e` | ✅ |
 
 ## Sprint 3 — DevOps y documentación
 
