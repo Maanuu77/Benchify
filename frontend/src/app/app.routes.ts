@@ -27,6 +27,17 @@ export const routes: Routes = [
     loadComponent: () => import('./features/bancos/detalle/banco-detalle-page').then((m) => m.BancoDetallePage),
   },
   {
+    path: 'perfil',
+    title: 'Mi perfil · Benchify',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/perfil/perfil-page').then((m) => m.PerfilPage),
+  },
+  {
+    path: 'usuarios/:id',
+    title: 'Perfil · Benchify',
+    loadComponent: () => import('./features/perfil/perfil-page').then((m) => m.PerfilPage),
+  },
+  {
     path: 'login',
     title: 'Iniciar sesión · Benchify',
     canActivate: [anonymousGuard],
