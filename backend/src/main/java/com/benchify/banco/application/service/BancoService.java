@@ -14,11 +14,11 @@ import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.DireccionPostal;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
-import com.benchify.banco.domain.Ubicacion;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
+import com.benchify.shared.domain.Ubicacion;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

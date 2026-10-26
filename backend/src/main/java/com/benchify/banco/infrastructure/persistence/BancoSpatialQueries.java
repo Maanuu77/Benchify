@@ -2,8 +2,8 @@ package com.benchify.banco.infrastructure.persistence;
 
 import com.benchify.banco.domain.BoundingBox;
 import com.benchify.banco.domain.FiltroBancos;
-import com.benchify.banco.domain.Ubicacion;
 import com.benchify.shared.domain.PageQuery;
+import com.benchify.shared.domain.Ubicacion;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
