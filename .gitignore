@@ -8,8 +8,8 @@ desktop.ini
 *.iml
 *.iws
 *.ipr
-.vscode/*
-!.vscode/extensions.json
+**/.vscode/*
+!**/.vscode/extensions.json
 .classpath
 .project
 .factorypath
