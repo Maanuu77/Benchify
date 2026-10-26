@@ -34,7 +34,7 @@ class FirebaseStorageConfig {
     @Bean
     AlmacenImagenesPort almacenImagenes(Storage firebaseStorage, FirebaseProperties properties) {
         String publicBaseUrl = properties.emulator().storageEnabled()
-                ? properties.emulator().storageHost()
+                ? properties.emulator().publicStorageUrl()
                 : FIREBASE_DOWNLOAD_HOST;
         return new FirebaseStorageAdapter(firebaseStorage, properties.storageBucket(), publicBaseUrl);
     }

@@ -18,6 +18,7 @@ benchify:
     emulator:
       auth-host: ${FIREBASE_AUTH_EMULATOR_HOST:localhost:9099}
       storage-host: ${FIREBASE_STORAGE_EMULATOR_URL:http://localhost:9199}
+      storage-public-url: ${FIREBASE_STORAGE_PUBLIC_URL:}
   # Demo users created in the Auth emulator on startup (admin@benchify.dev, ana@benchify.dev)
   seed:
     enabled: ${SEED_ENABLED:true}
