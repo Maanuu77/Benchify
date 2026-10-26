@@ -1,59 +1,38 @@
-# BenchifyWeb
+# Benchify · Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.28.
+SPA en **Angular 21** (standalone, zoneless, signals) con Angular Material, AngularFire y Leaflet.
+Consume la API REST del [backend](../backend) y se despliega en Firebase Hosting.
 
-## Development server
+## Estructura
 
-To start a local development server, run:
-
-```bash
-ng serve
+```
+src/app/
+├── core/       Servicios de toda la app: auth (Firebase, guards, interceptor), api, geo, layout, ui
+├── shared/     Componentes reutilizables: mapa (Leaflet), estados de carga/error/vacío, valoración…
+└── features/   Una carpeta por pantalla, cargadas bajo demanda: mapa, bancos, perfil, auth, admin
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Scripts
 
-## Code scaffolding
+| Comando | Qué hace |
+|---------|----------|
+| `npm start` | Servidor de desarrollo en http://localhost:4200 |
+| `npm test -- --watch=false` | Tests unitarios (Vitest) |
+| `npm run lint` | ESLint con reglas de Angular y de accesibilidad |
+| `npm run build` | Build de producción en `dist/` |
+| `npm run e2e` | E2E con Playwright (escritorio y móvil) con la API simulada |
+| `npm run e2e:stack` | E2E contra el backend y Firebase Emulator Suite reales |
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+En local puedes usar un navegador instalado en lugar de descargar Chromium:
+`PW_CHANNEL=msedge npm run e2e` (o `chrome`).
 
-```bash
-ng generate component component-name
-```
+## Configuración
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- `src/environments/environment.ts`: desarrollo, apunta a `http://localhost:8080/api/v1` y al
+  emulador de Auth del proyecto `demo-benchify`.
+- `src/environments/environment.prod.ts`: producción; rellena la configuración web de Firebase
+  y la URL de Cloud Run antes de desplegar.
 
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Usuarios de prueba en desarrollo (los crea el backend al arrancar con el perfil `dev`):
+`admin@benchify.dev` (administrador) y `ana@benchify.dev`, con la contraseña definida en
+`SEED_USERS_PASSWORD` (por defecto, la de `backend/src/main/resources/application-dev.yml`).
