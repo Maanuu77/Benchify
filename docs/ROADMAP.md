@@ -19,6 +19,8 @@ API REST hexagonal, frontend Angular, Firebase y PostGIS.
 
 Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 
+**Versión actual: 1.0.0** (ver [CHANGELOG](../CHANGELOG.md)).
+
 ---
 
 ## Sprint 0 — Limpieza y monorepo
@@ -75,14 +77,14 @@ Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 
 | #   | Issue | Rama | Estado |
 |-----|-------|------|--------|
-| #35 | Dockerfile multi-stage del backend | `chore/backend-dockerfile` | ⬜ |
-| #36 | `docker-compose`: PostgreSQL + PostGIS y Firebase Emulator Suite | `chore/docker-compose` | ⬜ |
-| #37 | GitHub Actions: job backend (build, test, cobertura) | `ci/github-actions` | ⬜ |
-| #38 | GitHub Actions: job frontend (lint, test, build) | `ci/github-actions` | ⬜ |
-| #39 | Despliegue: backend en Cloud Run | `chore/deploy-config` | ⬜ |
-| #40 | Despliegue: frontend en Firebase Hosting (`firebase.json`, `.firebaserc`, environments) | `chore/deploy-config` | ⬜ |
-| #41 | README profesional con diagrama Mermaid, setup y badges; `.env.example` | `docs/readme` | ⬜ |
-| #42 | Release 1.0.0: `CHANGELOG.md`, merge a `main` y tag `v1.0.0` | `release/1.0.0` | ⬜ |
+| #35 | Dockerfile multi-stage del backend | `chore/backend-dockerfile` | ✅ |
+| #36 | `docker-compose`: PostgreSQL + PostGIS y Firebase Emulator Suite | `chore/docker-compose` | ✅ |
+| #37 | GitHub Actions: job backend (build, test, cobertura) | `ci/github-actions` | ✅ |
+| #38 | GitHub Actions: job frontend (lint, test, build) | `ci/github-actions` | ✅ |
+| #39 | Despliegue: backend en Cloud Run | `chore/deploy-config` | ✅ |
+| #40 | Despliegue: frontend en Firebase Hosting (`firebase.json`, `.firebaserc`, environments) | `chore/deploy-config` | ✅ |
+| #41 | README profesional con diagrama Mermaid, setup y badges; `.env.example` | `docs/readme` | ✅ |
+| #42 | Release 1.0.0: `CHANGELOG.md`, merge a `main` y tag `v1.0.0` | `release/1.0.0` | ✅ |
 
 ## Después de la 1.0 (backlog)
 
