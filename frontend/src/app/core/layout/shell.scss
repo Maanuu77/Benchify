@@ -65,3 +65,10 @@
     top: 8px;
   }
 }
+
+.menu-name {
+  margin: 0;
+  padding: 8px 16px;
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+}
