@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { anonymousGuard } from './core/auth/guards';
+import { anonymousGuard, authGuard } from './core/auth/guards';
 
 /** Cada feature se carga bajo demanda (lazy loading) para mantener pequeño el bundle inicial. */
 export const routes: Routes = [
@@ -8,6 +8,18 @@ export const routes: Routes = [
     path: 'mapa',
     title: 'Mapa · Benchify',
     loadComponent: () => import('./features/mapa/mapa-page').then((m) => m.MapaPage),
+  },
+  {
+    path: 'bancos/nuevo',
+    title: 'Añadir banco · Benchify',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/bancos/formulario/banco-form-page').then((m) => m.BancoFormPage),
+  },
+  {
+    path: 'bancos/:id/editar',
+    title: 'Editar banco · Benchify',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/bancos/formulario/banco-form-page').then((m) => m.BancoFormPage),
   },
   {
     path: 'bancos/:id',
