@@ -1,0 +1,69 @@
+# Changelog
+
+Todos los cambios relevantes de Benchify. Formato basado en
+[Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); el proyecto sigue
+[versionado semántico](https://semver.org/lang/es/). Los números `#n` son issues del
+[roadmap](docs/ROADMAP.md).
+
+## [1.0.0] - 2026-10-26
+
+Primera versión de la reescritura: el monolito Spring Boot + Thymeleaf + HTMX pasa a un monorepo
+con una API REST hexagonal y una SPA Angular, con Firebase y PostGIS.
+
+### Añadido
+
+- **Monorepo** `backend/`, `frontend/` y `docs/`, con roadmap y ADRs 0001–0009 (#1–#4).
+- **API REST `/api/v1`** en Spring Boot 4.1 y Java 21 con arquitectura hexagonal por feature:
+  `banco`, `resena`, `usuario`, `favorito`, `checkin` y `moderacion` (#5–#18).
+  - Bancos: propuesta, edición, borrado lógico, etiquetas, búsqueda por bounding box y por
+    cercanía con PostGIS (`ST_DWithin`) y filtros (#12, #13).
+  - Fotos en Firebase Cloud Storage con validación del contenido real (JPEG/PNG/WebP, 5 MB) (#14).
+  - Reseñas con media desnormalizada consistente ante escrituras concurrentes y reportes únicos
+    por usuario (#15).
+  - Favoritos idempotentes (#16) y check-ins validados por proximidad y tiempo (#17).
+  - Panel de moderación: bancos, reseñas reportadas, fotos y estadísticas (#18).
+  - Perfil propio y público con estadísticas de actividad (#11).
+- **Autenticación con Firebase**: filtro que verifica el ID token, roles USER/ADMIN como custom
+  claims, alta automática del perfil local y gestión de roles (#10, #11).
+- **Errores RFC 9457** (`ProblemDetail`) con `code` estable, validación con Bean Validation y
+  paginación común (#9).
+- **Esquema con Flyway** (V1–V7) y datos de ejemplo de Sevilla en el perfil `dev` (#8).
+- **Perfiles** `dev`, `test` y `prod` con CORS configurable (#7).
+- **OpenAPI 3 / Swagger UI** con el esquema de seguridad de Firebase (#19).
+- **Tests de backend**: unitarios, slices web, integración con Testcontainers (PostGIS),
+  flujos completos de la API, 11 reglas ArchUnit y umbral JaCoCo (#20–#22).
+- **Frontend Angular 21** (standalone, zoneless, signals, control flow) con Angular Material 3 (#23):
+  - Login y registro con email/contraseña y Google mediante AngularFire; interceptor del ID token
+    y guards por rol (#24, #25).
+  - Mapa Leaflet con clustering, filtros y "cerca de mí" (#27).
+  - Ficha de banco con reseñas, fotos, favorito y check-in (#28).
+  - Alta y edición con selector de ubicación y subida de fotos (#29).
+  - Perfil (#30) y panel de administración (#31).
+  - Estados de carga/error/vacío, diseño responsive, modo oscuro y accesibilidad (#32).
+  - Tests con Vitest (#33) y e2e con Playwright en escritorio, móvil y contra el stack real (#34).
+- **DevOps**: Dockerfile multi-stage con usuario sin privilegios (#35), docker compose con
+  PostGIS y Firebase Emulator Suite (#36), GitHub Actions para backend y frontend y Dependabot
+  (#37, #38), despliegue en Cloud Run con Cloud SQL y Secret Manager (#39) y en Firebase Hosting
+  (#40).
+- README con arquitectura, guía de puesta en marcha, capturas y `.env.example` (#41).
+
+### Cambiado
+
+- Spring Boot 4.0.6 → 4.1.2 y artefacto `benchify-backend` (#5).
+- Usuarios identificados por el UID de Firebase en lugar de un id numérico (#11).
+- La ubicación de los bancos es una columna `geography` generada a partir de lat/lng (#12).
+
+### Eliminado
+
+- Vistas Thymeleaf, HTMX, plantillas y recursos estáticos (#6).
+- JWT propio, almacenamiento de contraseñas y el secreto en `application.properties` (#10).
+- H2, `data.sql` y `ddl-auto=update` (#8).
+- Implementación por capas anterior (#48).
+
+### Seguridad
+
+- Ningún secreto en el repositorio: credenciales por Application Default Credentials y Secret Manager.
+- Reglas de Storage: lectura pública de fotos de bancos y ninguna escritura desde el cliente.
+- Respuestas 401/403 sin filtrar detalles internos; los errores inesperados no exponen mensajes.
+
+[1.0.0]: https://github.com/Maanuu77/Benchify/releases/tag/v1.0.0
