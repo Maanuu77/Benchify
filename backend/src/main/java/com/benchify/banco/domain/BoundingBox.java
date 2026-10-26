@@ -1,6 +1,7 @@
 package com.benchify.banco.domain;
 
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.Ubicacion;
 
 /** Rectángulo visible del mapa. No cruza el antimeridiano. */
 public record BoundingBox(double minLat, double minLng, double maxLat, double maxLng) {

@@ -5,9 +5,9 @@ import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BoundingBox;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.FiltroBancos;
-import com.benchify.banco.domain.Ubicacion;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
+import com.benchify.shared.domain.Ubicacion;
 
 import java.util.List;
 import java.util.Optional;

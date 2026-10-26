@@ -6,8 +6,8 @@ import com.benchify.banco.domain.Caracteristicas;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.DireccionPostal;
 import com.benchify.banco.domain.Etiqueta;
-import com.benchify.banco.domain.Ubicacion;
 import com.benchify.banco.domain.Valoracion;
+import com.benchify.shared.domain.Ubicacion;
 import org.mapstruct.Mapper;
 
 import java.util.Set;

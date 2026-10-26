@@ -1,6 +1,7 @@
 package com.benchify.banco.domain;
 
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.Ubicacion;
 
 import java.util.Objects;
 import java.util.Set;

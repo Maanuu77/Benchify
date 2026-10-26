@@ -3,6 +3,7 @@ package com.benchify.banco.domain;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ForbiddenException;
+import com.benchify.shared.domain.Ubicacion;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 

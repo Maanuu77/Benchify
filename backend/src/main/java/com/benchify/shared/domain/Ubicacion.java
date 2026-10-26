@@ -1,6 +1,5 @@
-package com.benchify.banco.domain;
+package com.benchify.shared.domain;
 
-import com.benchify.shared.domain.BusinessRuleException;
 
 /** Punto WGS84 (EPSG:4326). */
 public record Ubicacion(double lat, double lng) {
