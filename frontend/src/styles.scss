@@ -37,3 +37,30 @@ body {
   margin: 0;
   height: 100%;
 }
+
+// ── Marcadores del mapa (Leaflet divIcon) ─────────────────────────────────────
+.bf-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--mat-sys-primary);
+  border: 2px solid var(--mat-sys-on-primary);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+
+  .material-icons {
+    transform: rotate(45deg);
+    font-size: 20px;
+    color: var(--mat-sys-on-primary);
+  }
+
+  &--selected {
+    background: var(--mat-sys-tertiary);
+  }
+}
+
+.snack-error {
+  --mat-snack-bar-container-color: var(--mat-sys-error-container);
+  --mat-snack-bar-supporting-text-color: var(--mat-sys-on-error-container);
+}

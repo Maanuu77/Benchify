@@ -1,0 +1,101 @@
+<div class="layout">
+  <aside class="panel" aria-labelledby="titulo-mapa">
+    <header class="panel-header">
+      <h1 id="titulo-mapa">Bancos en el mapa</h1>
+      <button mat-flat-button type="button" [disabled]="localizando()" (click)="buscarCerca()">
+        <mat-icon aria-hidden="true">my_location</mat-icon>
+        {{ localizando() ? 'Localizando…' : 'Cerca de mí' }}
+      </button>
+    </header>
+
+    <bf-filtros-bancos [(filtro)]="filtro" />
+
+    @if (seleccionado(); as banco) {
+      <article class="seleccionado" aria-live="polite">
+        <h2>{{ banco.titulo }}</h2>
+        <div class="valoracion">
+          <bf-star-rating [value]="banco.puntuacionMedia" />
+          <span>{{ banco.numResenas }} {{ banco.numResenas === 1 ? 'reseña' : 'reseñas' }}</span>
+        </div>
+        @if (banco.ciudad) {
+          <p class="ciudad">{{ banco.ciudad }}</p>
+        }
+        <a mat-stroked-button [routerLink]="['/bancos', banco.id]">Ver ficha</a>
+      </article>
+    }
+
+    @if (cercanos(); as estado) {
+      <section aria-labelledby="titulo-cercanos">
+        <div class="section-header">
+          <h2 id="titulo-cercanos">Cerca de ti</h2>
+          <button mat-button type="button" (click)="cerrarCercanos()">Ver los del mapa</button>
+        </div>
+        @switch (estado.status) {
+          @case ('loading') {
+            <bf-loading-state message="Buscando bancos cercanos…" />
+          }
+          @case ('error') {
+            <bf-error-state [message]="estado.error.message" [retryable]="!!usuario()" (retry)="cargarCercanos(usuario()!)" />
+          }
+          @case ('success') {
+            @if (estado.value.content.length === 0) {
+              <bf-empty-state icon="wrong_location" message="No hay bancos a menos de 1,5 km. ¿Añades uno?" />
+            } @else {
+              <mat-nav-list>
+                @for (item of estado.value.content; track item.banco.id) {
+                  <a mat-list-item [routerLink]="['/bancos', item.banco.id]" (focus)="enfocar(item.banco)">
+                    <span matListItemTitle>{{ item.banco.titulo }}</span>
+                    <span matListItemLine>
+                      {{ item.distanciaMetros | distancia }} · ★ {{ item.banco.puntuacionMedia | number: '1.1-1' }}
+                    </span>
+                  </a>
+                }
+              </mat-nav-list>
+            }
+          }
+        }
+      </section>
+    } @else {
+      <section aria-labelledby="titulo-visibles">
+        <h2 id="titulo-visibles">
+          {{ bancos().length }} {{ bancos().length === 1 ? 'banco' : 'bancos' }} en esta zona
+        </h2>
+        @switch (estado().status) {
+          @case ('error') {
+            <bf-error-state message="No hemos podido cargar los bancos de esta zona." [retryable]="false" />
+          }
+          @default {
+            @if (estado().status === 'loading' && bancos().length === 0) {
+              <bf-loading-state message="Cargando bancos…" />
+            } @else if (bancos().length === 0) {
+              <bf-empty-state icon="search_off" message="No hay bancos aquí con estos filtros. Mueve el mapa o quita filtros." />
+            } @else {
+              <mat-nav-list aria-label="Bancos mejor valorados de la zona">
+                @for (banco of mejorValorados(); track banco.id) {
+                  <a mat-list-item [routerLink]="['/bancos', banco.id]" (focus)="enfocar(banco)">
+                    <span matListItemTitle>{{ banco.titulo }}</span>
+                    <span matListItemLine>
+                      ★ {{ banco.puntuacionMedia | number: '1.1-1' }} · {{ banco.numResenas }}
+                      {{ banco.numResenas === 1 ? 'reseña' : 'reseñas' }}
+                      @if (banco.ciudad) { · {{ banco.ciudad }} }
+                    </span>
+                  </a>
+                }
+              </mat-nav-list>
+            }
+          }
+        }
+      </section>
+    }
+  </aside>
+
+  <bf-bench-map
+    class="mapa"
+    [bancos]="bancos()"
+    [centro]="centroInicial"
+    [zoom]="zoomInicial"
+    [usuario]="usuario()"
+    (areaChange)="area.set($event)"
+    (bancoSelect)="seleccionado.set($event)"
+  />
+</div>
