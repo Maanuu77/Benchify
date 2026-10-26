@@ -1,0 +1,77 @@
+h2 {
+  font: var(--mat-sys-title-large);
+}
+
+h3 {
+  margin: 0;
+  font: var(--mat-sys-title-small);
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
+}
+
+.comentario {
+  width: 100%;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.aviso {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.resena {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  p {
+    margin: 8px 0 0;
+    white-space: pre-line;
+  }
+
+  &.propia {
+    background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
+    padding-inline: 8px;
+    border-radius: 8px;
+  }
+}
+
+.autor {
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-primary);
+}
+
+time,
+.editada {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.mas {
+  display: block;
+  margin: 16px auto 0;
+}
