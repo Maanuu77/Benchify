@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
 @Documented
 @WebMvcTest
 @ActiveProfiles("test")
-@Import({SecurityConfig.class, CorsConfig.class, ClockConfig.class, TestSecurityConfig.class})
+@Import({SecurityConfig.class, CorsConfig.class, ClockConfig.class, TestAdaptersConfig.class})
 @MockitoBean(types = SincronizarUsuarioUseCase.class)
 public @interface ApiControllerTest {
 
