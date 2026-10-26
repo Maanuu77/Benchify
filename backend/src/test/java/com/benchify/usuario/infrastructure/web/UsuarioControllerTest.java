@@ -6,6 +6,7 @@ import com.benchify.support.ApiControllerTest;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase.ActualizarPerfilCommand;
 import com.benchify.usuario.application.port.in.SincronizarUsuarioUseCase;
+import com.benchify.usuario.domain.EstadisticasUsuario;
 import com.benchify.usuario.domain.IdentidadUsuario;
 import com.benchify.usuario.domain.Usuario;
 import com.benchify.usuario.domain.UsuarioNotFoundException;
@@ -96,6 +97,15 @@ class UsuarioControllerTest {
                     assertThat(json).doesNotHavePath("$.email");
                     assertThat(json).doesNotHavePath("$.rol");
                 });
+    }
+
+    @Test
+    void statisticsArePublic() {
+        when(perfilUsuario.estadisticas("ana")).thenReturn(new EstadisticasUsuario(2, 5, 3, 7));
+
+        assertThat(mvc.get().uri("/api/v1/usuarios/ana/estadisticas"))
+                .hasStatusOk()
+                .bodyJson().extractingPath("$.checkIns").isEqualTo(7);
     }
 
     @Test
