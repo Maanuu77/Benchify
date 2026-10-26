@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "benchify-prod",
+    "dev": "demo-benchify"
+  }
+}

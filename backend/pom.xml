@@ -29,6 +29,7 @@
 		<springdoc.version>3.2.0</springdoc.version>
 		<archunit.version>1.5.1</archunit.version>
 		<firebase-admin.version>9.11.0</firebase-admin.version>
+		<cloud-sql-socket-factory.version>1.30.2</cloud-sql-socket-factory.version>
 		<jacoco.version>0.8.15</jacoco.version>
 		<jacoco.minimum.line>0.70</jacoco.minimum.line>
 		<jacoco.minimum.branch>0.60</jacoco.minimum.branch>
@@ -72,6 +73,13 @@
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<!-- Cloud Run → Cloud SQL over IAM-authorized TLS, without public IP allow-lists -->
+			<groupId>com.google.cloud.sql</groupId>
+			<artifactId>postgres-socket-factory</artifactId>
+			<version>${cloud-sql-socket-factory.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
