@@ -3,6 +3,7 @@ package com.benchify.usuario.infrastructure.web;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.infrastructure.security.CurrentActor;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase;
+import com.benchify.usuario.domain.EstadisticasUsuario;
 import com.benchify.usuario.infrastructure.web.dto.ActualizarPerfilRequest;
 import com.benchify.usuario.infrastructure.web.dto.PerfilPublicoResponse;
 import com.benchify.usuario.infrastructure.web.dto.UsuarioResponse;
@@ -43,6 +44,12 @@ class UsuarioController {
     @SecurityRequirement(name = "firebase")
     UsuarioResponse actualizar(@CurrentActor Actor actor, @Valid @RequestBody ActualizarPerfilRequest request) {
         return mapper.toResponse(perfilUsuario.actualizarPerfil(actor, mapper.toCommand(request)));
+    }
+
+    @GetMapping("/{id}/estadisticas")
+    @Operation(summary = "Actividad pública de un usuario: bancos, reseñas, favoritos y check-ins")
+    EstadisticasUsuario estadisticas(@PathVariable String id) {
+        return perfilUsuario.estadisticas(id);
     }
 
     @GetMapping("/{id}")

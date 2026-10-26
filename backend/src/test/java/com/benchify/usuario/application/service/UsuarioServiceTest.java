@@ -7,8 +7,10 @@ import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Rol;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase.ActualizarPerfilCommand;
+import com.benchify.usuario.application.port.out.EstadisticasUsuarioPort;
 import com.benchify.usuario.application.port.out.ProveedorIdentidadPort;
 import com.benchify.usuario.application.port.out.UsuarioRepository;
+import com.benchify.usuario.domain.EstadisticasUsuario;
 import com.benchify.usuario.domain.IdentidadUsuario;
 import com.benchify.usuario.domain.Usuario;
 import com.benchify.usuario.domain.UsuarioNotFoundException;
@@ -42,12 +44,14 @@ class UsuarioServiceTest {
     private UsuarioRepository usuarios;
     @Mock
     private ProveedorIdentidadPort proveedorIdentidad;
+    @Mock
+    private EstadisticasUsuarioPort estadisticas;
 
     private UsuarioService service;
 
     @BeforeEach
     void setUp() {
-        service = new UsuarioService(usuarios, proveedorIdentidad, Clock.fixed(AHORA, ZoneOffset.UTC));
+        service = new UsuarioService(usuarios, proveedorIdentidad, estadisticas, Clock.fixed(AHORA, ZoneOffset.UTC));
         lenient().when(usuarios.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -87,6 +91,15 @@ class UsuarioServiceTest {
         when(usuarios.findById("nadie")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.obtener("nadie")).isInstanceOf(UsuarioNotFoundException.class);
+    }
+
+    @Test
+    void statisticsRequireAnExistingUser() {
+        when(usuarios.existsById("ana")).thenReturn(true);
+        when(estadisticas.contar("ana")).thenReturn(new EstadisticasUsuario(2, 5, 3, 7));
+
+        assertThat(service.estadisticas("ana")).isEqualTo(new EstadisticasUsuario(2, 5, 3, 7));
+        assertThatThrownBy(() -> service.estadisticas("ghost")).isInstanceOf(UsuarioNotFoundException.class);
     }
 
     @Test
