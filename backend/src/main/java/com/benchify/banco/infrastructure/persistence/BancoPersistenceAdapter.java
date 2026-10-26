@@ -70,6 +70,11 @@ class BancoPersistenceAdapter implements BancoRepository, EtiquetaRepository {
     }
 
     @Override
+    public Optional<Banco> findByIdForUpdate(UUID id) {
+        return bancos.findByIdForUpdate(id).map(mapper::toDomain);
+    }
+
+    @Override
     public boolean existsPublicado(UUID id) {
         return bancos.existsByIdAndEstado(id, EstadoBanco.PUBLICADO);
     }

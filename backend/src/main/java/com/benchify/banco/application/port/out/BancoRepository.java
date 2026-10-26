@@ -20,6 +20,12 @@ public interface BancoRepository {
 
     Optional<Banco> findById(UUID id);
 
+    /**
+     * Lee el banco bloqueando su fila hasta el final de la transacción. Lo usan las reseñas para
+     * recalcular la valoración sin perder actualizaciones concurrentes.
+     */
+    Optional<Banco> findByIdForUpdate(UUID id);
+
     boolean existsPublicado(UUID id);
 
     /** Publicados dentro del área, mejor valorados primero. */
