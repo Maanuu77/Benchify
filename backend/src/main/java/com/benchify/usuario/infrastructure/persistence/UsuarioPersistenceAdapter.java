@@ -34,6 +34,11 @@ class UsuarioPersistenceAdapter implements UsuarioRepository {
     }
 
     @Override
+    public long count() {
+        return repository.count();
+    }
+
+    @Override
     public Usuario save(Usuario usuario) {
         return mapper.toDomain(repository.save(mapper.toEntity(usuario)));
     }

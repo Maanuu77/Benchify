@@ -12,6 +12,8 @@ public interface UsuarioRepository {
 
     boolean existsById(String id);
 
+    long count();
+
     Usuario save(Usuario usuario);
 
     /** Usuarios ordenados del más reciente al más antiguo. */
