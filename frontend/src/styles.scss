@@ -4,15 +4,16 @@
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
+@use './styles/theme-colors' as benchify;
 
 html {
   height: 100%;
   @include mat.theme(
     (
       color: (
-        // Verde de parque con acento ámbar; sigue el modo claro/oscuro del sistema
-        primary: mat.$green-palette,
-        tertiary: mat.$orange-palette,
+        // Paleta propia generada desde #2E7D32 (verde parque) y #F9A825 (ámbar)
+        primary: benchify.$primary-palette,
+        tertiary: benchify.$tertiary-palette,
         theme-type: color-scheme,
       ),
       typography: Roboto,

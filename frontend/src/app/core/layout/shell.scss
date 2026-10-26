@@ -21,8 +21,8 @@
   top: 0;
   z-index: 1000;
   gap: 8px;
-  background: var(--mat-sys-primary);
-  color: var(--mat-sys-on-primary);
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
 
   a,
   button {
@@ -43,7 +43,7 @@
 }
 
 .links .active {
-  background: color-mix(in srgb, var(--mat-sys-on-primary) 16%, transparent);
+  background: color-mix(in srgb, var(--mat-sys-on-primary-container) 12%, transparent);
 }
 
 .main {
