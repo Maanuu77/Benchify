@@ -8,8 +8,8 @@ desktop.ini
 *.iml
 *.iws
 *.ipr
-.vscode/*
-!.vscode/extensions.json
+**/.vscode/*
+!**/.vscode/extensions.json
 .classpath
 .project
 .factorypath
@@ -32,6 +32,9 @@ HELP.md
 node_modules/
 dist/
 .angular/
+.sass-cache/
+out-tsc/
+*.tsbuildinfo
 coverage/
 npm-debug.log*
 yarn-error.log*

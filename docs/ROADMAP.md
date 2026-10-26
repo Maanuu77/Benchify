@@ -58,7 +58,7 @@ Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 
 | #   | Issue | Rama | Estado |
 |-----|-------|------|--------|
-| #23 | Workspace Angular: standalone, signals, control flow, estructura core/shared/features, Angular Material | `feature/frontend-scaffold` | ⬜ |
+| #23 | Workspace Angular 21: standalone, zoneless, signals, control flow, estructura core/shared/features, Angular Material | `feature/frontend-scaffold` | ✅ |
 | #24 | Firebase Auth en cliente (AngularFire): email/contraseña y Google | `feature/frontend-auth` | ⬜ |
 | #25 | Interceptor HTTP con el ID token y guards por rol | `feature/frontend-auth` | ⬜ |
 | #26 | Cliente de la API: modelos y servicios por feature | `feature/frontend-api-client` | ⬜ |
@@ -93,3 +93,4 @@ Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 | #45 | Internacionalización del frontend (es / en) |
 | #46 | Caché de lecturas del mapa (HTTP caching / ETag) |
 | #47 | Despliegue continuo desde `main` a Cloud Run y Firebase Hosting |
+| #49 | Migrar el frontend a Angular 22 cuando AngularFire publique una versión estable compatible |
