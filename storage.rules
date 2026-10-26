@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Las fotos de bancos son públicas para leer. Solo el backend las escribe, con el Admin SDK,
+// que no está sujeto a estas reglas: así toda subida pasa por la validación y la moderación.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /bancos/{bancoId}/{imagen} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
