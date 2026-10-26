@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -85,6 +87,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void malformedMultipartIsBadRequestButOversizedUploadIs413() {
+        assertThat(mvc.get().uri("/multipart"))
+                .hasStatus(400)
+                .bodyJson().extractingPath("$.code").isEqualTo("MULTIPART_INVALIDO");
+        assertThat(mvc.get().uri("/too-big"))
+                .hasStatus(413)
+                .bodyJson().extractingPath("$.code").isEqualTo("CONTENT_TOO_LARGE");
+    }
+
+    @Test
     void hidesUnexpectedErrorDetails() {
         assertThat(mvc.get().uri("/boom"))
                 .hasStatus(500)
@@ -132,6 +144,16 @@ class GlobalExceptionHandlerTest {
 
         @GetMapping("/param")
         void param(@RequestParam @Max(100) int size) {
+        }
+
+        @GetMapping("/multipart")
+        void multipart() {
+            throw new MultipartException("Failed to parse multipart servlet request");
+        }
+
+        @GetMapping("/too-big")
+        void tooBig() {
+            throw new MaxUploadSizeExceededException(10 * 1024 * 1024);
         }
 
         @GetMapping("/boom")

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.List;
@@ -71,6 +72,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
                 "Necesitas iniciar sesión con un token válido");
         problem.setProperty(CODE, "UNAUTHENTICATED");
+        return problem;
+    }
+
+    /** Cuerpo multipart truncado o mal formado; el exceso de tamaño lo trata la clase base (413). */
+    @ExceptionHandler(MultipartException.class)
+    ProblemDetail handleMultipart(MultipartException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "La petición multipart no es válida");
+        problem.setProperty(CODE, "MULTIPART_INVALIDO");
         return problem;
     }
 
