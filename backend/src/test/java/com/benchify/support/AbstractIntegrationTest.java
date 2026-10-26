@@ -9,7 +9,7 @@ import org.springframework.test.context.DynamicPropertySource;
 /** Contexto completo de Spring sobre PostgreSQL + PostGIS real. */
 @SpringBootTest
 @ActiveProfiles("test")
-@Import({TestSecurityConfig.class, TestData.class})
+@Import({TestAdaptersConfig.class, TestData.class})
 @EnabledIfTestDatabase
 public abstract class AbstractIntegrationTest {
 

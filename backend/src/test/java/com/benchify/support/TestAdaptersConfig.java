@@ -4,8 +4,9 @@ import com.benchify.shared.infrastructure.security.IdTokenVerifier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
+/** Sustituye los adaptadores de Firebase (Auth, roles, Storage) por dobles en memoria. */
 @TestConfiguration(proxyBeanMethods = false)
-public class TestSecurityConfig {
+public class TestAdaptersConfig {
 
     @Bean
     IdTokenVerifier stubIdTokenVerifier() {
@@ -15,5 +16,10 @@ public class TestSecurityConfig {
     @Bean
     RecordingIdentityProvider recordingIdentityProvider() {
         return new RecordingIdentityProvider();
+    }
+
+    @Bean
+    InMemoryImageStorage inMemoryImageStorage() {
+        return new InMemoryImageStorage();
     }
 }

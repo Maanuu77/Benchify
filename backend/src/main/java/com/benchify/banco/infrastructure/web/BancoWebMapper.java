@@ -7,12 +7,14 @@ import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.Etiqueta;
+import com.benchify.banco.domain.Imagen;
 import com.benchify.banco.domain.Valoracion;
 import com.benchify.banco.infrastructure.web.dto.BancoCercanoResponse;
 import com.benchify.banco.infrastructure.web.dto.BancoRequest;
 import com.benchify.banco.infrastructure.web.dto.BancoResponse;
 import com.benchify.banco.infrastructure.web.dto.BancoResumenResponse;
 import com.benchify.banco.infrastructure.web.dto.EtiquetaResponse;
+import com.benchify.banco.infrastructure.web.dto.ImagenResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -32,6 +34,8 @@ interface BancoWebMapper {
     BancoCommand toCommand(BancoRequest request);
 
     EtiquetaResponse toResponse(Etiqueta etiqueta);
+
+    ImagenResponse toResponse(Imagen imagen);
 
     List<EtiquetaResponse> toEtiquetaResponses(List<Etiqueta> etiquetas);
 
