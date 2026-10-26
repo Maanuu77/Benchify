@@ -21,10 +21,12 @@ public record FirebaseProperties(
         @DefaultValue Emulator emulator) {
 
     /**
-     * @param authHost    host:puerto del emulador de Authentication, p. ej. {@code localhost:9099}
-     * @param storageHost URL del emulador de Storage, p. ej. {@code http://localhost:9199}
+     * @param authHost         host:puerto del emulador de Authentication, p. ej. {@code localhost:9099}
+     * @param storageHost      URL del emulador de Storage que usa el backend, p. ej. {@code http://localhost:9199}
+     * @param storagePublicUrl URL del emulador vista desde el navegador; por defecto, {@code storageHost}.
+     *                         Difiere en Docker, donde el backend lo llama por el nombre del servicio.
      */
-    public record Emulator(String authHost, String storageHost) {
+    public record Emulator(String authHost, String storageHost, String storagePublicUrl) {
 
         public boolean authEnabled() {
             return authHost != null && !authHost.isBlank();
@@ -32,6 +34,10 @@ public record FirebaseProperties(
 
         public boolean storageEnabled() {
             return storageHost != null && !storageHost.isBlank();
+        }
+
+        public String publicStorageUrl() {
+            return storagePublicUrl != null && !storagePublicUrl.isBlank() ? storagePublicUrl : storageHost;
         }
     }
 }
