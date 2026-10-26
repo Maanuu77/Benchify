@@ -14,6 +14,13 @@ benchify:
     project-id: ${FIREBASE_PROJECT_ID}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET}
 
+springdoc:
+  # Public documentation is opt-in in production
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+
 logging:
   level:
     root: INFO

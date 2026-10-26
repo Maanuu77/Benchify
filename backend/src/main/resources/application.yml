@@ -45,6 +45,16 @@ benchify:
     project-id: ${FIREBASE_PROJECT_ID:demo-benchify}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    persist-authorization: true
+  default-produces-media-type: application/json
+
 logging:
   level:
     org.springframework.security: WARN
