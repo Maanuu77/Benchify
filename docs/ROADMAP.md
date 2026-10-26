@@ -34,25 +34,25 @@ Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 
 | #   | Issue | Rama | Estado |
 |-----|-------|------|--------|
-| #5  | Actualizar build: Spring Boot 4.1, Java 21, MapStruct, springdoc, Flyway, JaCoCo, ArchUnit, Testcontainers | `chore/backend-build-upgrade` | ⬜ |
-| #6  | Eliminar Thymeleaf, plantillas, estáticos y controladores web | `refactor/backend-remove-thymeleaf` | ⬜ |
-| #7  | Perfiles `dev` / `test` / `prod` y CORS configurable por perfil | `feature/backend-profiles-cors` | ⬜ |
-| #8  | Esquema con Flyway + PostGIS (sustituye `data.sql` y `ddl-auto`) | `feature/backend-flyway-postgis` | ⬜ |
-| #9  | Núcleo compartido: errores RFC 9457 (`ProblemDetail`), paginación, validación | `feature/backend-shared-kernel` | ⬜ |
+| #5  | Actualizar build: Spring Boot 4.1, Java 21, MapStruct, springdoc, Flyway, JaCoCo, ArchUnit, Testcontainers | `chore/backend-build-upgrade` | ✅ |
+| #6  | Eliminar Thymeleaf, plantillas, estáticos y controladores web | `refactor/backend-remove-thymeleaf` | ✅ |
+| #7  | Perfiles `dev` / `test` / `prod` y CORS configurable por perfil | `feature/backend-profiles-cors` | ✅ |
+| #8  | Esquema con Flyway + PostGIS (sustituye `data.sql` y `ddl-auto`) | `feature/backend-flyway-postgis` | ✅ |
+| #9  | Núcleo compartido: errores RFC 9457 (`ProblemDetail`), paginación, validación | `feature/backend-shared-kernel` | ✅ |
 | #48 | Retirar la implementación por capas heredada antes de reescribir por features | `refactor/backend-remove-legacy` | ✅ |
-| #10 | Autenticación con Firebase: filtro que verifica el ID token, roles por custom claims, eliminar JWT propio | `feature/backend-firebase-auth` | ⬜ |
-| #11 | Feature `usuario` (hexagonal): alta automática, perfil, cambio de rol | `feature/backend-usuario` | ⬜ |
-| #12 | Feature `banco` (hexagonal): CRUD, etiquetas, bounding box | `feature/backend-banco` | ⬜ |
-| #13 | Búsqueda de bancos por cercanía con PostGIS (`ST_DWithin`) | `feature/backend-banco` | ⬜ |
-| #14 | Imágenes de bancos en Firebase Cloud Storage | `feature/backend-banco-imagenes` | ⬜ |
-| #15 | Feature `resena` (hexagonal): reseñas, reportes, media de puntuación | `feature/backend-resena` | ⬜ |
-| #16 | Feature `favorito` (hexagonal) | `feature/backend-favorito` | ⬜ |
-| #17 | Feature `checkin` (hexagonal) con validación de proximidad | `feature/backend-checkin` | ⬜ |
-| #18 | Feature `moderacion` (hexagonal): bancos, reseñas, imágenes, estadísticas | `feature/backend-moderacion` | ⬜ |
-| #19 | Documentación OpenAPI con springdoc + Swagger UI | `feature/backend-openapi` | ⬜ |
-| #20 | Reglas ArchUnit para la arquitectura hexagonal | `feature/backend-archunit` | ⬜ |
-| #21 | Tests de integración con Testcontainers (PostGIS) | `feature/backend-integration-tests` | ⬜ |
-| #22 | Cobertura JaCoCo ≥ 70 % como umbral del build | `feature/backend-integration-tests` | ⬜ |
+| #10 | Autenticación con Firebase: filtro que verifica el ID token, roles por custom claims, eliminar JWT propio | `feature/backend-firebase-auth` | ✅ |
+| #11 | Feature `usuario` (hexagonal): alta automática, perfil, cambio de rol, estadísticas | `feature/backend-usuario`, `feature/backend-usuario-estadisticas` | ✅ |
+| #12 | Feature `banco` (hexagonal): CRUD, etiquetas, bounding box | `feature/backend-banco` | ✅ |
+| #13 | Búsqueda de bancos por cercanía con PostGIS (`ST_DWithin`) | `feature/backend-banco` | ✅ |
+| #14 | Imágenes de bancos en Firebase Cloud Storage | `feature/backend-banco-imagenes` | ✅ |
+| #15 | Feature `resena` (hexagonal): reseñas, reportes, media de puntuación | `feature/backend-resena` | ✅ |
+| #16 | Feature `favorito` (hexagonal) | `feature/backend-favorito` | ✅ |
+| #17 | Feature `checkin` (hexagonal) con validación de proximidad | `feature/backend-checkin` | ✅ |
+| #18 | Feature `moderacion` (hexagonal): bancos, reseñas, imágenes, estadísticas | `feature/backend-moderacion` | ✅ |
+| #19 | Documentación OpenAPI con springdoc + Swagger UI | `feature/backend-openapi` | ✅ |
+| #20 | Reglas ArchUnit para la arquitectura hexagonal | `feature/backend-archunit` | ✅ |
+| #21 | Tests de integración con Testcontainers (PostGIS) | `feature/backend-integration-tests` | ✅ |
+| #22 | Cobertura JaCoCo ≥ 70 % como umbral del build | `feature/backend-integration-tests` | ✅ |
 
 ## Sprint 2 — Frontend Angular
 
