@@ -5,6 +5,13 @@ Todos los cambios relevantes de Benchify. Formato basado en
 [versionado semántico](https://semver.org/lang/es/). Los números `#n` son issues del
 [roadmap](docs/ROADMAP.md).
 
+## [1.0.1] - 2026-10-27
+
+### Corregido
+
+- El wrapper de Maven (`backend/mvnw`) no tenía permiso de ejecución en el repositorio y el job
+  de backend de GitHub Actions fallaba con el código 126 (#37).
+
 ## [1.0.0] - 2026-10-26
 
 Primera versión de la reescritura: el monolito Spring Boot + Thymeleaf + HTMX pasa a un monorepo
@@ -66,4 +73,5 @@ con una API REST hexagonal y una SPA Angular, con Firebase y PostGIS.
 - Reglas de Storage: lectura pública de fotos de bancos y ninguna escritura desde el cliente.
 - Respuestas 401/403 sin filtrar detalles internos; los errores inesperados no exponen mensajes.
 
+[1.0.1]: https://github.com/Maanuu77/Benchify/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Maanuu77/Benchify/releases/tag/v1.0.0

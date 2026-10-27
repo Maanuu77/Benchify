@@ -19,7 +19,7 @@ API REST hexagonal, frontend Angular, Firebase y PostGIS.
 
 Estado: ✅ hecho · 🚧 en curso · ⬜ pendiente
 
-**Versión actual: 1.0.0** (ver [CHANGELOG](../CHANGELOG.md)).
+**Versión actual: 1.0.1** (ver [CHANGELOG](../CHANGELOG.md)).
 
 ---
 
