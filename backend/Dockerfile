@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ── Build: compila el jar y lo separa en capas ────────────────────────────────
-FROM eclipse-temurin:21-jdk-noble AS build
+FROM eclipse-temurin:24-jdk-noble AS build
 WORKDIR /workspace
 
 # Las dependencias cambian menos que el código: se descargan en una capa propia
@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q package -DskipTests \
     && java -Djarmode=tools -jar target/benchify-backend-*.jar extract --layers --launcher --destination target/extracted
 
 # ── Runtime: solo JRE, sin herramientas de build, con usuario sin privilegios ─
-FROM eclipse-temurin:21-jre-noble
+FROM eclipse-temurin:24-jre-noble
 LABEL org.opencontainers.image.title="benchify-backend" \
       org.opencontainers.image.description="Benchify REST API" \
       org.opencontainers.image.source="https://github.com/Maanuu77/Benchify"
