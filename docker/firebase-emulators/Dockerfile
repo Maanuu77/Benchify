@@ -1,5 +1,5 @@
 # Firebase Emulator Suite (Authentication + Storage) para desarrollo y pruebas e2e.
-FROM node:22-bookworm-slim
+FROM node:26-bookworm-slim
 
 # Algunos emuladores de firebase-tools se ejecutan sobre la JVM
 RUN apt-get update \
