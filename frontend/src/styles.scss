@@ -1,0 +1,70 @@
+// Include theming for Angular Material with `mat.theme()`.
+// This Sass mixin will define CSS variables that are used for styling Angular Material
+// components according to the Material 3 design spec.
+// Learn more about theming and how to use it for your application's
+// custom components at https://material.angular.dev/guide/theming
+@use '@angular/material' as mat;
+@use './styles/theme-colors' as benchify;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        // Paleta propia generada desde #2E7D32 (verde parque) y #F9A825 (ámbar)
+        primary: benchify.$primary-palette,
+        tertiary: benchify.$tertiary-palette,
+        theme-type: color-scheme,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+body {
+  // Respeta la preferencia de modo claro/oscuro del sistema
+  color-scheme: light dark;
+
+  // Set a default background, font and text colors for the application using
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  // Reset the user agent margin.
+  margin: 0;
+  height: 100%;
+}
+
+a {
+  color: var(--mat-sys-primary);
+}
+
+// ── Marcadores del mapa (Leaflet divIcon) ─────────────────────────────────────
+.bf-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--mat-sys-primary);
+  border: 2px solid var(--mat-sys-on-primary);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+
+  .material-icons {
+    transform: rotate(45deg);
+    font-size: 20px;
+    color: var(--mat-sys-on-primary);
+  }
+
+  &--selected {
+    background: var(--mat-sys-tertiary);
+  }
+}
+
+.snack-error {
+  --mat-snack-bar-container-color: var(--mat-sys-error-container);
+  --mat-snack-bar-supporting-text-color: var(--mat-sys-on-error-container);
+}

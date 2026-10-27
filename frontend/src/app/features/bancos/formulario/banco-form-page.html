@@ -1,0 +1,118 @@
+<section class="pagina">
+  @if (creado(); as banco) {
+    <div class="exito" role="status">
+      <h1>¡Gracias por añadir «{{ banco.titulo }}»!</h1>
+      <p>
+        @if (banco.estado === 'PUBLICADO') {
+          Ya está en el mapa.
+        } @else {
+          Lo publicaremos en cuanto lo revise un moderador. Mientras tanto solo tú puedes verlo.
+        }
+      </p>
+      <bf-galeria-imagenes [bancoId]="banco.id" [tituloBanco]="banco.titulo" [puedeSubir]="true" />
+      <div class="acciones">
+        <a mat-flat-button [routerLink]="['/bancos', banco.id]">Ver la ficha</a>
+        <a mat-button routerLink="/mapa">Volver al mapa</a>
+      </div>
+    </div>
+  } @else if (cargando()) {
+    <bf-loading-state message="Cargando banco…" />
+  } @else if (errorCarga(); as mensaje) {
+    <bf-error-state [message]="mensaje" [retryable]="false" />
+  } @else {
+    <h1>{{ editando() ? 'Editar banco' : 'Añadir un banco' }}</h1>
+    <form [formGroup]="form" (ngSubmit)="guardar()" novalidate class="formulario">
+      <div class="columna">
+        <mat-form-field appearance="outline">
+          <mat-label>Título</mat-label>
+          <input matInput formControlName="titulo" maxlength="150" required />
+          <mat-hint>Cómo lo reconocerá la gente: «Banco junto a la fuente»</mat-hint>
+          @if (form.controls.titulo.hasError('required')) {
+            <mat-error>El título es obligatorio</mat-error>
+          } @else if (form.controls.titulo.hasError('servidor')) {
+            <mat-error>{{ form.controls.titulo.getError('servidor') }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Descripción</mat-label>
+          <textarea matInput formControlName="descripcion" rows="3" maxlength="500"></textarea>
+          <mat-hint align="end">{{ form.controls.descripcion.value.length }}/500</mat-hint>
+        </mat-form-field>
+
+        <fieldset>
+          <legend>Características</legend>
+          <mat-checkbox formControlName="accesible">Accesible en silla de ruedas</mat-checkbox>
+          <mat-checkbox formControlName="conSombra">Tiene sombra</mat-checkbox>
+          <mat-checkbox formControlName="conRespaldo">Tiene respaldo</mat-checkbox>
+        </fieldset>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Material</mat-label>
+          <mat-select formControlName="material">
+            <mat-option [value]="null">Sin especificar</mat-option>
+            @for (material of materiales; track material[0]) {
+              <mat-option [value]="material[0]">{{ material[1] }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <fieldset>
+          <legend>Etiquetas (máximo {{ maxEtiquetas }})</legend>
+          <mat-chip-listbox multiple formControlName="etiquetaIds" aria-label="Etiquetas">
+            @for (etiqueta of etiquetas(); track etiqueta.id) {
+              <mat-chip-option [value]="etiqueta.id">{{ etiqueta.nombre }}</mat-chip-option>
+            }
+          </mat-chip-listbox>
+          @if (form.controls.etiquetaIds.hasError('demasiadas')) {
+            <p class="error" role="alert">Elige como máximo {{ maxEtiquetas }} etiquetas.</p>
+          }
+        </fieldset>
+      </div>
+
+      <div class="columna">
+        <div class="ubicacion-cabecera">
+          <h2>¿Dónde está?</h2>
+          <button mat-stroked-button type="button" [disabled]="localizando()" (click)="usarMiUbicacion()">
+            <mat-icon aria-hidden="true">my_location</mat-icon> Usar mi ubicación
+          </button>
+        </div>
+        <bf-location-picker class="picker" [(ubicacion)]="ubicacion" [centro]="centro" />
+        <div class="coordenadas">
+          <mat-form-field appearance="outline">
+            <mat-label>Latitud</mat-label>
+            <input matInput type="number" formControlName="lat" step="0.000001" required />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Longitud</mat-label>
+            <input matInput type="number" formControlName="lng" step="0.000001" required />
+          </mat-form-field>
+        </div>
+        @if (form.controls.lat.touched && form.controls.lat.invalid) {
+          <p class="error" role="alert">Marca la ubicación en el mapa o escribe las coordenadas.</p>
+        }
+        <mat-form-field appearance="outline">
+          <mat-label>Dirección</mat-label>
+          <input matInput formControlName="direccion" autocomplete="street-address" />
+        </mat-form-field>
+        <div class="coordenadas">
+          <mat-form-field appearance="outline">
+            <mat-label>Ciudad</mat-label>
+            <input matInput formControlName="ciudad" autocomplete="address-level2" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Provincia</mat-label>
+            <input matInput formControlName="provincia" autocomplete="address-level1" />
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="acciones">
+        <a mat-button [routerLink]="editando() ? ['/bancos', id()] : ['/mapa']">Cancelar</a>
+        <button mat-flat-button type="submit" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando…' : (editando() ? 'Guardar cambios' : 'Enviar banco') }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: benchify
+  profiles:
+    default: dev
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks the mappings match it
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        # Loads lazy collections (bench tags) in batches instead of one query per row
+        default_batch_fetch_size: 50
+  jackson:
+    deserialization:
+      # Jackson 3 rejects omitted primitives by default; an omitted boolean flag means "false"
+      fail-on-null-for-primitives: false
+  flyway:
+    locations: classpath:db/migration
+    # Never wipe a real database by accident
+    clean-disabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  # Cloud Run terminates TLS at the load balancer and forwards X-Forwarded-* headers
+  forward-headers-strategy: framework
+
+benchify:
+  cors:
+    allowed-origins: []
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:demo-benchify}
+    storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      # /actuator/health/liveness and /readiness for Cloud Run startup and liveness probes
+      probes:
+        enabled: true
+      show-details: never
+  info:
+    build:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    persist-authorization: true
+  default-produces-media-type: application/json
+
+logging:
+  level:
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN

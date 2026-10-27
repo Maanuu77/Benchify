@@ -1,0 +1,29 @@
+# Local development: PostgreSQL + PostGIS and Firebase emulators from docker-compose
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/benchify}
+    username: ${DB_USERNAME:benchify}
+    password: ${DB_PASSWORD:benchify}
+  flyway:
+    # Sample benches around Seville, only in development
+    locations: classpath:db/migration,classpath:db/seed
+
+benchify:
+  cors:
+    allowed-origins:
+      - http://localhost:4200
+      - http://127.0.0.1:4200
+  firebase:
+    # "demo-*" projects only exist in the Emulator Suite: no real credentials needed
+    emulator:
+      auth-host: ${FIREBASE_AUTH_EMULATOR_HOST:localhost:9099}
+      storage-host: ${FIREBASE_STORAGE_EMULATOR_URL:http://localhost:9199}
+      storage-public-url: ${FIREBASE_STORAGE_PUBLIC_URL:}
+  # Demo users created in the Auth emulator on startup (admin@benchify.dev, ana@benchify.dev)
+  seed:
+    enabled: ${SEED_ENABLED:true}
+    users-password: ${SEED_USERS_PASSWORD:benchify-dev}
+
+logging:
+  level:
+    com.benchify: DEBUG

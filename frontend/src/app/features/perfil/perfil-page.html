@@ -1,0 +1,127 @@
+@switch (estado().status) {
+  @case ('loading') {
+    <bf-loading-state message="Cargando perfil…" />
+  }
+  @case ('error') {
+    <bf-error-state message="No hemos podido cargar este perfil." (retry)="reintentar()" />
+  }
+  @case ('success') {
+    @let datos = datosPerfil()!;
+    <section class="pagina">
+      <header class="cabecera">
+        <span class="avatar" aria-hidden="true">{{ datos.perfil.nombre.charAt(0).toUpperCase() }}</span>
+        @if (editando()) {
+          <form class="edicion" (ngSubmit)="guardar()">
+            <mat-form-field appearance="outline">
+              <mat-label>Nombre</mat-label>
+              <input matInput name="nombre" [(ngModel)]="nombre" maxlength="100" required />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Ciudad</mat-label>
+              <input matInput name="ciudad" [(ngModel)]="ciudad" maxlength="100" />
+            </mat-form-field>
+            <button mat-button type="button" (click)="editando.set(false)">Cancelar</button>
+            <button mat-flat-button type="submit">Guardar</button>
+          </form>
+        } @else {
+          <div>
+            <h1>{{ datos.perfil.nombre }}</h1>
+            <p class="meta">
+              @if (datos.perfil.ciudad) { {{ datos.perfil.ciudad }} · }
+              En Benchify desde {{ datos.perfil.fechaRegistro | date: 'MMMM y' }}
+            </p>
+          </div>
+          @if (esPropio()) {
+            <button mat-stroked-button type="button" (click)="editar(datos.perfil)">
+              <mat-icon aria-hidden="true">edit</mat-icon> Editar perfil
+            </button>
+          }
+        }
+      </header>
+
+      <dl class="estadisticas">
+        <div><dt>Bancos</dt><dd>{{ datos.estadisticas.bancosPublicados }}</dd></div>
+        <div><dt>Reseñas</dt><dd>{{ datos.estadisticas.resenas }}</dd></div>
+        <div><dt>Favoritos</dt><dd>{{ datos.estadisticas.favoritos }}</dd></div>
+        <div><dt>Check-ins</dt><dd>{{ datos.estadisticas.checkIns }}</dd></div>
+      </dl>
+
+      <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
+        <mat-tab label="Bancos subidos">
+          @if (datos.bancos.content.length === 0) {
+            <bf-empty-state icon="add_location_alt" message="Todavía no ha subido ningún banco." />
+          } @else {
+            <mat-nav-list>
+              @for (banco of datos.bancos.content; track banco.id) {
+                <a mat-list-item [routerLink]="['/bancos', banco.id]">
+                  <span matListItemTitle>{{ banco.titulo }}</span>
+                  <span matListItemLine>
+                    @if (banco.estado !== 'PUBLICADO') { <strong class="estado">{{ banco.estado === 'PENDIENTE' ? 'Pendiente' : 'Oculto' }}</strong> · }
+                    ★ {{ banco.puntuacionMedia | number: '1.1-1' }} · {{ banco.ciudad ?? 'Sin ciudad' }}
+                  </span>
+                </a>
+              }
+            </mat-nav-list>
+          }
+        </mat-tab>
+
+        <mat-tab label="Reseñas">
+          @if (datos.resenas.content.length === 0) {
+            <bf-empty-state icon="rate_review" message="Todavía no ha escrito ninguna reseña." />
+          } @else {
+            <ul class="resenas">
+              @for (resena of datos.resenas.content; track resena.id) {
+                <li>
+                  <a [routerLink]="['/bancos', resena.bancoId]">Ver banco</a>
+                  <bf-star-rating [value]="resena.puntuacion" />
+                  <time [attr.datetime]="resena.fecha">{{ resena.fecha | date: 'mediumDate' }}</time>
+                  @if (resena.comentario) { <p>{{ resena.comentario }}</p> }
+                </li>
+              }
+            </ul>
+          }
+        </mat-tab>
+
+        @if (esPropio()) {
+          <mat-tab label="Favoritos">
+            @if (favoritos(); as lista) {
+              @if (lista.length === 0) {
+                <bf-empty-state icon="favorite_border" message="Guarda bancos para encontrarlos aquí." />
+              } @else {
+                <mat-nav-list>
+                  @for (favorito of lista; track favorito.bancoId) {
+                    <a mat-list-item [routerLink]="['/bancos', favorito.bancoId]">
+                      <span matListItemTitle>{{ favorito.titulo }}</span>
+                      <span matListItemLine>★ {{ favorito.puntuacionMedia | number: '1.1-1' }} · {{ favorito.ciudad ?? '' }}</span>
+                    </a>
+                  }
+                </mat-nav-list>
+              }
+            } @else {
+              <bf-loading-state />
+            }
+          </mat-tab>
+
+          <mat-tab label="Check-ins">
+            @if (checkIns(); as lista) {
+              @if (lista.length === 0) {
+                <bf-empty-state icon="where_to_vote" message="Haz check-in cuando te sientes en un banco." />
+              } @else {
+                <mat-nav-list>
+                  @for (checkIn of lista; track checkIn.id) {
+                    <a mat-list-item [routerLink]="['/bancos', checkIn.bancoId]">
+                      <span matListItemTitle>{{ checkIn.tituloBanco ?? 'Banco eliminado' }}</span>
+                      <span matListItemLine>{{ checkIn.fecha | date: 'medium' }}</span>
+                    </a>
+                  }
+                </mat-nav-list>
+              }
+            } @else {
+              <bf-loading-state />
+            }
+          </mat-tab>
+        }
+      </mat-tab-group>
+    </section>
+  }
+}

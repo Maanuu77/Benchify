@@ -1,0 +1,61 @@
+{
+  "hosting": {
+    "public": "frontend/dist/benchify-web/browser",
+    "predeploy": ["npm --prefix frontend ci", "npm --prefix frontend run build"],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "Permissions-Policy", "value": "geolocation=(self), camera=(), microphone=()" },
+          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+        ]
+      },
+      {
+        "source": "**/*.@(js|css|woff2)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "**/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "singleProjectMode": true,
+    "auth": {
+      "host": "0.0.0.0",
+      "port": 9099
+    },
+    "storage": {
+      "host": "0.0.0.0",
+      "port": 9199
+    },
+    "hosting": {
+      "host": "0.0.0.0",
+      "port": 5000
+    },
+    "ui": {
+      "enabled": true,
+      "host": "0.0.0.0",
+      "port": 4000
+    }
+  }
+}

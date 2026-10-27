@@ -1,0 +1,99 @@
+.pagina {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  > div {
+    flex: 1;
+  }
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  font: var(--mat-sys-headline-medium);
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+h1 {
+  margin: 0;
+  font: var(--mat-sys-headline-small);
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.edicion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+}
+
+.estadisticas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0 0 24px;
+
+  div {
+    padding: 12px;
+    border-radius: 12px;
+    text-align: center;
+    background: var(--mat-sys-surface-container);
+  }
+
+  dt {
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 4px 0 0;
+    font: var(--mat-sys-headline-small);
+  }
+}
+
+.estado {
+  color: var(--mat-sys-tertiary);
+}
+
+.resenas {
+  list-style: none;
+  padding: 0;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  p {
+    flex-basis: 100%;
+    margin: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .estadisticas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

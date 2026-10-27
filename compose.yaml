@@ -1,0 +1,59 @@
+# Entorno local de Benchify.
+#   docker compose up -d                 → PostgreSQL + PostGIS y Firebase Emulator Suite
+#   docker compose --profile app up -d   → además, el backend en http://localhost:8080
+# El frontend se arranca aparte con `npm start` en frontend/ (http://localhost:4200).
+name: benchify
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: benchify
+      POSTGRES_USER: ${DB_USERNAME:-benchify}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-benchify}
+    ports:
+      # 5433 en el host para no chocar con un PostgreSQL local en 5432
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d benchify"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  firebase:
+    build: ./docker/firebase-emulators
+    ports:
+      - "4000:4000" # Emulator UI
+      - "9099:9099" # Authentication
+      - "9199:9199" # Storage
+    volumes:
+      - ./firebase.json:/firebase/firebase.json:ro
+      - ./storage.rules:/firebase/storage.rules:ro
+      - firebase-data:/firebase/data
+
+  backend:
+    build: ./backend
+    profiles: ["app"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      firebase:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://postgres:5432/benchify
+      DB_USERNAME: ${DB_USERNAME:-benchify}
+      DB_PASSWORD: ${DB_PASSWORD:-benchify}
+      FIREBASE_AUTH_EMULATOR_HOST: firebase:9099
+      FIREBASE_STORAGE_EMULATOR_URL: http://firebase:9199
+      # El navegador descarga las fotos por el puerto publicado, no por el nombre del servicio
+      FIREBASE_STORAGE_PUBLIC_URL: http://localhost:9199
+      SEED_USERS_PASSWORD: ${SEED_USERS_PASSWORD:-benchify-dev}
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:
+  firebase-data:

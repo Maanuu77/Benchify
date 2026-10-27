@@ -1,0 +1,92 @@
+.pagina {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font: var(--mat-sys-headline-medium);
+}
+
+.estado {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font: var(--mat-sys-label-medium);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.valoracion,
+.direccion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.direccion {
+  margin: 8px 0 0;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 32px;
+}
+
+.principal {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.descripcion {
+  margin: 0;
+  font: var(--mat-sys-body-large);
+  white-space: pre-line;
+}
+
+.lateral {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-mapa {
+  height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.meta {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+@media (max-width: 840px) {
+  .cuerpo {
+    grid-template-columns: 1fr;
+  }
+
+  .lateral {
+    order: -1;
+  }
+}

@@ -1,0 +1,63 @@
+# ── OS ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDEs ─────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+**/.vscode/*
+!**/.vscode/extensions.json
+.classpath
+.project
+.factorypath
+.settings/
+.springBeans
+.sts4-cache/
+.apt_generated/
+nbproject/private/
+.nb-gradle/
+
+# ── Java / Maven ─────────────────────────────────────
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+.mvn/wrapper/maven-wrapper.jar
+HELP.md
+*.log
+
+# ── Node / Angular ───────────────────────────────────
+node_modules/
+dist/
+.angular/
+.sass-cache/
+out-tsc/
+*.tsbuildinfo
+coverage/
+npm-debug.log*
+yarn-error.log*
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ── Firebase ─────────────────────────────────────────
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+database-debug.log*
+pubsub-debug.log*
+emulator-data/
+
+# ── Secrets (never commit) ───────────────────────────
+.env
+.env.*
+!.env.example
+serviceAccount*.json
+*-service-account*.json
+*firebase-adminsdk*.json
+*.pem
+*.p12
+*.key
