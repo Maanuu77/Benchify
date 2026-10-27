@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.benchify</groupId>
 	<artifactId>benchify-backend</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<name>benchify-backend</name>
 	<description>Benchify REST API: collaborative map of public benches</description>
 	<url>https://github.com/Maanuu77/Benchify</url>
