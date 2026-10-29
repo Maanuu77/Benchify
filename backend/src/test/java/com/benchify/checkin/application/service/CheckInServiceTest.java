@@ -63,7 +63,7 @@ class CheckInServiceTest {
 
     @Test
     void registersCheckInNextToThePublishedBench() {
-        when(checkIns.findUltimaFecha("ana", banco.id())).thenReturn(Optional.empty());
+        when(checkIns.findUltimaFechaForUpdate("ana", banco.id())).thenReturn(Optional.empty());
 
         CheckIn checkIn = service.registrar(ANA, banco.id(), new Ubicacion(37.3826, -5.996));
 
@@ -74,7 +74,7 @@ class CheckInServiceTest {
 
     @Test
     void appliesTheCooldownFromTheLastCheckIn() {
-        when(checkIns.findUltimaFecha("ana", banco.id())).thenReturn(Optional.of(AHORA.minusSeconds(60)));
+        when(checkIns.findUltimaFechaForUpdate("ana", banco.id())).thenReturn(Optional.of(AHORA.minusSeconds(60)));
 
         assertThatThrownBy(() -> service.registrar(ANA, banco.id(), POSICION_BANCO))
                 .isInstanceOf(ConflictException.class);

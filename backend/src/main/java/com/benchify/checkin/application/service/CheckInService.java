@@ -38,6 +38,10 @@ public class CheckInService implements CheckInsUseCase {
         this.clock = clock;
     }
 
+    /**
+     * Leer el último check-in bloquea la pareja (usuario, banco) hasta que esta transacción
+     * termina, así que la comprobación del intervalo y la inserción son atómicas.
+     */
     @Override
     public CheckIn registrar(Actor actor, UUID bancoId, Ubicacion posicion) {
         Banco banco = bancos.findById(bancoId)
@@ -47,7 +51,7 @@ public class CheckInService implements CheckInsUseCase {
             throw new BusinessRuleException("BANCO_NO_PUBLICADO", "Solo se puede hacer check-in en bancos publicados");
         }
         CheckIn checkIn = CheckIn.registrar(UUID.randomUUID(), actor.userId(), bancoId, banco.datos().ubicacion(),
-                posicion, checkIns.findUltimaFecha(actor.userId(), bancoId), politica, clock.instant());
+                posicion, checkIns.findUltimaFechaForUpdate(actor.userId(), bancoId), politica, clock.instant());
         return checkIns.save(checkIn);
     }
 

@@ -5,6 +5,7 @@ import com.benchify.checkin.domain.CheckIn;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Ubicacion;
+import com.benchify.shared.infrastructure.persistence.BloqueosTransaccionales;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -51,7 +52,8 @@ class CheckInPersistenceAdapter implements CheckInRepository {
     }
 
     @Override
-    public Optional<Instant> findUltimaFecha(String usuarioId, UUID bancoId) {
+    public Optional<Instant> findUltimaFechaForUpdate(String usuarioId, UUID bancoId) {
+        BloqueosTransaccionales.bloquear(jdbc, "checkin:" + usuarioId + ":" + bancoId);
         Timestamp ultima = jdbc.queryForObject(
                 "SELECT max(fecha) FROM checkins WHERE usuario_id = :usuario AND banco_id = :banco",
                 new MapSqlParameterSource("usuario", usuarioId).addValue("banco", bancoId), Timestamp.class);
