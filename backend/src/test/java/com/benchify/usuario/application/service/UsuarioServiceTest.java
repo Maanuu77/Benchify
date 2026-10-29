@@ -53,6 +53,7 @@ class UsuarioServiceTest {
     void setUp() {
         service = new UsuarioService(usuarios, proveedorIdentidad, estadisticas, Clock.fixed(AHORA, ZoneOffset.UTC));
         lenient().when(usuarios.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(usuarios.registrarSiNoExiste(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -62,7 +63,19 @@ class UsuarioServiceTest {
         Usuario usuario = service.sincronizar(new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER));
 
         assertThat(usuario.fechaRegistro()).isEqualTo(AHORA);
-        verify(usuarios).save(usuario);
+        verify(usuarios).registrarSiNoExiste(usuario);
+    }
+
+    @Test
+    void firstSyncReturnsTheRowStoredByAConcurrentRequest() {
+        // Otra petición del mismo usuario lo ha dado de alta entre la consulta y el INSERT
+        Usuario guardado = usuario("uid", Rol.USER);
+        when(usuarios.findById("uid")).thenReturn(Optional.empty());
+        when(usuarios.registrarSiNoExiste(any())).thenReturn(guardado);
+
+        assertThat(service.sincronizar(new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER)))
+                .isSameAs(guardado);
+        verify(usuarios, never()).save(any());
     }
 
     @Test

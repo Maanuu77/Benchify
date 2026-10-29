@@ -37,6 +37,20 @@ class UsuarioPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void registersOnlyOnceAndReturnsTheStoredRow() {
+        Usuario ana = Usuario.registrar(
+                new IdentidadUsuario("uid-upsert", "ana@example.com", "Ana", null, Rol.ADMIN), AHORA);
+        Usuario otra = Usuario.registrar(
+                new IdentidadUsuario("uid-upsert", "otra@example.com", "Otra", "https://img/o.png", Rol.USER),
+                AHORA.plusSeconds(60));
+
+        assertThat(repository.registrarSiNoExiste(ana)).isEqualTo(ana);
+        // La segunda alta no falla ni pisa nada: devuelve la fila que ya estaba
+        assertThat(repository.registrarSiNoExiste(otra)).isEqualTo(ana);
+        assertThat(repository.findById("uid-upsert")).contains(ana);
+    }
+
+    @Test
     void pagesUsersFromNewestToOldest() {
         repository.save(Usuario.registrar(new IdentidadUsuario("old", null, "Old", null, Rol.USER), AHORA.minusSeconds(60)));
         repository.save(Usuario.registrar(new IdentidadUsuario("new", null, "New", null, Rol.USER), AHORA));

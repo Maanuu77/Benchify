@@ -16,6 +16,12 @@ public interface UsuarioRepository {
 
     Usuario save(Usuario usuario);
 
+    /**
+     * Alta idempotente: si otra petición simultánea acaba de dar de alta al mismo usuario no
+     * falla, y devuelve la fila guardada, sea la recibida o la que ya existía.
+     */
+    Usuario registrarSiNoExiste(Usuario usuario);
+
     /** Usuarios ordenados del más reciente al más antiguo. */
     PageResult<Usuario> findAll(PageQuery page);
 }

@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
@@ -104,6 +105,17 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void databaseConstraintViolationsAreConflictsWithoutSqlDetails() {
+        assertThat(mvc.get().uri("/integrity"))
+                .hasStatus(409)
+                .bodyJson()
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$.code").isEqualTo("CONFLICTO_DATOS");
+                    assertThat(json).extractingPath("$.detail").asString().doesNotContain("usuarios_pkey");
+                });
+    }
+
+    @Test
     void hidesUnexpectedErrorDetails() {
         assertThat(mvc.get().uri("/boom"))
                 .hasStatus(500)
@@ -166,6 +178,12 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/stale")
         void stale() {
             throw new OptimisticLockingFailureException("version mismatch");
+        }
+
+        @GetMapping("/integrity")
+        void integrity() {
+            throw new DuplicateKeyException(
+                    "duplicate key value violates unique constraint \"usuarios_pkey\"");
         }
 
         @GetMapping("/boom")

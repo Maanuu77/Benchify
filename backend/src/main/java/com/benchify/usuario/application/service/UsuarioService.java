@@ -44,7 +44,7 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
                 .map(existente -> existente.difiereDe(identidad)
                         ? usuarios.save(existente.sincronizar(identidad, clock.instant()))
                         : existente)
-                .orElseGet(() -> usuarios.save(Usuario.registrar(identidad, clock.instant())));
+                .orElseGet(() -> usuarios.registrarSiNoExiste(Usuario.registrar(identidad, clock.instant())));
     }
 
     @Override

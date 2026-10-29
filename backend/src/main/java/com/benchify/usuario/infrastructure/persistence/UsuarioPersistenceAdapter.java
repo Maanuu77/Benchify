@@ -6,8 +6,12 @@ import com.benchify.shared.infrastructure.persistence.SpringDataPages;
 import com.benchify.usuario.application.port.out.UsuarioRepository;
 import com.benchify.usuario.domain.Usuario;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.util.Optional;
 
 @Component
@@ -17,10 +21,13 @@ class UsuarioPersistenceAdapter implements UsuarioRepository {
 
     private final UsuarioJpaRepository repository;
     private final UsuarioEntityMapper mapper;
+    private final NamedParameterJdbcTemplate jdbc;
 
-    UsuarioPersistenceAdapter(UsuarioJpaRepository repository, UsuarioEntityMapper mapper) {
+    UsuarioPersistenceAdapter(UsuarioJpaRepository repository, UsuarioEntityMapper mapper,
+            NamedParameterJdbcTemplate jdbc) {
         this.repository = repository;
         this.mapper = mapper;
+        this.jdbc = jdbc;
     }
 
     @Override
@@ -41,6 +48,31 @@ class UsuarioPersistenceAdapter implements UsuarioRepository {
     @Override
     public Usuario save(Usuario usuario) {
         return mapper.toDomain(repository.save(mapper.toEntity(usuario)));
+    }
+
+    /**
+     * La SPA lanza varias peticiones a la vez en el primer inicio de sesión: con
+     * {@code ON CONFLICT DO NOTHING} la segunda espera a que la primera confirme y no inserta nada,
+     * en lugar de fallar por clave primaria duplicada.
+     */
+    @Override
+    public Usuario registrarSiNoExiste(Usuario usuario) {
+        jdbc.update("""
+                INSERT INTO usuarios (id, email, nombre, avatar_url, ciudad, rol, fecha_registro, ultimo_acceso)
+                VALUES (:id, :email, :nombre, :avatarUrl, :ciudad, :rol, :fechaRegistro, :ultimoAcceso)
+                ON CONFLICT (id) DO NOTHING
+                """, new MapSqlParameterSource()
+                .addValue("id", usuario.id())
+                .addValue("email", usuario.email(), Types.VARCHAR)
+                .addValue("nombre", usuario.nombre())
+                .addValue("avatarUrl", usuario.avatarUrl(), Types.VARCHAR)
+                .addValue("ciudad", usuario.ciudad(), Types.VARCHAR)
+                .addValue("rol", usuario.rol().name())
+                .addValue("fechaRegistro", Timestamp.from(usuario.fechaRegistro()))
+                .addValue("ultimoAcceso", Timestamp.from(usuario.ultimoAcceso())));
+        // Puede ser la fila de la otra petición: se lee de la base de datos en lugar de devolver la recibida
+        return findById(usuario.id())
+                .orElseThrow(() -> new IllegalStateException("User row missing after insert: " + usuario.id()));
     }
 
     @Override
