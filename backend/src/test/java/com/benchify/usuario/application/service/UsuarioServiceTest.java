@@ -79,13 +79,25 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void doesNotWriteWhenIdentityIsUnchanged() {
+    void doesNotWriteWhenIdentityIsUnchangedAndLastAccessIsRecent() {
         IdentidadUsuario identidad = new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER);
-        Usuario existente = Usuario.registrar(identidad, AHORA.minusSeconds(3600));
+        Usuario existente = Usuario.registrar(identidad, AHORA.minus(Usuario.REFRESCO_ULTIMO_ACCESO));
         when(usuarios.findById("uid")).thenReturn(Optional.of(existente));
 
         assertThat(service.sincronizar(identidad)).isSameAs(existente);
         verify(usuarios, never()).save(any());
+    }
+
+    @Test
+    void refreshesLastAccessWhenTheStoredOneIsOlderThanFifteenMinutes() {
+        IdentidadUsuario identidad = new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER);
+        Usuario existente = Usuario.registrar(identidad, AHORA.minus(Usuario.REFRESCO_ULTIMO_ACCESO).minusSeconds(1));
+        when(usuarios.findById("uid")).thenReturn(Optional.of(existente));
+
+        Usuario sincronizado = service.sincronizar(identidad);
+
+        assertThat(sincronizado.ultimoAcceso()).isEqualTo(AHORA);
+        verify(usuarios).save(sincronizado);
     }
 
     @Test

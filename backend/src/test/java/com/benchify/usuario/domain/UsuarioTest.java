@@ -4,6 +4,7 @@ import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.Rol;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,6 +64,20 @@ class UsuarioTest {
 
         assertThat(usuario.difiereDe(identidad)).isFalse();
         assertThat(usuario.difiereDe(new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER))).isFalse();
+    }
+
+    @Test
+    void lastAccessIsPersistedOnlyWhenOlderThanFifteenMinutes() {
+        IdentidadUsuario identidad = new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER);
+        Usuario usuario = Usuario.registrar(identidad, AHORA);
+
+        assertThat(usuario.debeSincronizarse(identidad, AHORA.plus(Duration.ofMinutes(14)))).isFalse();
+        assertThat(usuario.debeSincronizarse(identidad, AHORA.plus(Usuario.REFRESCO_ULTIMO_ACCESO))).isFalse();
+        assertThat(usuario.debeSincronizarse(identidad, AHORA.plus(Usuario.REFRESCO_ULTIMO_ACCESO).plusSeconds(1)))
+                .isTrue();
+        // Un cambio en la identidad se guarda aunque el último acceso sea reciente
+        assertThat(usuario.debeSincronizarse(new IdentidadUsuario("uid", "b@x.com", "Ana", null, Rol.USER), AHORA))
+                .isTrue();
     }
 
     @Test

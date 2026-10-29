@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 
 @Service
 @Transactional
@@ -40,11 +41,12 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
 
     @Override
     public Usuario sincronizar(IdentidadUsuario identidad) {
+        Instant ahora = clock.instant();
         return usuarios.findById(identidad.id())
-                .map(existente -> existente.difiereDe(identidad)
-                        ? usuarios.save(existente.sincronizar(identidad, clock.instant()))
+                .map(existente -> existente.debeSincronizarse(identidad, ahora)
+                        ? usuarios.save(existente.sincronizar(identidad, ahora))
                         : existente)
-                .orElseGet(() -> usuarios.registrarSiNoExiste(Usuario.registrar(identidad, clock.instant())));
+                .orElseGet(() -> usuarios.registrarSiNoExiste(Usuario.registrar(identidad, ahora)));
     }
 
     @Override

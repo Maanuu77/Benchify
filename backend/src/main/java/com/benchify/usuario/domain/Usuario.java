@@ -3,6 +3,7 @@ package com.benchify.usuario.domain;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.Rol;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -22,6 +23,9 @@ public record Usuario(
 
     public static final int MAX_NOMBRE = 100;
     public static final int MAX_CIUDAD = 100;
+
+    /** Cada cuánto se guarda {@link #ultimoAcceso} aunque no haya cambiado nada más. */
+    public static final Duration REFRESCO_ULTIMO_ACCESO = Duration.ofMinutes(15);
 
     public Usuario {
         Objects.requireNonNull(id, "id");
@@ -51,6 +55,14 @@ public record Usuario(
         return rol != identidad.rol()
                 || !Objects.equals(email, identidad.email())
                 || (identidad.avatarUrl() != null && !identidad.avatarUrl().equals(avatarUrl));
+    }
+
+    /**
+     * {@code true} si hay que escribir al sincronizar: la identidad trae cambios o el último acceso
+     * guardado tiene más de {@link #REFRESCO_ULTIMO_ACCESO}.
+     */
+    public boolean debeSincronizarse(IdentidadUsuario identidad, Instant ahora) {
+        return difiereDe(identidad) || ultimoAcceso.isBefore(ahora.minus(REFRESCO_ULTIMO_ACCESO));
     }
 
     public Usuario actualizarPerfil(String nuevoNombre, String nuevaCiudad) {
