@@ -59,6 +59,7 @@ public class ResenaService implements ResenasUseCase {
         return resena;
     }
 
+    /** Si otra petición ha editado la reseña a la vez, falla con un conflicto en lugar de pisarla. */
     @Override
     public Resena editar(Actor actor, UUID resenaId, ResenaCommand command) {
         Resena resena = cargar(resenaId);
@@ -77,24 +78,31 @@ public class ResenaService implements ResenasUseCase {
         recalcularValoracion(banco);
     }
 
+    /**
+     * El contador se incrementa con un UPDATE atómico, así que ni otro reporte ni una edición
+     * simultánea pueden perderlo. El bloqueo de la fila lo serializa con la moderación.
+     */
     @Override
     public Resena reportar(Actor actor, UUID resenaId) {
-        Resena resena = resenas.findByIdForUpdate(resenaId).orElseThrow(() -> new ResenaNotFoundException(resenaId));
+        Resena resena = cargarParaActualizar(resenaId);
         resena.exigirReportablePor(actor);
         if (!resenas.registrarReporte(resenaId, actor.userId(), clock.instant())) {
             throw new ConflictException("RESENA_YA_REPORTADA", "Ya has reportado esta reseña");
         }
-        return resenas.save(resena.conReporteAdicional());
+        return resenas.sumarReporte(resenaId, Resena.UMBRAL_REPORTES);
     }
 
+    /**
+     * Bloquea la fila antes de borrar los reportes: un reporte que llegue a la vez espera y se
+     * cuenta después, en lugar de quedar registrado con el contador a cero.
+     */
     @Override
     public Resena descartarReportes(Actor actor, UUID resenaId) {
         if (!actor.isAdmin()) {
             throw new ForbiddenException("ADMIN_REQUIRED", "Solo un administrador puede moderar reseñas");
         }
-        Resena resena = cargar(resenaId);
-        resenas.borrarReportes(resenaId);
-        return resenas.save(resena.sinReportes());
+        cargarParaActualizar(resenaId);
+        return resenas.borrarReportes(resenaId);
     }
 
     @Override
@@ -114,6 +122,10 @@ public class ResenaService implements ResenasUseCase {
 
     private Resena cargar(UUID resenaId) {
         return resenas.findById(resenaId).orElseThrow(() -> new ResenaNotFoundException(resenaId));
+    }
+
+    private Resena cargarParaActualizar(UUID resenaId) {
+        return resenas.findByIdForUpdate(resenaId).orElseThrow(() -> new ResenaNotFoundException(resenaId));
     }
 
     private Banco bloquearBanco(UUID bancoId) {

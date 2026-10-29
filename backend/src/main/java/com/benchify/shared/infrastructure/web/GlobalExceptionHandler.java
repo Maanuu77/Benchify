@@ -5,6 +5,8 @@ import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.DomainException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.NotFoundException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PessimisticLockException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,8 +63,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex);
     }
 
-    /** Dos escrituras simultáneas sobre el mismo recurso (versión optimista o bloqueo). */
-    @ExceptionHandler({OptimisticLockingFailureException.class, PessimisticLockingFailureException.class})
+    /**
+     * Dos escrituras simultáneas sobre el mismo recurso (versión optimista o bloqueo). Las
+     * excepciones de JPA llegan sin traducir cuando un adaptador vuelca el {@code EntityManager}.
+     */
+    @ExceptionHandler({OptimisticLockingFailureException.class, PessimisticLockingFailureException.class,
+            OptimisticLockException.class, PessimisticLockException.class})
     ProblemDetail handleConcurrentUpdate(RuntimeException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "El recurso se ha modificado a la vez desde otra petición; vuelve a intentarlo");

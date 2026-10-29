@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,6 +13,11 @@ import org.hibernate.annotations.Formula;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Los contadores de reportes nunca se escriben desde la entidad ({@code updatable = false}): solo
+ * los cambian los UPDATE atómicos del adaptador. Así una edición hecha a partir de una lectura
+ * anterior no puede devolverlos a un valor viejo.
+ */
 @Entity
 @Table(name = "resenas")
 @Getter
@@ -43,9 +49,12 @@ public class ResenaEntity {
     @Column(name = "fecha_edicion")
     private Instant fechaEdicion;
 
-    @Column(name = "num_reportes", nullable = false)
+    @Column(name = "num_reportes", nullable = false, updatable = false)
     private int numReportes;
 
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private boolean reportada;
+
+    @Version
+    private long version;
 }

@@ -30,8 +30,8 @@ import static org.mockito.Mockito.when;
 class ResenaControllerTest {
 
     private static final UUID BANCO = UUID.randomUUID();
-    private static final Resena RESENA = Resena.publicar(UUID.randomUUID(), BANCO, Actor.user("ana"), 4, "Bonito",
-            Instant.parse("2026-10-25T10:00:00Z")).conReporteAdicional();
+    private static final Resena RESENA = new Resena(UUID.randomUUID(), BANCO, "ana", "Ana", 4, "Bonito",
+            Instant.parse("2026-10-25T10:00:00Z"), null, 1, false, 0);
 
     @Autowired
     private MockMvcTester mvc;

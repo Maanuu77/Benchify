@@ -4,6 +4,7 @@ import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.NotFoundException;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
@@ -101,6 +102,8 @@ class GlobalExceptionHandlerTest {
     void concurrentUpdatesAreConflicts() {
         assertThat(mvc.get().uri("/stale")).hasStatus(409)
                 .bodyJson().extractingPath("$.code").isEqualTo("CONFLICTO_CONCURRENTE");
+        assertThat(mvc.get().uri("/stale-jpa")).hasStatus(409)
+                .bodyJson().extractingPath("$.code").isEqualTo("CONFLICTO_CONCURRENTE");
     }
 
     @Test
@@ -166,6 +169,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/stale")
         void stale() {
             throw new OptimisticLockingFailureException("version mismatch");
+        }
+
+        @GetMapping("/stale-jpa")
+        void staleJpa() {
+            throw new OptimisticLockException("Row was updated or deleted by another transaction");
         }
 
         @GetMapping("/boom")

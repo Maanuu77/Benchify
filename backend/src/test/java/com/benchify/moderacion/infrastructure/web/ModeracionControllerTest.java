@@ -97,11 +97,11 @@ class ModeracionControllerTest {
 
     @Test
     void moderatesReportedReviews() {
-        Resena reportada = Resena.publicar(UUID.randomUUID(), BANCO.id(), Actor.user("luis"), 1, "Spam", AHORA)
-                .conReporteAdicional().conReporteAdicional().conReporteAdicional();
+        Resena reportada = new Resena(UUID.randomUUID(), BANCO.id(), "luis", "Luis", 1, "Spam", AHORA, null, 3, true, 0);
+        Resena revisada = new Resena(reportada.id(), BANCO.id(), "luis", "Luis", 1, "Spam", AHORA, null, 0, false, 0);
         when(moderacion.resenasReportadas(ADMIN, PageQuery.first(20)))
                 .thenReturn(new PageResult<>(List.of(reportada), 0, 20, 1));
-        when(moderacion.mantenerResena(ADMIN, reportada.id())).thenReturn(reportada.sinReportes());
+        when(moderacion.mantenerResena(ADMIN, reportada.id())).thenReturn(revisada);
 
         assertThat(mvc.get().uri("/api/v1/admin/resenas/reportadas").header("Authorization", bearerAdmin("root")))
                 .hasStatusOk()

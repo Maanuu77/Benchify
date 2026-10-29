@@ -14,6 +14,7 @@ import com.benchify.support.TestData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -21,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 @Transactional
@@ -77,21 +79,44 @@ class ResenaPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void reportsAreUniquePerUserAndFeedTheModerationQueue() {
+    void reportsAreUniquePerUserAndFeedTheModerationQueueAtTheThreshold() {
         Resena resena = resenas.save(resena("res-ana", 1, AHORA));
         long antes = resenas.countReportadas();
 
         assertThat(resenas.registrarReporte(resena.id(), "res-luis", AHORA)).isTrue();
         assertThat(resenas.registrarReporte(resena.id(), "res-luis", AHORA)).isFalse();
 
-        Resena reportada = resenas.findByIdForUpdate(resena.id()).orElseThrow()
-                .conReporteAdicional().conReporteAdicional().conReporteAdicional();
-        resenas.save(reportada);
+        assertThat(resenas.sumarReporte(resena.id(), 3).reportada()).isFalse();
+        assertThat(resenas.sumarReporte(resena.id(), 3).numReportes()).isEqualTo(2);
+        Resena reportada = resenas.sumarReporte(resena.id(), 3);
+        assertThat(reportada.numReportes()).isEqualTo(3);
+        assertThat(reportada.reportada()).isTrue();
         assertThat(resenas.countReportadas()).isEqualTo(antes + 1);
         assertThat(resenas.findReportadas(PageQuery.first(50)).content()).extracting(Resena::id).contains(resena.id());
 
-        resenas.borrarReportes(resena.id());
+        Resena revisada = resenas.borrarReportes(resena.id());
+        assertThat(revisada.numReportes()).isZero();
+        assertThat(revisada.reportada()).isFalse();
+        assertThat(resenas.findById(resena.id()).orElseThrow().numReportes()).isZero();
         assertThat(resenas.registrarReporte(resena.id(), "res-luis", AHORA)).isTrue();
+    }
+
+    @Test
+    void editsBumpTheVersionKeepReportCountersAndRejectStaleVersions() {
+        Resena original = resenas.save(resena("res-ana", 4, AHORA));
+        assertThat(original.version()).isZero();
+        resenas.sumarReporte(original.id(), 3);
+
+        // La edición parte de una lectura anterior al reporte: el contador no vuelve a cero
+        Resena editada = resenas.save(original.editar(Actor.user("res-ana"), 2, "Editada", AHORA.plusSeconds(5)));
+        assertThat(editada.comentario()).isEqualTo("Editada");
+        assertThat(editada.numReportes()).isEqualTo(1);
+        assertThat(editada.version()).isEqualTo(1);
+
+        // Otra edición basada en la versión anterior no pisa la primera
+        assertThatThrownBy(() -> resenas.save(original.editar(Actor.user("res-ana"), 5, "Vieja", AHORA.plusSeconds(9))))
+                .isInstanceOf(OptimisticLockingFailureException.class);
+        assertThat(resenas.findById(original.id()).orElseThrow().comentario()).isEqualTo("Editada");
     }
 
     @Test

@@ -2,12 +2,14 @@ package com.benchify.resena.infrastructure.persistence;
 
 import com.benchify.resena.application.port.out.ResenaRepository;
 import com.benchify.resena.domain.Resena;
+import com.benchify.resena.domain.ResenaNotFoundException;
 import com.benchify.resena.domain.ResumenPuntuacion;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.infrastructure.persistence.SpringDataPages;
 import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Sort;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -31,11 +33,25 @@ class ResenaPersistenceAdapter implements ResenaRepository {
         this.entityManager = entityManager;
     }
 
+    /**
+     * Una reseña existente se actualiza sobre la entidad gestionada para que Hibernate compruebe
+     * la versión al volcarla ({@code UPDATE … WHERE version = ?}); además se compara con la versión
+     * que trae el dominio por si la reseña se leyó en otra transacción.
+     */
     @Override
     public Resena save(Resena resena) {
-        ResenaEntity entity = entityManager.merge(mapper.toEntity(resena));
+        ResenaEntity entity = repository.findById(resena.id()).orElse(null);
+        if (entity == null) {
+            entity = mapper.toEntity(resena);
+            entityManager.persist(entity);
+        } else {
+            if (entity.getVersion() != resena.version()) {
+                throw new ObjectOptimisticLockingFailureException(ResenaEntity.class, resena.id());
+            }
+            mapper.copiarEdicion(resena, entity);
+        }
         entityManager.flush();
-        // Recarga el nombre del autor (@Formula)
+        // Recarga el nombre del autor (@Formula), la versión incrementada y los contadores de reportes
         entityManager.refresh(entity);
         return mapper.toDomain(entity);
     }
@@ -102,11 +118,30 @@ class ResenaPersistenceAdapter implements ResenaRepository {
         return filas == 1;
     }
 
+    /** En el SET, {@code num_reportes} es el valor anterior a la actualización. */
     @Override
-    public void borrarReportes(UUID resenaId) {
+    public Resena sumarReporte(UUID resenaId, int umbral) {
+        entityManager.createNativeQuery("""
+                        UPDATE resenas
+                        SET num_reportes = num_reportes + 1,
+                            reportada = reportada OR num_reportes + 1 >= :umbral
+                        WHERE id = :resena
+                        """)
+                .setParameter("umbral", umbral)
+                .setParameter("resena", resenaId)
+                .executeUpdate();
+        return recargar(resenaId);
+    }
+
+    @Override
+    public Resena borrarReportes(UUID resenaId) {
         entityManager.createNativeQuery("DELETE FROM resena_reportes WHERE resena_id = :resena")
                 .setParameter("resena", resenaId)
                 .executeUpdate();
+        entityManager.createNativeQuery("UPDATE resenas SET num_reportes = 0, reportada = FALSE WHERE id = :resena")
+                .setParameter("resena", resenaId)
+                .executeUpdate();
+        return recargar(resenaId);
     }
 
     @Override
@@ -115,5 +150,13 @@ class ResenaPersistenceAdapter implements ResenaRepository {
         return resumen.total() == 0
                 ? ResumenPuntuacion.VACIO
                 : new ResumenPuntuacion(resumen.media(), resumen.total().intValue());
+    }
+
+    /** Las sentencias nativas no actualizan la entidad que ya estuviera en la sesión: se refresca. */
+    private Resena recargar(UUID resenaId) {
+        ResenaEntity entity = Optional.ofNullable(entityManager.find(ResenaEntity.class, resenaId))
+                .orElseThrow(() -> new ResenaNotFoundException(resenaId));
+        entityManager.refresh(entity);
+        return mapper.toDomain(entity);
     }
 }

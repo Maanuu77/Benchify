@@ -124,14 +124,27 @@ class ResenaServiceTest {
     }
 
     @Test
-    void reportingCountsEachUserOnce() {
+    void reportingCountsEachUserOnceWithAnAtomicIncrement() {
         Resena resena = Resena.publicar(UUID.randomUUID(), banco.id(), ANA, 1, "Spam", AHORA);
         when(resenas.findByIdForUpdate(resena.id())).thenReturn(Optional.of(resena));
         when(resenas.registrarReporte(resena.id(), "luis", AHORA)).thenReturn(true, false);
+        when(resenas.sumarReporte(resena.id(), Resena.UMBRAL_REPORTES)).thenReturn(conReportes(resena, 1, false));
 
         assertThat(service.reportar(LUIS, resena.id()).numReportes()).isEqualTo(1);
         assertThatThrownBy(() -> service.reportar(LUIS, resena.id()))
                 .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("RESENA_YA_REPORTADA");
+        verify(resenas).sumarReporte(resena.id(), Resena.UMBRAL_REPORTES);
+        verify(resenas, never()).save(any());
+    }
+
+    @Test
+    void authorsCannotReportTheirOwnReview() {
+        Resena resena = Resena.publicar(UUID.randomUUID(), banco.id(), ANA, 1, "Spam", AHORA);
+        when(resenas.findByIdForUpdate(resena.id())).thenReturn(Optional.of(resena));
+
+        assertThatThrownBy(() -> service.reportar(ANA, resena.id()))
+                .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("RESENA_PROPIA");
+        verify(resenas, never()).registrarReporte(any(), any(), any());
     }
 
     @Test
@@ -140,19 +153,24 @@ class ResenaServiceTest {
         when(resenas.findByIdForUpdate(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.reportar(LUIS, id)).isInstanceOf(ResenaNotFoundException.class);
+        assertThatThrownBy(() -> service.descartarReportes(Actor.admin("root"), id))
+                .isInstanceOf(ResenaNotFoundException.class);
     }
 
     @Test
-    void onlyAdminsDismissReports() {
-        Resena reportada = Resena.publicar(UUID.randomUUID(), banco.id(), ANA, 1, null, AHORA)
-                .conReporteAdicional().conReporteAdicional().conReporteAdicional();
-        lenient().when(resenas.findById(reportada.id())).thenReturn(Optional.of(reportada));
+    void onlyAdminsDismissReportsAndTheRowIsLockedFirst() {
+        Resena reportada = conReportes(Resena.publicar(UUID.randomUUID(), banco.id(), ANA, 1, null, AHORA), 3, true);
+        when(resenas.findByIdForUpdate(reportada.id())).thenReturn(Optional.of(reportada));
+        when(resenas.borrarReportes(reportada.id())).thenReturn(conReportes(reportada, 0, false));
 
         assertThatThrownBy(() -> service.descartarReportes(LUIS, reportada.id())).isInstanceOf(ForbiddenException.class);
+        verify(resenas, never()).borrarReportes(any());
 
         Resena revisada = service.descartarReportes(Actor.admin("root"), reportada.id());
         assertThat(revisada.reportada()).isFalse();
-        verify(resenas).borrarReportes(reportada.id());
+        assertThat(revisada.numReportes()).isZero();
+        verify(resenas).findByIdForUpdate(reportada.id());
+        verify(resenas, never()).save(any());
     }
 
     @Test
@@ -164,5 +182,10 @@ class ResenaServiceTest {
 
         when(resenas.findByBanco(banco.id(), PageQuery.first(10))).thenReturn(PageResult.empty(PageQuery.first(10)));
         assertThat(service.deBanco(banco.id(), null, PageQuery.first(10)).content()).isEmpty();
+    }
+
+    private static Resena conReportes(Resena resena, int numReportes, boolean reportada) {
+        return new Resena(resena.id(), resena.bancoId(), resena.autorId(), resena.autorNombre(), resena.puntuacion(),
+                resena.comentario(), resena.fecha(), resena.fechaEdicion(), numReportes, reportada, resena.version());
     }
 }
