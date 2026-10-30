@@ -193,7 +193,6 @@ class BancoPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
         assertThat(bancos.countByEstado(EstadoBanco.PENDIENTE)).isEqualTo(antes + 2);
         assertThat(bancos.findByEstado(EstadoBanco.PENDIENTE, PageQuery.first(1)).content())
                 .extracting(Banco::id).containsExactly(viejo.id());
-        assertThat(bancos.existsPublicado(viejo.id())).isFalse();
     }
 
     private Banco publicado(String titulo, Ubicacion ubicacion, double media, boolean accesible) {

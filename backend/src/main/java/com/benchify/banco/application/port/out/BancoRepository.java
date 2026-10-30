@@ -29,8 +29,6 @@ public interface BancoRepository {
     /** Carga varios bancos respetando el orden de {@code ids}; los inexistentes se omiten. */
     List<Banco> findAllById(List<UUID> ids);
 
-    boolean existsPublicado(UUID id);
-
     /** Publicados dentro del área, mejor valorados primero. */
     List<Banco> findPublicadosEnArea(BoundingBox area, FiltroBancos filtro, int limite);
 

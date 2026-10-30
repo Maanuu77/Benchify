@@ -80,11 +80,6 @@ class BancoPersistenceAdapter implements BancoRepository, EtiquetaRepository {
     }
 
     @Override
-    public boolean existsPublicado(UUID id) {
-        return bancos.existsByIdAndEstado(id, EstadoBanco.PUBLICADO);
-    }
-
-    @Override
     public List<Banco> findPublicadosEnArea(BoundingBox area, FiltroBancos filtro, int limite) {
         return cargarEnOrden(spatial.idsEnArea(area, filtro, limite));
     }
