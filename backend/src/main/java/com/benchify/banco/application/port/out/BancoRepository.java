@@ -43,4 +43,11 @@ public interface BancoRepository {
     PageResult<Banco> findByEstado(EstadoBanco estado, PageQuery page);
 
     long countByEstado(EstadoBanco estado);
+
+    /**
+     * Bancos pendientes de moderación de un autor. Antes bloquea sus propuestas hasta el final de
+     * la transacción: dos propuestas simultáneas no pueden pasar a la vez la comprobación del
+     * límite y guardarse las dos.
+     */
+    long countPendientesByAutorForUpdate(String autorId);
 }

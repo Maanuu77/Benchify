@@ -83,6 +83,24 @@ class BancoServiceTest {
     }
 
     @Test
+    void aUserWithFivePendingBenchesCannotProposeAnother() {
+        when(bancos.countPendientesByAutorForUpdate("ana")).thenReturn(5L);
+
+        assertThatThrownBy(() -> service.proponer(ANA, command(null)))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("BANCO_LIMITE_PENDIENTES");
+        verify(bancos, never()).save(any());
+    }
+
+    @Test
+    void adminProposalsAreNotLimited() {
+        Banco banco = service.proponer(Actor.admin("root"), command(null));
+
+        assertThat(banco.estado()).isEqualTo(EstadoBanco.PUBLICADO);
+        verify(bancos, never()).countPendientesByAutorForUpdate(any());
+    }
+
+    @Test
     void rejectsUnknownTags() {
         when(etiquetas.findAllById(Set.of(3L, 99L))).thenReturn(List.of(VISTAS));
 

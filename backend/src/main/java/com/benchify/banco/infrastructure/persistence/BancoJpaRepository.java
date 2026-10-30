@@ -24,4 +24,6 @@ interface BancoJpaRepository extends JpaRepository<BancoEntity, UUID> {
     Page<BancoEntity> findByEstado(EstadoBanco estado, Pageable pageable);
 
     long countByEstado(EstadoBanco estado);
+
+    long countByCreadoPorAndEstado(String creadoPor, EstadoBanco estado);
 }

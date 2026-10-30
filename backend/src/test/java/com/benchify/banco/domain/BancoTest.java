@@ -49,6 +49,22 @@ class BancoTest {
         assertThat(banco.fechaVerificacion()).isEqualTo(AHORA);
     }
 
+    @Test
+    void aUserCannotHaveMoreThanFivePendingProposals() {
+        Banco.exigirCupoDePropuestas(AUTOR, () -> Banco.MAX_PENDIENTES_POR_AUTOR - 1);
+
+        assertThatThrownBy(() -> Banco.exigirCupoDePropuestas(AUTOR, () -> Banco.MAX_PENDIENTES_POR_AUTOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("BANCO_LIMITE_PENDIENTES");
+    }
+
+    @Test
+    void adminsHaveNoProposalLimitAndAreNotEvenCounted() {
+        Banco.exigirCupoDePropuestas(ADMIN, () -> {
+            throw new AssertionError("No debería contar los pendientes de un administrador");
+        });
+    }
+
     @Nested
     class Visibilidad {
 

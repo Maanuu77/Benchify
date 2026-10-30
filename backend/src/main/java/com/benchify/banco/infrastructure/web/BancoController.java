@@ -97,7 +97,8 @@ class BancoController {
     }
 
     @PostMapping
-    @Operation(summary = "Proponer un banco nuevo", description = "Queda pendiente de moderación.")
+    @Operation(summary = "Proponer un banco nuevo", description = "Queda pendiente de moderación. Un usuario puede "
+            + "tener como mucho " + Banco.MAX_PENDIENTES_POR_AUTOR + " pendientes a la vez (422 BANCO_LIMITE_PENDIENTES).")
     @SecurityRequirement(name = "firebase")
     ResponseEntity<BancoResponse> proponer(@CurrentActor Actor actor, @Valid @RequestBody BancoRequest request) {
         Banco banco = gestionarBanco.proponer(actor, mapper.toCommand(request));
