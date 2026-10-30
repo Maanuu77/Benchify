@@ -30,6 +30,7 @@
 		<archunit.version>1.5.1</archunit.version>
 		<firebase-admin.version>9.11.0</firebase-admin.version>
 		<cloud-sql-socket-factory.version>1.30.2</cloud-sql-socket-factory.version>
+		<bucket4j.version>8.21.0</bucket4j.version>
 		<jacoco.version>0.8.15</jacoco.version>
 		<jacoco.minimum.line>0.70</jacoco.minimum.line>
 		<jacoco.minimum.branch>0.60</jacoco.minimum.branch>
@@ -110,9 +111,15 @@
 			<version>${springdoc.version}</version>
 		</dependency>
 		<dependency>
-			<!-- Bounded in-memory caches (resolved roles, published Firebase claims) -->
+			<!-- Bounded in-memory caches (resolved roles, published Firebase claims, rate-limit buckets) -->
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
+		</dependency>
+		<dependency>
+			<!-- Token-bucket rate limiting for write requests -->
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j_jdk17-core</artifactId>
+			<version>${bucket4j.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
