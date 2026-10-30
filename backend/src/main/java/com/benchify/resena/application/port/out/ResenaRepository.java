@@ -27,6 +27,9 @@ public interface ResenaRepository {
 
     boolean existsByBancoAndAutor(UUID bancoId, String autorId);
 
+    /** Hay como mucho una reseña por usuario y banco. */
+    Optional<Resena> findByBancoAndAutor(UUID bancoId, String autorId);
+
     /** Más recientes primero. */
     PageResult<Resena> findByBanco(UUID bancoId, PageQuery page);
 

@@ -105,12 +105,29 @@ public class ResenaService implements ResenasUseCase {
         return resenas.borrarReportes(resenaId);
     }
 
+    /** Si el banco no es visible para el actor, la reseña se trata como inexistente. */
+    @Override
+    @Transactional(readOnly = true)
+    public Resena obtener(UUID resenaId, Actor actor) {
+        Resena resena = cargar(resenaId);
+        if (bancos.findById(resena.bancoId()).filter(b -> b.esVisiblePara(actor)).isEmpty()) {
+            throw new ResenaNotFoundException(resenaId);
+        }
+        return resena;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Resena mia(UUID bancoId, Actor actor) {
+        cargarBancoVisible(bancoId, actor);
+        return resenas.findByBancoAndAutor(bancoId, actor.userId())
+                .orElseThrow(() -> ResenaNotFoundException.sinResenaPropia(bancoId));
+    }
+
     @Override
     @Transactional(readOnly = true)
     public PageResult<Resena> deBanco(UUID bancoId, Actor actor, PageQuery page) {
-        bancos.findById(bancoId)
-                .filter(b -> b.esVisiblePara(actor))
-                .orElseThrow(() -> new BancoNotFoundException(bancoId));
+        cargarBancoVisible(bancoId, actor);
         return resenas.findByBanco(bancoId, page);
     }
 
@@ -127,6 +144,13 @@ public class ResenaService implements ResenasUseCase {
 
     private Resena cargarParaActualizar(UUID resenaId) {
         return resenas.findByIdForUpdate(resenaId).orElseThrow(() -> new ResenaNotFoundException(resenaId));
+    }
+
+    /** Un banco que el actor no puede ver se trata como inexistente para no revelar su existencia. */
+    private Banco cargarBancoVisible(UUID bancoId, Actor actor) {
+        return bancos.findById(bancoId)
+                .filter(b -> b.esVisiblePara(actor))
+                .orElseThrow(() -> new BancoNotFoundException(bancoId));
     }
 
     private Banco bloquearBanco(UUID bancoId) {

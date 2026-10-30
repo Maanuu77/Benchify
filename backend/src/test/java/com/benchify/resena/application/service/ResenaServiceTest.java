@@ -185,6 +185,45 @@ class ResenaServiceTest {
     }
 
     @Test
+    void aReviewIsVisibleOnlyIfItsBenchIs() {
+        Resena enPublicado = Resena.publicar(UUID.randomUUID(), banco.id(), ANA, 4, null, AHORA);
+        Banco pendiente = Banco.proponer(UUID.randomUUID(),
+                new DatosBanco("Pendiente", null, new Ubicacion(37, -6), null, null, null), AUTOR_BANCO, AHORA);
+        Resena enPendiente = Resena.publicar(UUID.randomUUID(), pendiente.id(), ANA, 4, null, AHORA);
+        UUID inexistente = UUID.randomUUID();
+        when(resenas.findById(enPublicado.id())).thenReturn(Optional.of(enPublicado));
+        when(resenas.findById(enPendiente.id())).thenReturn(Optional.of(enPendiente));
+        when(resenas.findById(inexistente)).thenReturn(Optional.empty());
+        when(bancos.findById(pendiente.id())).thenReturn(Optional.of(pendiente));
+
+        assertThat(service.obtener(enPublicado.id(), null)).isEqualTo(enPublicado);
+        assertThat(service.obtener(enPendiente.id(), AUTOR_BANCO)).isEqualTo(enPendiente);
+        assertThatThrownBy(() -> service.obtener(enPendiente.id(), ANA))
+                .isInstanceOf(ResenaNotFoundException.class).extracting("code").isEqualTo("RESENA_NOT_FOUND");
+        assertThatThrownBy(() -> service.obtener(inexistente, null)).isInstanceOf(ResenaNotFoundException.class);
+    }
+
+    @Test
+    void findsTheActorsOwnReviewOfABench() {
+        Resena propia = Resena.publicar(UUID.randomUUID(), banco.id(), ANA, 4, null, AHORA);
+        when(resenas.findByBancoAndAutor(banco.id(), "ana")).thenReturn(Optional.of(propia));
+        when(resenas.findByBancoAndAutor(banco.id(), "luis")).thenReturn(Optional.empty());
+
+        assertThat(service.mia(banco.id(), ANA)).isEqualTo(propia);
+        assertThatThrownBy(() -> service.mia(banco.id(), LUIS))
+                .isInstanceOf(ResenaNotFoundException.class).extracting("code").isEqualTo("RESENA_NO_ENCONTRADA");
+    }
+
+    @Test
+    void theOwnReviewOfAnInvisibleBenchIs404() {
+        UUID oculto = UUID.randomUUID();
+        when(bancos.findById(oculto)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.mia(oculto, ANA)).isInstanceOf(BancoNotFoundException.class);
+        verify(resenas, never()).findByBancoAndAutor(any(), any());
+    }
+
+    @Test
     void userReviewsOnlyIncludePublishedBenches() {
         PageResult<Resena> pagina = PageResult.empty(PageQuery.first(20));
         when(resenas.findByAutorEnBancosPublicados("ana", PageQuery.first(20))).thenReturn(pagina);

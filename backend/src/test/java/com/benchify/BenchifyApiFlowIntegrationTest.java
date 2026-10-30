@@ -138,6 +138,30 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void theAuthorOfAnOldReviewFindsItBeyondTheFirstPage() {
+        String bancoId = bancoPublicado();
+        MvcTestResult publicada = mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId)
+                .header("Authorization", bearer(visitante))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":3}").exchange();
+        String resenaId = json(publicada).get("id").asString();
+        for (int i = 0; i < 20; i++) {
+            assertThat(mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId)
+                    .header("Authorization", bearer("critico-" + i + "-" + visitante))
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":5}")).hasStatus(201);
+        }
+
+        // La cabecera Location apunta a un recurso que existe
+        assertThat(mvc.get().uri(publicada.getResponse().getHeader("Location")))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas", bancoId))
+                .bodyJson().extractingPath("$.content[*].id").asArray().doesNotContain(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", bancoId).header("Authorization", bearer(visitante)))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", bancoId).header("Authorization", bearer(autora)))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("RESENA_NO_ENCONTRADA");
+    }
+
+    @Test
     void aHiddenBenchDisappearsFromPublicProfilesAndCounters() {
         String bancoId = bancoPublicado();
         assertThat(mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId).header("Authorization", bearer(visitante))

@@ -79,6 +79,11 @@ class ResenaPersistenceAdapter implements ResenaRepository {
     }
 
     @Override
+    public Optional<Resena> findByBancoAndAutor(UUID bancoId, String autorId) {
+        return repository.findByBancoIdAndAutorId(bancoId, autorId).map(mapper::toDomain);
+    }
+
+    @Override
     public PageResult<Resena> findByBanco(UUID bancoId, PageQuery page) {
         return SpringDataPages.result(repository.findByBancoId(bancoId, SpringDataPages.pageable(page, MAS_RECIENTES)),
                 mapper::toDomain);

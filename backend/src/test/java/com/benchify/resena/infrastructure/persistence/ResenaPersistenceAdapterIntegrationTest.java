@@ -67,6 +67,16 @@ class ResenaPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void findsTheReviewOfAUserOnABench() {
+        Resena deAna = resenas.save(resena("res-ana", 5, AHORA));
+        resenas.save(resena("res-luis", 2, AHORA.plusSeconds(1)));
+
+        assertThat(resenas.findByBancoAndAutor(bancoId, "res-ana")).map(Resena::id).contains(deAna.id());
+        assertThat(resenas.findByBancoAndAutor(bancoId, "res-autor")).isEmpty();
+        assertThat(resenas.findByBancoAndAutor(UUID.randomUUID(), "res-ana")).isEmpty();
+    }
+
+    @Test
     void summaryOfABenchWithoutReviewsIsEmpty() {
         assertThat(resenas.resumen(bancoId)).isEqualTo(ResumenPuntuacion.VACIO);
     }

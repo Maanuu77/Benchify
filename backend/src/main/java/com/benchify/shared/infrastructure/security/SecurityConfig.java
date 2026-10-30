@@ -49,10 +49,11 @@ public class SecurityConfig {
                         // Lecturas personales que conviven con rutas públicas
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/usuarios/me", "/api/v1/usuarios/me/**",
-                                "/api/v1/bancos/*/favorito").authenticated()
+                                "/api/v1/bancos/*/favorito", "/api/v1/bancos/*/resenas/mia").authenticated()
                         // Lecturas públicas: mapa, fichas, reseñas, etiquetas y perfiles
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/bancos", "/api/v1/bancos/**",
+                                "/api/v1/resenas/*",
                                 "/api/v1/etiquetas",
                                 "/api/v1/usuarios/*", "/api/v1/usuarios/*/bancos",
                                 "/api/v1/usuarios/*/resenas", "/api/v1/usuarios/*/estadisticas").permitAll()

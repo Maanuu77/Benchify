@@ -22,6 +22,20 @@ public interface ResenasUseCase {
     /** Un administrador revisa una reseña reportada y decide mantenerla. */
     Resena descartarReportes(Actor actor, UUID resenaId);
 
+    /**
+     * Una reseña es visible si lo es su banco.
+     *
+     * @param actor quien consulta, o {@code null}
+     */
+    Resena obtener(UUID resenaId, Actor actor);
+
+    /**
+     * Reseña del actor en el banco, esté en la página que esté del listado.
+     *
+     * @throws com.benchify.resena.domain.ResenaNotFoundException si todavía no lo ha reseñado
+     */
+    Resena mia(UUID bancoId, Actor actor);
+
     /** @param actor quien consulta, o {@code null}; el banco debe ser visible para él */
     PageResult<Resena> deBanco(UUID bancoId, Actor actor, PageQuery page);
 

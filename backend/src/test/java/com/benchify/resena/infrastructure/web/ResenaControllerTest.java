@@ -3,6 +3,7 @@ package com.benchify.resena.infrastructure.web;
 import com.benchify.resena.application.port.in.ResenasUseCase;
 import com.benchify.resena.application.port.in.ResenasUseCase.ResenaCommand;
 import com.benchify.resena.domain.Resena;
+import com.benchify.resena.domain.ResenaNotFoundException;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.PageQuery;
@@ -99,6 +100,34 @@ class ResenaControllerTest {
     @Test
     void reportingRequiresAuthentication() {
         assertThat(mvc.post().uri("/api/v1/resenas/{id}/reportes", RESENA.id())).hasStatus(401);
+    }
+
+    @Test
+    void theLocationOfAPublishedReviewCanBeRead() {
+        when(resenas.obtener(RESENA.id(), null)).thenReturn(RESENA);
+        when(resenas.obtener(RESENA.id(), Actor.user("luis"))).thenThrow(new ResenaNotFoundException(RESENA.id()));
+
+        assertThat(mvc.get().uri("/api/v1/resenas/{id}", RESENA.id()))
+                .hasStatusOk()
+                .bodyJson()
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$.id").isEqualTo(RESENA.id().toString());
+                    assertThat(json).doesNotHavePath("$.numReportes");
+                });
+        assertThat(mvc.get().uri("/api/v1/resenas/{id}", RESENA.id()).header("Authorization", bearer("luis")))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("RESENA_NOT_FOUND");
+    }
+
+    @Test
+    void ownReviewOfABenchRequiresAuthentication() {
+        when(resenas.mia(BANCO, Actor.user("ana"))).thenReturn(RESENA);
+        when(resenas.mia(BANCO, Actor.user("luis"))).thenThrow(ResenaNotFoundException.sinResenaPropia(BANCO));
+
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", BANCO)).hasStatus(401);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", BANCO).header("Authorization", bearer("ana")))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(RESENA.id().toString());
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", BANCO).header("Authorization", bearer("luis")))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("RESENA_NO_ENCONTRADA");
     }
 
     @Test
