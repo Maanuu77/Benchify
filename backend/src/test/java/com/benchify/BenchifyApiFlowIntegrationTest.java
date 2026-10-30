@@ -143,10 +143,16 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
         String bancoId = bancoPublicado();
         byte[] png = TestImages.png(64, 48);
 
-        JsonNode subida = json(mvc.post().uri("/api/v1/bancos/{id}/imagenes", bancoId)
+        MvcTestResult resultado = mvc.post().uri("/api/v1/bancos/{id}/imagenes", bancoId)
                 .header("Authorization", bearer(visitante))
-                .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", png)));
+                .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", png)).exchange();
+        JsonNode subida = json(resultado);
         String imagenId = subida.get("id").asString();
+        String recurso = "http://localhost/api/v1/imagenes/" + imagenId;
+        assertThat(resultado).hasHeader("Location", recurso);
+        assertThat(mvc.get().uri(recurso).header("Authorization", bearer(visitante)))
+                .hasStatusOk().bodyJson().extractingPath("$.estado").isEqualTo("PENDIENTE");
+        assertThat(mvc.get().uri(recurso)).hasStatus(404);
 
         // Pendiente: sus ficheros no están en la carpeta pública y la API solo se los sirve a quien la subió
         assertThat(subida.get("requiereAutenticacion").asBoolean()).isTrue();
@@ -223,10 +229,6 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     private JsonNode json(MockMvcTester.MockMvcRequestBuilder request) {
-        return json(request.exchange());
-    }
-
-    private JsonNode json(MockMvcTester.MockMultipartMvcRequestBuilder request) {
         return json(request.exchange());
     }
 

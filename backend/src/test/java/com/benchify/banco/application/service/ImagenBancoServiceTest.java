@@ -376,6 +376,21 @@ class ImagenBancoServiceTest {
     }
 
     @Test
+    void anImageIsVisibleWithTheSameRulesAsItsFiles() {
+        Imagen pendienteDeLuis = pendienteConMiniatura("luis");
+        Imagen aprobada = imagen("ana", EstadoImagen.APROBADA);
+        when(imagenes.findById(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
+        when(imagenes.findById(aprobada.id())).thenReturn(Optional.of(aprobada));
+
+        assertThat(service.obtener(pendienteDeLuis.id(), LUIS)).isEqualTo(pendienteDeLuis);
+        assertThat(service.obtener(aprobada.id(), null)).isEqualTo(aprobada);
+        assertThatThrownBy(() -> service.obtener(pendienteDeLuis.id(), null))
+                .isInstanceOf(ImagenNotFoundException.class);
+        assertThatThrownBy(() -> service.obtener(UUID.randomUUID(), ADMIN))
+                .isInstanceOf(ImagenNotFoundException.class);
+    }
+
+    @Test
     void filesOfHiddenBenchesOrMissingFromStorageAreNotFound() {
         Imagen enBancoPendiente = new Imagen(UUID.randomUUID(), pendiente.id(), "bancos/p/1.jpg", "https://storage/1",
                 "image/jpeg", 6, "ana", EstadoImagen.APROBADA, AHORA);

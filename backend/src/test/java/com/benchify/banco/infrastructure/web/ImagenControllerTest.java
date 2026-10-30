@@ -47,7 +47,7 @@ class ImagenControllerTest {
         assertThat(mvc.post().uri("/api/v1/bancos/{id}/imagenes", BANCO).header("Authorization", bearer("ana"))
                 .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", PNG)))
                 .hasStatus(201)
-                .hasHeader("Location", "https://storage/x.png")
+                .hasHeader("Location", "http://localhost/api/v1/imagenes/" + IMAGEN.id())
                 .bodyJson().extractingPath("$.estado").isEqualTo("PENDIENTE");
     }
 
@@ -135,6 +135,17 @@ class ImagenControllerTest {
                 .hasStatusOk()
                 .hasContentType("image/jpeg")
                 .body().isEqualTo(JPEG);
+    }
+
+    @Test
+    void getsASingleImageItsViewerCanSee() {
+        when(imagenes.obtener(IMAGEN.id(), Actor.user("ana"))).thenReturn(IMAGEN);
+        when(imagenes.obtener(IMAGEN.id(), null)).thenThrow(new ImagenNotFoundException(IMAGEN.id()));
+
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}", IMAGEN.id()).header("Authorization", bearer("ana")))
+                .hasStatusOk()
+                .bodyJson().extractingPath("$.id").isEqualTo(IMAGEN.id().toString());
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}", IMAGEN.id())).hasStatus(404);
     }
 
     @Test

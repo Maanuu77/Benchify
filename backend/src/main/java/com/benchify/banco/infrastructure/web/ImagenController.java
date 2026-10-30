@@ -50,13 +50,21 @@ class ImagenController {
     ResponseEntity<ImagenResponse> subir(@CurrentActor Actor actor, @PathVariable UUID bancoId,
             @RequestPart("archivo") MultipartFile archivo) {
         Imagen imagen = imagenes.subir(actor, bancoId, archivo(archivo));
-        return ResponseEntity.created(URI.create(imagen.url())).body(mapper.toResponse(imagen));
+        // El recurso creado es la imagen en la API; sus ficheros están en url y thumbUrl
+        URI location = URI.create(ImagenUrls.api(ImagenUrls.RECURSO, imagen));
+        return ResponseEntity.created(location).body(mapper.toResponse(imagen));
     }
 
     @GetMapping("/api/v1/bancos/{bancoId}/imagenes")
     @Operation(summary = "Fotos de un banco", description = "Aprobadas, más las pendientes que haya subido quien consulta.")
     List<ImagenResponse> listar(@PathVariable UUID bancoId, @CurrentActor(required = false) Actor actor) {
         return imagenes.listar(bancoId, actor).stream().map(mapper::toResponse).toList();
+    }
+
+    @GetMapping(ImagenUrls.RECURSO)
+    @Operation(summary = "Una foto", description = "Las pendientes solo las ven quien las subió y los administradores.")
+    ImagenResponse obtener(@PathVariable UUID imagenId, @CurrentActor(required = false) Actor actor) {
+        return mapper.toResponse(imagenes.obtener(imagenId, actor));
     }
 
     @GetMapping(ImagenUrls.ARCHIVO)
@@ -73,7 +81,7 @@ class ImagenController {
         return fichero(imagenes.leerFichero(imagenId, true, actor));
     }
 
-    @DeleteMapping("/api/v1/imagenes/{imagenId}")
+    @DeleteMapping(ImagenUrls.RECURSO)
     @Operation(summary = "Borrar una foto propia o de un banco propio")
     @SecurityRequirement(name = "firebase")
     ResponseEntity<Void> eliminar(@CurrentActor Actor actor, @PathVariable UUID imagenId) {

@@ -15,6 +15,14 @@ public interface ImagenesBancoUseCase {
     List<Imagen> listar(UUID bancoId, Actor actor);
 
     /**
+     * Una imagen, si el actor la puede ver: tiene que ver su banco y, si está pendiente, ser quien
+     * la subió o un administrador.
+     *
+     * @param actor quien la pide, o {@code null} si es anónimo
+     */
+    Imagen obtener(UUID imagenId, Actor actor);
+
+    /**
      * Contenido de la foto (o de su miniatura) si el actor la puede ver. Así se sirven las pendientes,
      * que no son públicas en el almacenamiento, a quien las subió y a los administradores.
      *

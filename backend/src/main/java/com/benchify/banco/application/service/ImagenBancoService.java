@@ -114,6 +114,12 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Imagen obtener(UUID imagenId, Actor actor) {
+        return visible(imagenId, actor);
+    }
+
+    @Override
     public ArchivoImagen leerFichero(UUID imagenId, boolean miniatura, Actor actor) {
         Imagen imagen = lectura.execute(status -> visible(imagenId, actor));
         byte[] contenido = almacen.leer(imagen.rutaFichero(miniatura))
