@@ -35,25 +35,28 @@ public record Usuario(
         Objects.requireNonNull(ultimoAcceso, "ultimoAcceso");
     }
 
-    /** Alta de un usuario que inicia sesión por primera vez. */
+    /**
+     * Alta de un usuario que inicia sesión por primera vez. Es el único momento en que se toma el
+     * rol del token: así se da de alta el primer administrador.
+     */
     public static Usuario registrar(IdentidadUsuario identidad, Instant ahora) {
         return new Usuario(identidad.id(), identidad.email(), nombreVisible(identidad), identidad.avatarUrl(),
                 null, identidad.rol(), ahora, ahora);
     }
 
     /**
-     * Sincroniza los datos que vienen del proveedor de identidad. El nombre no se toca:
-     * una vez registrado, el usuario lo gestiona desde su perfil.
+     * Sincroniza los datos que vienen del proveedor de identidad. Ni el nombre (una vez registrado
+     * lo gestiona el usuario desde su perfil) ni el rol (la base de datos es la fuente de verdad y
+     * un token antiguo no puede cambiarlo) se tocan.
      */
     public Usuario sincronizar(IdentidadUsuario identidad, Instant ahora) {
         String avatar = identidad.avatarUrl() != null ? identidad.avatarUrl() : avatarUrl;
-        return new Usuario(id, identidad.email(), nombre, avatar, ciudad, identidad.rol(), fechaRegistro, ahora);
+        return new Usuario(id, identidad.email(), nombre, avatar, ciudad, rol, fechaRegistro, ahora);
     }
 
-    /** {@code true} si la identidad trae cambios que merece la pena persistir. */
+    /** {@code true} si la identidad trae cambios que merece la pena persistir (el rol no cuenta). */
     public boolean difiereDe(IdentidadUsuario identidad) {
-        return rol != identidad.rol()
-                || !Objects.equals(email, identidad.email())
+        return !Objects.equals(email, identidad.email())
                 || (identidad.avatarUrl() != null && !identidad.avatarUrl().equals(avatarUrl));
     }
 
