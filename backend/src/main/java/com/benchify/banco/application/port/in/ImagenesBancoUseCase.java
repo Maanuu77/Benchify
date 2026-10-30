@@ -16,4 +16,10 @@ public interface ImagenesBancoUseCase {
 
     /** La puede borrar quien la subió, el autor del banco o un administrador. */
     void eliminar(Actor actor, UUID imagenId);
+
+    /** Un administrador acepta una imagen pendiente. */
+    Imagen aprobar(Actor actor, UUID imagenId);
+
+    /** Un administrador rechaza una imagen pendiente: deja de mostrarse y se borran sus ficheros. */
+    void rechazar(Actor actor, UUID imagenId);
 }

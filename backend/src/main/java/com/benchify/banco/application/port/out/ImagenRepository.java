@@ -13,7 +13,19 @@ public interface ImagenRepository {
 
     Imagen save(Imagen imagen);
 
+    /**
+     * Guarda y ejecuta el SQL en el acto: un error de la base de datos salta aquí y no al confirmar,
+     * cuando ya no se podría reaccionar (p. ej. borrando los ficheros recién subidos).
+     */
+    Imagen saveAndFlush(Imagen imagen);
+
     Optional<Imagen> findById(UUID id);
+
+    /**
+     * Lee la imagen bloqueando su fila hasta el final de la transacción, para que dos moderaciones o
+     * borrados simultáneos no se pisen.
+     */
+    Optional<Imagen> findByIdForUpdate(UUID id);
 
     void delete(UUID id);
 

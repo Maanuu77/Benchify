@@ -157,7 +157,9 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(mvc.delete().uri("/api/v1/imagenes/{id}", imagenId).header("Authorization", bearer(autora)))
                 .hasStatus(204);
-        assertThat(storage.contiene(ruta)).isFalse();
+        assertThat(json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId)).size()).isZero();
+        // Los ficheros se borran al confirmar la transacción, que este test deshace (ImagenBancoServiceIntegrationTest)
+        assertThat(storage.contiene(ruta)).isTrue();
     }
 
     @Test

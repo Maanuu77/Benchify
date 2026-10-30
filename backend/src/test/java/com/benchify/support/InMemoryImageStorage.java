@@ -2,6 +2,7 @@ package com.benchify.support;
 
 import com.benchify.banco.application.port.out.AlmacenImagenesPort;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,5 +26,10 @@ public class InMemoryImageStorage implements AlmacenImagenesPort {
 
     public boolean contiene(String ruta) {
         return ficheros.containsKey(ruta);
+    }
+
+    /** Rutas guardadas bajo una carpeta, p. ej. la de un banco. */
+    public List<String> rutas(String prefijo) {
+        return ficheros.keySet().stream().filter(ruta -> ruta.startsWith(prefijo)).sorted().toList();
     }
 }
