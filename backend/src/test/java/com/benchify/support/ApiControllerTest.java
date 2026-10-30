@@ -3,12 +3,10 @@ package com.benchify.support;
 import com.benchify.shared.infrastructure.config.ClockConfig;
 import com.benchify.shared.infrastructure.security.SecurityConfig;
 import com.benchify.shared.infrastructure.web.CorsConfig;
-import com.benchify.usuario.application.port.in.SincronizarUsuarioUseCase;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AliasFor;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -18,15 +16,15 @@ import java.lang.annotation.Target;
 
 /**
  * Test de slice de un controlador con la cadena de seguridad real y el verificador de tokens
- * simulado ({@link StubIdTokenVerifier}). Los casos de uso se simulan con {@code @MockitoBean}.
+ * simulado ({@link StubIdTokenVerifier}); el rol es el del token ({@link TokenRoleResolver}).
+ * Los casos de uso se simulan con {@code @MockitoBean}.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @WebMvcTest
 @ActiveProfiles("test")
-@Import({SecurityConfig.class, CorsConfig.class, ClockConfig.class, TestAdaptersConfig.class})
-@MockitoBean(types = SincronizarUsuarioUseCase.class)
+@Import({SecurityConfig.class, CorsConfig.class, ClockConfig.class, TestAdaptersConfig.class, TokenRoleResolver.class})
 public @interface ApiControllerTest {
 
     @AliasFor(annotation = WebMvcTest.class, attribute = "controllers")

@@ -29,7 +29,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, IdTokenVerifier idTokenVerifier,
-            ProblemDetailSecurityHandler problemHandler) {
+            RoleResolver roleResolver, ProblemDetailSecurityHandler problemHandler) {
         return http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // API stateless con token en la cabecera Authorization: CSRF no aplica
@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .addFilterBefore(new FirebaseAuthenticationFilter(idTokenVerifier, problemHandler),
+                .addFilterBefore(new FirebaseAuthenticationFilter(idTokenVerifier, roleResolver, problemHandler),
                         AnonymousAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error", "/actuator/health", "/actuator/health/**").permitAll()
