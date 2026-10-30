@@ -37,6 +37,10 @@ public class ResenaEntity {
     @Formula("(select u.nombre from usuarios u where u.id = usuario_id)")
     private String autorNombre;
 
+    /** Estado del banco reseñado, para filtrar por visibilidad sin acoplarse a la feature de bancos. */
+    @Formula("(select b.estado from bancos b where b.id = banco_id)")
+    private String estadoBanco;
+
     @Column(nullable = false)
     private int puntuacion;
 

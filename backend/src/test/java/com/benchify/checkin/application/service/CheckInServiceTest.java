@@ -110,6 +110,23 @@ class CheckInServiceTest {
     void countsCheckInsOfABench() {
         when(checkIns.countByBanco(banco.id())).thenReturn(7L);
 
-        assertThat(service.totalDeBanco(banco.id())).isEqualTo(7);
+        assertThat(service.totalDeBanco(banco.id(), null)).isEqualTo(7);
+    }
+
+    @Test
+    void theTotalOfAMissingOrInvisibleBenchIs404() {
+        UUID inexistente = UUID.randomUUID();
+        when(bancos.findById(inexistente)).thenReturn(Optional.empty());
+        Banco pendiente = Banco.proponer(UUID.randomUUID(), new DatosBanco("Mío", null, POSICION_BANCO, null, null, null),
+                ANA, AHORA);
+        when(bancos.findById(pendiente.id())).thenReturn(Optional.of(pendiente));
+        when(checkIns.countByBanco(pendiente.id())).thenReturn(0L);
+
+        assertThatThrownBy(() -> service.totalDeBanco(inexistente, ANA)).isInstanceOf(BancoNotFoundException.class);
+        assertThatThrownBy(() -> service.totalDeBanco(pendiente.id(), null)).isInstanceOf(BancoNotFoundException.class);
+        assertThatThrownBy(() -> service.totalDeBanco(pendiente.id(), Actor.user("luis")))
+                .isInstanceOf(BancoNotFoundException.class);
+        assertThat(service.totalDeBanco(pendiente.id(), ANA)).isZero();
+        verify(checkIns, never()).countByBanco(inexistente);
     }
 }

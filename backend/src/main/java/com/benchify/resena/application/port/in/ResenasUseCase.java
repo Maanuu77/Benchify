@@ -25,6 +25,7 @@ public interface ResenasUseCase {
     /** @param actor quien consulta, o {@code null}; el banco debe ser visible para él */
     PageResult<Resena> deBanco(UUID bancoId, Actor actor, PageQuery page);
 
+    /** Reseñas de un usuario en bancos publicados, las más recientes primero. */
     PageResult<Resena> deUsuario(String usuarioId, PageQuery page);
 
     record ResenaCommand(int puntuacion, String comentario) {

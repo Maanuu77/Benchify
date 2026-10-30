@@ -8,6 +8,7 @@ import com.benchify.resena.domain.Resena;
 import com.benchify.resena.domain.ResumenPuntuacion;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.PageQuery;
+import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Ubicacion;
 import com.benchify.support.AbstractIntegrationTest;
 import com.benchify.support.TestData;
@@ -19,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -120,14 +123,35 @@ class ResenaPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void listsByAuthorNewestFirst() {
+    void listsAnAuthorsReviewsOnlyOnPublishedBenchesNewestFirst() {
+        UUID otroPublicado = banco(Actor.admin("res-autor"), banco -> { });
+        UUID pendiente = banco(Actor.user("res-autor"), banco -> { });
+        UUID oculto = banco(Actor.user("res-autor"), Banco::rechazar);
+        UUID eliminado = banco(Actor.admin("res-autor"), banco -> banco.eliminar(Actor.admin("res-autor")));
         resenas.save(resena("res-ana", 3, AHORA));
+        resenas.save(resenaEn(otroPublicado, "res-ana", 5, AHORA.plusSeconds(1)));
+        for (UUID noVisible : List.of(pendiente, oculto, eliminado)) {
+            resenas.save(resenaEn(noVisible, "res-ana", 1, AHORA.plusSeconds(2)));
+        }
 
-        assertThat(resenas.findByAutor("res-ana", PageQuery.first(5)).content())
-                .singleElement().extracting(Resena::puntuacion).isEqualTo(3);
+        PageResult<Resena> pagina = resenas.findByAutorEnBancosPublicados("res-ana", PageQuery.first(10));
+
+        assertThat(pagina.content()).extracting(Resena::bancoId).containsExactly(otroPublicado, bancoId);
+        assertThat(pagina.totalElements()).isEqualTo(2);
+    }
+
+    private UUID banco(Actor autor, Consumer<Banco> transicion) {
+        Banco banco = Banco.proponer(UUID.randomUUID(),
+                new DatosBanco("Otro", null, new Ubicacion(20, 20), null, null, null), autor, AHORA);
+        transicion.accept(banco);
+        return bancos.save(banco).id();
     }
 
     private Resena resena(String autor, int puntuacion, Instant fecha) {
-        return Resena.publicar(UUID.randomUUID(), bancoId, Actor.user(autor), puntuacion, "Comentario", fecha);
+        return resenaEn(bancoId, autor, puntuacion, fecha);
+    }
+
+    private static Resena resenaEn(UUID banco, String autor, int puntuacion, Instant fecha) {
+        return Resena.publicar(UUID.randomUUID(), banco, Actor.user(autor), puntuacion, "Comentario", fecha);
     }
 }

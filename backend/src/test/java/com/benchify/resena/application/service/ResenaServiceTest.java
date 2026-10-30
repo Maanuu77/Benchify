@@ -184,6 +184,14 @@ class ResenaServiceTest {
         assertThat(service.deBanco(banco.id(), null, PageQuery.first(10)).content()).isEmpty();
     }
 
+    @Test
+    void userReviewsOnlyIncludePublishedBenches() {
+        PageResult<Resena> pagina = PageResult.empty(PageQuery.first(20));
+        when(resenas.findByAutorEnBancosPublicados("ana", PageQuery.first(20))).thenReturn(pagina);
+
+        assertThat(service.deUsuario("ana", PageQuery.first(20))).isSameAs(pagina);
+    }
+
     private static Resena conReportes(Resena resena, int numReportes, boolean reportada) {
         return new Resena(resena.id(), resena.bancoId(), resena.autorId(), resena.autorNombre(), resena.puntuacion(),
                 resena.comentario(), resena.fecha(), resena.fechaEdicion(), numReportes, reportada, resena.version());

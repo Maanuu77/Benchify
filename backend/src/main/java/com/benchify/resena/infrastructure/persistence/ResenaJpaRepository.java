@@ -21,7 +21,7 @@ interface ResenaJpaRepository extends JpaRepository<ResenaEntity, UUID> {
 
     Page<ResenaEntity> findByBancoId(UUID bancoId, Pageable pageable);
 
-    Page<ResenaEntity> findByAutorId(String autorId, Pageable pageable);
+    Page<ResenaEntity> findByAutorIdAndEstadoBanco(String autorId, String estadoBanco, Pageable pageable);
 
     Page<ResenaEntity> findByReportadaTrue(Pageable pageable);
 

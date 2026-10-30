@@ -138,6 +138,31 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void aHiddenBenchDisappearsFromPublicProfilesAndCounters() {
+        String bancoId = bancoPublicado();
+        assertThat(mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId).header("Authorization", bearer(visitante))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":4}")).hasStatus(201);
+        assertThat(checkIn(bancoId, LAT, LNG)).hasStatus(201);
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/resenas", visitante))
+                .bodyJson().extractingPath("$.totalElements").isEqualTo(1);
+
+        assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/rechazo", bancoId)
+                .header("Authorization", bearerAdmin(admin))).hasStatusOk();
+
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/resenas", visitante))
+                .bodyJson().extractingPath("$.totalElements").isEqualTo(0);
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/estadisticas", visitante))
+                .bodyJson().extractingPath("$.resenas").isEqualTo(0);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("BANCO_NOT_FOUND");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId).header("Authorization", bearer(visitante)))
+                .hasStatus(404);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId).header("Authorization", bearer(autora)))
+                .hasStatusOk().bodyJson().extractingPath("$.total").isEqualTo(1);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", UUID.randomUUID())).hasStatus(404);
+    }
+
+    @Test
     void photosAreModeratedBeforeBecomingPublic() {
         String bancoId = bancoPublicado();
         byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 1, 2};

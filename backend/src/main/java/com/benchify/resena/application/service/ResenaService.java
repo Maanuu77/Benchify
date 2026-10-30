@@ -114,10 +114,11 @@ public class ResenaService implements ResenasUseCase {
         return resenas.findByBanco(bancoId, page);
     }
 
+    /** El perfil es público: no revela bancos pendientes, ocultos ni eliminados. */
     @Override
     @Transactional(readOnly = true)
     public PageResult<Resena> deUsuario(String usuarioId, PageQuery page) {
-        return resenas.findByAutor(usuarioId, page);
+        return resenas.findByAutorEnBancosPublicados(usuarioId, page);
     }
 
     private Resena cargar(UUID resenaId) {

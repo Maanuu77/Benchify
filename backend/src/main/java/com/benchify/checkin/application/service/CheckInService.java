@@ -44,9 +44,7 @@ public class CheckInService implements CheckInsUseCase {
      */
     @Override
     public CheckIn registrar(Actor actor, UUID bancoId, Ubicacion posicion) {
-        Banco banco = bancos.findById(bancoId)
-                .filter(b -> b.esVisiblePara(actor))
-                .orElseThrow(() -> new BancoNotFoundException(bancoId));
+        Banco banco = cargarVisible(bancoId, actor);
         if (!banco.estaPublicado()) {
             throw new BusinessRuleException("BANCO_NO_PUBLICADO", "Solo se puede hacer check-in en bancos publicados");
         }
@@ -67,7 +65,15 @@ public class CheckInService implements CheckInsUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public long totalDeBanco(UUID bancoId) {
+    public long totalDeBanco(UUID bancoId, Actor actor) {
+        cargarVisible(bancoId, actor);
         return checkIns.countByBanco(bancoId);
+    }
+
+    /** Un banco que el actor no puede ver se trata como inexistente para no revelar su existencia. */
+    private Banco cargarVisible(UUID bancoId, Actor actor) {
+        return bancos.findById(bancoId)
+                .filter(b -> b.esVisiblePara(actor))
+                .orElseThrow(() -> new BancoNotFoundException(bancoId));
     }
 }

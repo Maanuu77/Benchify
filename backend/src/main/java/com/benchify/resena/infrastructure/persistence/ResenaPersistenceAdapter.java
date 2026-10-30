@@ -1,5 +1,6 @@
 package com.benchify.resena.infrastructure.persistence;
 
+import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.resena.application.port.out.ResenaRepository;
 import com.benchify.resena.domain.Resena;
 import com.benchify.resena.domain.ResenaNotFoundException;
@@ -84,9 +85,9 @@ class ResenaPersistenceAdapter implements ResenaRepository {
     }
 
     @Override
-    public PageResult<Resena> findByAutor(String autorId, PageQuery page) {
-        return SpringDataPages.result(repository.findByAutorId(autorId, SpringDataPages.pageable(page, MAS_RECIENTES)),
-                mapper::toDomain);
+    public PageResult<Resena> findByAutorEnBancosPublicados(String autorId, PageQuery page) {
+        return SpringDataPages.result(repository.findByAutorIdAndEstadoBanco(autorId, EstadoBanco.PUBLICADO.name(),
+                SpringDataPages.pageable(page, MAS_RECIENTES)), mapper::toDomain);
     }
 
     @Override

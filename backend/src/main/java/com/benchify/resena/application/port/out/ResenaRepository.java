@@ -30,8 +30,8 @@ public interface ResenaRepository {
     /** Más recientes primero. */
     PageResult<Resena> findByBanco(UUID bancoId, PageQuery page);
 
-    /** Más recientes primero. */
-    PageResult<Resena> findByAutor(String autorId, PageQuery page);
+    /** Reseñas de un autor en bancos publicados, las más recientes primero. */
+    PageResult<Resena> findByAutorEnBancosPublicados(String autorId, PageQuery page);
 
     /** Cola de moderación: las más reportadas primero. */
     PageResult<Resena> findReportadas(PageQuery page);
