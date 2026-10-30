@@ -4,6 +4,7 @@ import com.benchify.banco.domain.Autor;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
+import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.Imagen;
 import com.benchify.moderacion.infrastructure.web.dto.BancoModeracionResponse;
@@ -12,6 +13,7 @@ import com.benchify.moderacion.infrastructure.web.dto.ResenaModeracionResponse;
 import com.benchify.resena.domain.Resena;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,10 +25,22 @@ interface ModeracionWebMapper {
 
     ResenaModeracionResponse toResponse(Resena resena);
 
+    /**
+     * Las pendientes no son públicas en el almacenamiento: se descargan de la API (mismas rutas que
+     * {@code ImagenController}, en la feature de bancos) con la cabecera {@code Authorization}.
+     */
     default ImagenModeracionResponse toResponse(Imagen imagen) {
-        String thumbUrl = imagen.urlMiniatura() != null ? imagen.urlMiniatura() : imagen.url();
-        return new ImagenModeracionResponse(imagen.id(), imagen.bancoId(), imagen.url(), thumbUrl, imagen.estado(),
-                imagen.subidaPor(), imagen.tamanoBytes(), imagen.fechaSubida());
+        boolean requiereAutenticacion = imagen.estado() != EstadoImagen.APROBADA;
+        String url = requiereAutenticacion ? urlApi("/api/v1/imagenes/{id}/archivo", imagen) : imagen.url();
+        String thumbUrl = requiereAutenticacion ? urlApi("/api/v1/imagenes/{id}/miniatura", imagen)
+                : imagen.urlMiniatura() != null ? imagen.urlMiniatura() : imagen.url();
+        return new ImagenModeracionResponse(imagen.id(), imagen.bancoId(), url, thumbUrl, requiereAutenticacion,
+                imagen.estado(), imagen.subidaPor(), imagen.tamanoBytes(), imagen.fechaSubida());
+    }
+
+    private static String urlApi(String plantilla, Imagen imagen) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path(plantilla)
+                .buildAndExpand(imagen.id()).toUriString();
     }
 
     default BancoModeracionResponse toResponse(Banco banco) {

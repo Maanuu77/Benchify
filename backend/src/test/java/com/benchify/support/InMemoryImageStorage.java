@@ -4,6 +4,7 @@ import com.benchify.banco.application.port.out.AlmacenImagenesPort;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Sustituye a Cloud Storage en los tests de integración. */
@@ -17,6 +18,11 @@ public class InMemoryImageStorage implements AlmacenImagenesPort {
     public String guardar(String ruta, byte[] contenido, String contentType) {
         ficheros.put(ruta, contenido);
         return BASE_URL + ruta;
+    }
+
+    @Override
+    public Optional<byte[]> leer(String ruta) {
+        return Optional.ofNullable(ficheros.get(ruta));
     }
 
     @Override

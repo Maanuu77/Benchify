@@ -147,19 +147,38 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
                 .header("Authorization", bearer(visitante))
                 .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", png)));
         String imagenId = subida.get("id").asString();
-        String ruta = subida.get("url").asString().substring(InMemoryImageStorage.BASE_URL.length());
-        assertThat(storage.contiene(ruta)).isTrue();
 
+        // Pendiente: sus ficheros no están en la carpeta pública y la API solo se los sirve a quien la subió
+        assertThat(subida.get("requiereAutenticacion").asBoolean()).isTrue();
+        assertThat(subida.get("url").asString())
+                .isEqualTo("http://localhost/api/v1/imagenes/" + imagenId + "/archivo");
+        assertThat(storage.rutas("pendientes/" + bancoId + "/")).hasSize(2);
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).isEmpty();
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}/miniatura", imagenId)
+                .header("Authorization", bearer(visitante)))
+                .hasStatusOk().hasContentType("image/jpeg").hasHeader("Cache-Control", "max-age=300, private");
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}/archivo", imagenId)).hasStatus(404);
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}/archivo", imagenId).header("Authorization", bearer(autora)))
+                .hasStatus(404);
         assertThat(json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId)).size()).isZero();
-        assertThat(mvc.post().uri("/api/v1/admin/imagenes/{id}/aprobacion", imagenId)
-                .header("Authorization", bearerAdmin(admin))).hasStatusOk();
-        assertThat(json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId)).size()).isEqualTo(1);
+
+        // Aprobada: los ficheros pasan a la carpeta pública y la API devuelve la URL nueva
+        JsonNode aprobada = json(mvc.post().uri("/api/v1/admin/imagenes/{id}/aprobacion", imagenId)
+                .header("Authorization", bearerAdmin(admin)));
+        String publica = InMemoryImageStorage.BASE_URL + "bancos/" + bancoId + "/" + imagenId + ".jpg";
+        assertThat(aprobada.get("requiereAutenticacion").asBoolean()).isFalse();
+        assertThat(aprobada.get("url").asString()).isEqualTo(publica);
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).hasSize(2);
+        JsonNode publicas = json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId));
+        assertThat(publicas.size()).isEqualTo(1);
+        assertThat(publicas.get(0).get("url").asString()).isEqualTo(publica);
+        assertThat(publicas.get(0).get("thumbUrl").asString()).endsWith(imagenId + "_thumb.jpg");
 
         assertThat(mvc.delete().uri("/api/v1/imagenes/{id}", imagenId).header("Authorization", bearer(autora)))
                 .hasStatus(204);
         assertThat(json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId)).size()).isZero();
-        // Los ficheros se borran al confirmar la transacción, que este test deshace (ImagenBancoServiceIntegrationTest)
-        assertThat(storage.contiene(ruta)).isTrue();
+        // Los ficheros se borran al confirmar cada transacción, y este test las deshace todas
+        // (los borrados tras el commit se prueban en ImagenBancoServiceIntegrationTest)
     }
 
     @Test

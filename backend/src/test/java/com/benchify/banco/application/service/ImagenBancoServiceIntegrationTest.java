@@ -5,7 +5,9 @@ import com.benchify.banco.application.port.in.GestionarBancoUseCase;
 import com.benchify.banco.application.port.in.ImagenesBancoUseCase;
 import com.benchify.banco.application.port.out.ImagenRepository;
 import com.benchify.banco.domain.ArchivoImagen;
+import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.support.AbstractIntegrationTest;
@@ -20,6 +22,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -47,6 +50,8 @@ class ImagenBancoServiceIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private GestionarBancoUseCase gestionBancos;
     @Autowired
+    private ModeracionUseCase moderacion;
+    @Autowired
     private ImagenRepository imagenRepository;
     @Autowired
     private InMemoryImageStorage storage;
@@ -59,11 +64,13 @@ class ImagenBancoServiceIntegrationTest extends AbstractIntegrationTest {
 
     private final List<String> usuarios = new ArrayList<>();
     private Actor admin;
+    private Actor ana;
     private UUID bancoId;
 
     @BeforeEach
     void bancoPublicado() {
         admin = Actor.admin(usuario("admin"));
+        ana = Actor.user(usuario("ana"));
         bancoId = gestionBancos.proponer(admin, new BancoCommand("Banco concurrido", null, 37.39, -5.99, null, null,
                 null, null, false, false, false, null, Set.of())).id();
     }
@@ -80,7 +87,6 @@ class ImagenBancoServiceIntegrationTest extends AbstractIntegrationTest {
         for (int i = 0; i < Imagen.MAX_POR_BANCO - 2; i++) {
             imagenes.subir(admin, bancoId, FOTO);
         }
-        Actor ana = Actor.user(usuario("ana"));
         int intentos = 6;
         CountDownLatch salida = new CountDownLatch(1);
         List<Future<Imagen>> subidas = new ArrayList<>();
@@ -108,7 +114,8 @@ class ImagenBancoServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(correctas).isEqualTo(2);
         assertThat(imagenRepository.countActivasByBanco(bancoId)).isEqualTo(Imagen.MAX_POR_BANCO);
         // Las subidas rechazadas no dejan ficheros: solo quedan los de las fotos registradas
-        assertThat(storage.rutas("bancos/" + bancoId + "/")).hasSize(2 * Imagen.MAX_POR_BANCO);
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).hasSize(2 * (Imagen.MAX_POR_BANCO - 2));
+        assertThat(storage.rutas("pendientes/" + bancoId + "/")).hasSize(2 * 2);
     }
 
     @Test
@@ -137,6 +144,51 @@ class ImagenBancoServiceIntegrationTest extends AbstractIntegrationTest {
         assertThat(imagenRepository.findById(imagen.id())).isEmpty();
         assertThat(storage.rutas("bancos/" + bancoId + "/")).isEmpty();
     }
+
+    @Test
+    void approvingMovesThePendingFilesToThePublicFolder() {
+        Imagen pendiente = imagenes.subir(ana, bancoId, FOTO);
+        assertThat(storage.rutas("pendientes/" + bancoId + "/")).containsExactlyInAnyOrderElementsOf(pendiente.rutas());
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).isEmpty();
+
+        // Por el caso de uso de moderación, sin transacción alrededor, como en producción
+        Imagen aprobada = moderacion.aprobarImagen(admin, pendiente.id());
+
+        assertThat(aprobada.rutas()).containsExactly(Imagen.rutaPublica(pendiente.ruta()),
+                Imagen.rutaPublica(pendiente.rutaMiniatura()));
+        assertThat(imagenRepository.findById(pendiente.id())).contains(aprobada);
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).containsExactlyInAnyOrderElementsOf(aprobada.rutas());
+        assertThat(storage.rutas("pendientes/" + bancoId + "/")).isEmpty();
+        assertThat(imagenes.leerFichero(aprobada.id(), true, null).contenido())
+                .isEqualTo(storage.leer(aprobada.rutaMiniatura()).orElseThrow());
+    }
+
+    @Test
+    void rejectingDeletesThePendingFiles() {
+        Imagen pendiente = imagenes.subir(ana, bancoId, FOTO);
+
+        moderacion.rechazarImagen(admin, pendiente.id());
+
+        assertThat(imagenRepository.findById(pendiente.id())).get()
+                .extracting(Imagen::estado).isEqualTo(EstadoImagen.RECHAZADA);
+        assertThat(storage.rutas("pendientes/" + bancoId + "/")).isEmpty();
+    }
+
+    @Test
+    void pendingPhotosUploadedBeforeThePrivateFolderAreApprovedInPlace() {
+        UUID id = UUID.randomUUID();
+        String ruta = "bancos/" + bancoId + "/" + id + ".png";
+        String url = storage.guardar(ruta, FOTO.contenido(), "image/png");
+        imagenRepository.save(new Imagen(id, bancoId, ruta, url, "image/png", FOTO.tamanoBytes(), ana.userId(),
+                EstadoImagen.PENDIENTE, Instant.now()));
+
+        Imagen aprobada = moderacion.aprobarImagen(admin, id);
+
+        assertThat(aprobada.estado()).isEqualTo(EstadoImagen.APROBADA);
+        assertThat(aprobada.rutas()).containsExactly(ruta);
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).containsExactly(ruta);
+    }
+
 
     private String usuario(String prefijo) {
         String id = prefijo + "-" + UUID.randomUUID().toString().substring(0, 8);

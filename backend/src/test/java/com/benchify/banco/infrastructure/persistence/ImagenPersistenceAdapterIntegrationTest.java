@@ -58,7 +58,7 @@ class ImagenPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
     @Test
     void storesTheThumbnailAndKeepsLegacyRowsWithoutOne() {
         UUID id = UUID.randomUUID();
-        String ruta = Imagen.rutaPara(bancoId, id);
+        String ruta = Imagen.rutaPara(bancoId, id, EstadoImagen.APROBADA);
         Imagen conMiniatura = imagenes.save(new Imagen(id, bancoId, ruta, "https://storage.test/" + ruta,
                 Imagen.rutaMiniatura(ruta), "https://storage.test/thumb/" + id, "image/jpeg", 1234, "img-it",
                 EstadoImagen.APROBADA, AHORA));

@@ -21,6 +21,7 @@ import com.benchify.usuario.application.port.out.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -120,7 +121,12 @@ public class ModeracionService implements ModeracionUseCase {
         return imagenes.findByEstado(EstadoImagen.PENDIENTE, page);
     }
 
+    /**
+     * Sin transacción propia: aprobar copia los ficheros a la carpeta pública, y la parte de base de
+     * datos ya va en transacciones cortas dentro del caso de uso de imágenes.
+     */
     @Override
+    @Transactional(propagation = Propagation.SUPPORTS)
     public Imagen aprobarImagen(Actor actor, UUID imagenId) {
         exigirAdmin(actor);
         return imagenesBanco.aprobar(actor, imagenId);

@@ -50,9 +50,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/usuarios/me", "/api/v1/usuarios/me/**",
                                 "/api/v1/bancos/*/favorito").authenticated()
-                        // Lecturas públicas: mapa, fichas, reseñas, etiquetas y perfiles
+                        // Lecturas públicas: mapa, fichas, fotos, reseñas, etiquetas y perfiles; las fotos
+                        // pendientes solo se sirven a quien las puede ver (lo decide el caso de uso)
                         .requestMatchers(HttpMethod.GET,
-                                "/api/v1/bancos", "/api/v1/bancos/**",
+                                "/api/v1/bancos", "/api/v1/bancos/**", "/api/v1/imagenes/**",
                                 "/api/v1/etiquetas",
                                 "/api/v1/usuarios/*", "/api/v1/usuarios/*/bancos",
                                 "/api/v1/usuarios/*/resenas", "/api/v1/usuarios/*/estadisticas").permitAll()

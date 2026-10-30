@@ -9,10 +9,13 @@ import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoNotFoundException;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoImagen;
+import com.benchify.banco.domain.FicheroAlmacenado;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.ImagenNotFoundException;
 import com.benchify.banco.domain.ImagenProcesada;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.Ubicacion;
 import com.benchify.support.RecordingTransactionManager;
@@ -38,7 +41,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -93,7 +95,7 @@ class ImagenBancoServiceTest {
     void anyUserCanUploadToAPublishedBenchAndItWaitsForModeration() {
         Imagen imagen = service.subir(LUIS, publicado.id(), ARCHIVO);
 
-        assertThat(imagen.ruta()).isEqualTo("bancos/" + publicado.id() + "/" + imagen.id() + ".jpg");
+        assertThat(imagen.ruta()).isEqualTo("pendientes/" + publicado.id() + "/" + imagen.id() + ".jpg");
         assertThat(imagen.url()).isEqualTo("https://storage/" + imagen.ruta());
         assertThat(imagen.rutaMiniatura()).endsWith(imagen.id() + "_thumb.jpg");
         assertThat(imagen.urlMiniatura()).isEqualTo("https://storage/" + imagen.rutaMiniatura());
@@ -160,7 +162,7 @@ class ImagenBancoServiceTest {
                 .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("BANCO_MAX_IMAGENES");
         verify(bancos).findByIdForUpdate(publicado.id());
         verify(imagenes, never()).saveAndFlush(any());
-        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("bancos/" + publicado.id()) && !ruta.contains("_thumb")));
+        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("pendientes/" + publicado.id()) && !ruta.contains("_thumb")));
         verify(almacen).borrar(argThat(ruta -> ruta.endsWith("_thumb.jpg")));
         assertThat(transacciones.rollbacks()).isEqualTo(1);
     }
@@ -170,7 +172,7 @@ class ImagenBancoServiceTest {
         when(imagenes.saveAndFlush(any())).thenThrow(new IllegalStateException("duplicate key"));
 
         assertThatThrownBy(() -> service.subir(ANA, publicado.id(), ARCHIVO)).isInstanceOf(IllegalStateException.class);
-        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("bancos/" + publicado.id()) && !ruta.contains("_thumb")));
+        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("pendientes/" + publicado.id()) && !ruta.contains("_thumb")));
         verify(almacen).borrar(argThat(ruta -> ruta.endsWith("_thumb.jpg")));
     }
 
@@ -180,13 +182,13 @@ class ImagenBancoServiceTest {
 
         assertThatThrownBy(() -> service.subir(ANA, publicado.id(), ARCHIVO))
                 .isInstanceOf(TransactionSystemException.class);
-        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("bancos/" + publicado.id()) && !ruta.contains("_thumb")));
+        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("pendientes/" + publicado.id()) && !ruta.contains("_thumb")));
         verify(almacen).borrar(argThat(ruta -> ruta.endsWith("_thumb.jpg")));
     }
 
     @Test
     void removesThePhotoIfTheThumbnailCannotBeUploaded() {
-        when(almacen.guardar(startsWith("bancos/"), any(), eq("image/jpeg"))).thenAnswer(inv -> {
+        when(almacen.guardar(anyString(), any(), eq("image/jpeg"))).thenAnswer(inv -> {
             String ruta = inv.getArgument(0);
             if (ruta.endsWith("_thumb.jpg")) {
                 throw new IllegalStateException("bucket down");
@@ -195,7 +197,7 @@ class ImagenBancoServiceTest {
         });
 
         assertThatThrownBy(() -> service.subir(ANA, publicado.id(), ARCHIVO)).isInstanceOf(IllegalStateException.class);
-        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("bancos/" + publicado.id()) && ruta.endsWith(".jpg")
+        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("pendientes/" + publicado.id()) && ruta.endsWith(".jpg")
                 && !ruta.contains("_thumb")));
         verify(imagenes, never()).saveAndFlush(any());
     }
@@ -244,16 +246,108 @@ class ImagenBancoServiceTest {
     }
 
     @Test
-    void approvingAnImageMakesItPublic() {
-        Imagen pendienteDeLuis = imagen("luis", EstadoImagen.PENDIENTE);
-        when(imagenes.findByIdForUpdate(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
+    void adminUploadsGoStraightToThePublicFolder() {
+        Imagen imagen = service.subir(ADMIN, publicado.id(), ARCHIVO);
 
-        assertThat(service.aprobar(ADMIN, pendienteDeLuis.id()).estado()).isEqualTo(EstadoImagen.APROBADA);
+        assertThat(imagen.estado()).isEqualTo(EstadoImagen.APROBADA);
+        assertThat(imagen.rutas()).allMatch(ruta -> ruta.startsWith("bancos/" + publicado.id() + "/"));
+    }
+
+    @Test
+    void approvingMovesTheFilesToThePublicFolderAndDeletesTheOriginalsAfterCommit() {
+        Imagen pendienteDeLuis = pendienteConMiniatura("luis");
+        String foto = "bancos/" + publicado.id() + "/" + pendienteDeLuis.id() + ".jpg";
+        String miniatura = "bancos/" + publicado.id() + "/" + pendienteDeLuis.id() + "_thumb.jpg";
+        when(imagenes.findById(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
+        when(imagenes.findByIdForUpdate(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
+        when(almacen.leer(pendienteDeLuis.ruta())).thenReturn(Optional.of(new byte[]{1}));
+        when(almacen.leer(pendienteDeLuis.rutaMiniatura())).thenReturn(Optional.of(new byte[]{2}));
+        when(imagenes.saveAndFlush(any())).thenAnswer(inv -> {
+            // Los originales siguen en su sitio hasta que la transacción confirme
+            verify(almacen, never()).borrar(anyString());
+            return inv.getArgument(0);
+        });
+
+        Imagen aprobada = service.aprobar(ADMIN, pendienteDeLuis.id());
+
+        assertThat(aprobada.estado()).isEqualTo(EstadoImagen.APROBADA);
+        assertThat(aprobada.rutas()).containsExactly(foto, miniatura);
+        assertThat(aprobada.url()).isEqualTo("https://storage/" + foto);
+        assertThat(aprobada.urlMiniatura()).isEqualTo("https://storage/" + miniatura);
+        verify(almacen).guardar(foto, new byte[]{1}, "image/jpeg");
+        verify(almacen).guardar(miniatura, new byte[]{2}, "image/jpeg");
+        verify(almacen).borrar(pendienteDeLuis.ruta());
+        verify(almacen).borrar(pendienteDeLuis.rutaMiniatura());
+        verify(almacen, never()).borrar(foto);
+    }
+
+    @Test
+    void approvingAPendingPhotoUploadedBeforeThePrivateFolderKeepsItsFiles() {
+        Imagen antigua = imagen("luis", EstadoImagen.PENDIENTE);
+        when(imagenes.findById(antigua.id())).thenReturn(Optional.of(antigua));
+        when(imagenes.findByIdForUpdate(antigua.id())).thenReturn(Optional.of(antigua));
+
+        Imagen aprobada = service.aprobar(ADMIN, antigua.id());
+
+        assertThat(aprobada.estado()).isEqualTo(EstadoImagen.APROBADA);
+        assertThat(aprobada.ruta()).isEqualTo(antigua.ruta());
+        verify(almacen, never()).guardar(anyString(), any(), anyString());
+        verify(almacen, never()).borrar(anyString());
+    }
+
+    @Test
+    void aFailedApprovalDeletesTheCopiesAndKeepsThePendingFiles() {
+        Imagen pendienteDeLuis = pendienteConMiniatura("luis");
+        when(imagenes.findById(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
+        when(imagenes.findByIdForUpdate(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
+        when(almacen.leer(anyString())).thenReturn(Optional.of(new byte[]{1}));
+        when(imagenes.saveAndFlush(any())).thenThrow(new IllegalStateException("db down"));
+
+        assertThatThrownBy(() -> service.aprobar(ADMIN, pendienteDeLuis.id()))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(almacen).borrar(Imagen.rutaPublica(pendienteDeLuis.ruta()));
+        verify(almacen).borrar(Imagen.rutaPublica(pendienteDeLuis.rutaMiniatura()));
+        verify(almacen, never()).borrar(pendienteDeLuis.ruta());
+        assertThat(transacciones.rollbacks()).isEqualTo(1);
+    }
+
+    @Test
+    void copiesAlreadyRegisteredByAConcurrentApprovalAreKept() {
+        Imagen pendienteDeLuis = pendienteConMiniatura("luis");
+        // Otro administrador la aprueba mientras esta petición copiaba los ficheros
+        Imagen aprobadaPorOtro = pendienteDeLuis.aprobar().conFicheros(
+                new FicheroAlmacenado(Imagen.rutaPublica(pendienteDeLuis.ruta()), "https://storage/a"),
+                new FicheroAlmacenado(Imagen.rutaPublica(pendienteDeLuis.rutaMiniatura()), "https://storage/b"));
+        when(imagenes.findById(pendienteDeLuis.id()))
+                .thenReturn(Optional.of(pendienteDeLuis), Optional.of(aprobadaPorOtro));
+        when(imagenes.findByIdForUpdate(pendienteDeLuis.id())).thenReturn(Optional.of(aprobadaPorOtro));
+        when(almacen.leer(anyString())).thenReturn(Optional.of(new byte[]{1}));
+
+        assertThatThrownBy(() -> service.aprobar(ADMIN, pendienteDeLuis.id()))
+                .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("IMAGEN_NO_PENDIENTE");
+        verify(almacen, never()).borrar(anyString());
+    }
+
+    @Test
+    void approvingFailsBeforeCopyingWhenTheImageIsNotPendingOrItsFileIsGone() {
+        Imagen aprobada = imagen("luis", EstadoImagen.APROBADA);
+        Imagen sinFichero = pendienteConMiniatura("luis");
+        when(imagenes.findById(aprobada.id())).thenReturn(Optional.of(aprobada));
+        when(imagenes.findById(sinFichero.id())).thenReturn(Optional.of(sinFichero));
+        when(almacen.leer(sinFichero.ruta())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.aprobar(ADMIN, aprobada.id()))
+                .isInstanceOf(BusinessRuleException.class).extracting("code").isEqualTo("IMAGEN_NO_PENDIENTE");
+        assertThatThrownBy(() -> service.aprobar(ADMIN, sinFichero.id()))
+                .isInstanceOf(ConflictException.class).extracting("code").isEqualTo("IMAGEN_SIN_FICHERO");
+        verify(almacen, never()).guardar(anyString(), any(), anyString());
+        verify(imagenes, never()).findByIdForUpdate(any());
     }
 
     @Test
     void rejectingAnImageDeletesItsFilesEvenIfStorageFails() {
-        Imagen pendienteDeLuis = imagen("luis", EstadoImagen.PENDIENTE);
+        Imagen pendienteDeLuis = pendienteConMiniatura("luis");
         when(imagenes.findByIdForUpdate(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
         doThrow(new IllegalStateException("bucket down")).when(almacen).borrar(pendienteDeLuis.ruta());
 
@@ -261,8 +355,49 @@ class ImagenBancoServiceTest {
 
         verify(imagenes).save(pendienteDeLuis.rechazar());
         verify(almacen).borrar(pendienteDeLuis.ruta());
+        verify(almacen).borrar(pendienteDeLuis.rutaMiniatura());
     }
 
+    @Test
+    void pendingFilesAreServedOnlyToTheUploaderAndAdmins() {
+        Imagen pendienteDeLuis = pendienteConMiniatura("luis");
+        when(imagenes.findById(pendienteDeLuis.id())).thenReturn(Optional.of(pendienteDeLuis));
+        lenient().when(almacen.leer(pendienteDeLuis.ruta())).thenReturn(Optional.of(JPEG));
+        lenient().when(almacen.leer(pendienteDeLuis.rutaMiniatura())).thenReturn(Optional.of(JPEG.clone()));
+
+        assertThat(service.leerFichero(pendienteDeLuis.id(), false, LUIS))
+                .isEqualTo(new ArchivoImagen("image/jpeg", JPEG));
+        assertThat(service.leerFichero(pendienteDeLuis.id(), true, ADMIN).contenido()).isEqualTo(JPEG);
+        verify(almacen).leer(pendienteDeLuis.rutaMiniatura());
+        for (Actor otro : new Actor[]{null, ANA}) {
+            assertThatThrownBy(() -> service.leerFichero(pendienteDeLuis.id(), false, otro))
+                    .isInstanceOf(ImagenNotFoundException.class);
+        }
+    }
+
+    @Test
+    void filesOfHiddenBenchesOrMissingFromStorageAreNotFound() {
+        Imagen enBancoPendiente = new Imagen(UUID.randomUUID(), pendiente.id(), "bancos/p/1.jpg", "https://storage/1",
+                "image/jpeg", 6, "ana", EstadoImagen.APROBADA, AHORA);
+        Imagen sinFichero = imagen("ana", EstadoImagen.APROBADA);
+        when(imagenes.findById(enBancoPendiente.id())).thenReturn(Optional.of(enBancoPendiente));
+        when(imagenes.findById(sinFichero.id())).thenReturn(Optional.of(sinFichero));
+        when(almacen.leer(sinFichero.ruta())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.leerFichero(enBancoPendiente.id(), false, LUIS))
+                .isInstanceOf(ImagenNotFoundException.class);
+        assertThatThrownBy(() -> service.leerFichero(sinFichero.id(), true, null))
+                .isInstanceOf(ImagenNotFoundException.class);
+    }
+
+    private Imagen pendienteConMiniatura(String autor) {
+        UUID id = UUID.randomUUID();
+        String ruta = Imagen.rutaPara(publicado.id(), id, EstadoImagen.PENDIENTE);
+        return new Imagen(id, publicado.id(), ruta, "https://storage/" + ruta, Imagen.rutaMiniatura(ruta),
+                "https://storage/thumb/" + id, "image/jpeg", 6, autor, EstadoImagen.PENDIENTE, AHORA);
+    }
+
+    /** Foto sin miniatura en la carpeta pública, como las subidas antes de los cambios de almacenamiento. */
     private Imagen imagen(String autor, EstadoImagen estado) {
         UUID id = UUID.randomUUID();
         return new Imagen(id, publicado.id(), "bancos/" + publicado.id() + "/" + id + ".jpg", "https://storage/" + id,

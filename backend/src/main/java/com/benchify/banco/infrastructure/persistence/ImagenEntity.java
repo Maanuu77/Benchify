@@ -27,7 +27,7 @@ public class ImagenEntity {
     @Column(name = "banco_id", nullable = false, updatable = false)
     private UUID bancoId;
 
-    @Column(nullable = false, updatable = false, length = 512)
+    @Column(nullable = false, length = 512)
     private String ruta;
 
     @Column(nullable = false, length = 1024)

@@ -4,21 +4,29 @@ import com.benchify.banco.application.port.out.AlmacenImagenesPort;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import org.springframework.web.util.UriUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 /**
  * Sube las fotos al bucket de Firebase Cloud Storage con el Admin SDK (que ignora las reglas
- * de seguridad) y devuelve la URL pública de descarga. Las reglas del bucket solo permiten leer.
+ * de seguridad) y devuelve su URL de descarga. Las reglas del bucket solo dejan leer, uno a uno,
+ * los objetos de la carpeta pública: el resto (fotos pendientes) solo lo lee el backend.
  */
 public class FirebaseStorageAdapter implements AlmacenImagenesPort {
 
-    /** Los nombres de objeto son únicos e inmutables: el navegador y la CDN pueden cachear para siempre. */
-    static final String CACHE_CONTROL = "public, max-age=31536000, immutable";
+    /**
+     * Un día de caché: una foto rechazada o borrada deja de servirse desde el navegador o la CDN
+     * como mucho al día siguiente.
+     */
+    static final String CACHE_CONTROL = "public, max-age=86400";
+
+    private static final int NO_ENCONTRADO = 404;
 
     private final Storage storage;
     private final String bucket;
@@ -45,6 +53,18 @@ public class FirebaseStorageAdapter implements AlmacenImagenesPort {
             throw new UncheckedIOException("Could not upload " + ruta, e);
         }
         return urlPublica(ruta);
+    }
+
+    @Override
+    public Optional<byte[]> leer(String ruta) {
+        try {
+            return Optional.of(storage.readAllBytes(BlobId.of(bucket, ruta)));
+        } catch (StorageException e) {
+            if (e.getCode() == NO_ENCONTRADO) {
+                return Optional.empty();
+            }
+            throw e;
+        }
     }
 
     @Override

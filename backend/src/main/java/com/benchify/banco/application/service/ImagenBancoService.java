@@ -14,13 +14,17 @@ import com.benchify.banco.domain.ImagenNotFoundException;
 import com.benchify.banco.domain.ImagenProcesada;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.ForbiddenException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +36,8 @@ import java.util.UUID;
  */
 @Service
 public class ImagenBancoService implements ImagenesBancoUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(ImagenBancoService.class);
 
     private final BancoRepository bancos;
     private final ImagenRepository imagenes;
@@ -63,7 +69,8 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
 
         ImagenProcesada procesada = procesador.procesar(archivo);
         UUID id = UUID.randomUUID();
-        String ruta = Imagen.rutaPara(bancoId, id);
+        // Las pendientes van a una carpeta sin acceso público hasta que se aprueben
+        String ruta = Imagen.rutaPara(bancoId, id, Imagen.estadoInicial(actor));
         FicheroAlmacenado foto = guardar(ruta, procesada.contenido());
         FicheroAlmacenado miniatura;
         try {
@@ -107,6 +114,22 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
     }
 
     @Override
+    public ArchivoImagen leerFichero(UUID imagenId, boolean miniatura, Actor actor) {
+        Imagen imagen = lectura.execute(status -> visible(imagenId, actor));
+        byte[] contenido = almacen.leer(imagen.rutaFichero(miniatura))
+                .orElseThrow(() -> new ImagenNotFoundException(imagenId));
+        return new ArchivoImagen(imagen.contentType(), contenido);
+    }
+
+    /** Se ve si se ve su banco; las pendientes, además, solo quien la subió y los administradores. */
+    private Imagen visible(UUID imagenId, Actor actor) {
+        return imagenes.findById(imagenId)
+                .filter(imagen -> imagen.esVisiblePara(actor))
+                .filter(imagen -> bancos.findById(imagen.bancoId()).filter(b -> b.esVisiblePara(actor)).isPresent())
+                .orElseThrow(() -> new ImagenNotFoundException(imagenId));
+    }
+
+    @Override
     @Transactional
     public void eliminar(Actor actor, UUID imagenId) {
         Imagen imagen = cargarBloqueada(imagenId);
@@ -118,11 +141,68 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
         ficheros.borrarTrasCommit(imagen.rutas());
     }
 
+    /**
+     * Mover un fichero es copiarlo y borrar el original. Las copias a la carpeta pública se hacen fuera
+     * de la transacción; después, con la fila bloqueada, la imagen pasa a apuntar a ellas y los
+     * originales se borran tras el commit. Si algo falla, se borran las copias.
+     */
     @Override
-    @Transactional
     public Imagen aprobar(Actor actor, UUID imagenId) {
         exigirAdmin(actor);
-        return imagenes.save(cargarBloqueada(imagenId).aprobar());
+        Imagen pendiente = lectura.execute(status -> cargar(imagenId));
+        // Falla antes de copiar nada si ya está moderada
+        pendiente.exigirPendiente();
+        if (!pendiente.estaEnCarpetaPendientes()) {
+            // Subida antes de que existiera la carpeta de pendientes: sus ficheros ya están en la pública
+            return transaccion.execute(status -> imagenes.save(cargarBloqueada(imagenId).aprobar()));
+        }
+        List<String> copias = new ArrayList<>();
+        try {
+            FicheroAlmacenado foto = copiarAPublica(pendiente.ruta(), pendiente.contentType(), copias);
+            FicheroAlmacenado miniatura = pendiente.rutaMiniatura() == null ? null
+                    : copiarAPublica(pendiente.rutaMiniatura(), pendiente.contentType(), copias);
+            return transaccion.execute(status -> publicar(imagenId, foto, miniatura));
+        } catch (RuntimeException e) {
+            descartarCopias(imagenId, copias);
+            throw e;
+        }
+    }
+
+    private FicheroAlmacenado copiarAPublica(String ruta, String contentType, List<String> copias) {
+        byte[] contenido = almacen.leer(ruta).orElseThrow(() -> new ConflictException("IMAGEN_SIN_FICHERO",
+                "El fichero de la imagen ya no está en el almacenamiento"));
+        String destino = Imagen.rutaPublica(ruta);
+        String url = almacen.guardar(destino, contenido, contentType);
+        copias.add(destino);
+        return new FicheroAlmacenado(destino, url);
+    }
+
+    private Imagen publicar(UUID imagenId, FicheroAlmacenado foto, FicheroAlmacenado miniatura) {
+        Imagen pendiente = cargarBloqueada(imagenId);
+        Imagen aprobada = pendiente.aprobar().conFicheros(foto, miniatura);
+        ficheros.borrarTrasCommit(pendiente.rutas());
+        return imagenes.saveAndFlush(aprobada);
+    }
+
+    /**
+     * Las copias de una aprobación fallida sobran, salvo que otra aprobación simultánea de la misma
+     * imagen (con las mismas rutas de destino) ya las haya registrado como suyas.
+     */
+    private void descartarCopias(UUID imagenId, List<String> copias) {
+        if (copias.isEmpty()) {
+            return;
+        }
+        try {
+            boolean enUso = Boolean.TRUE.equals(lectura.execute(status -> imagenes.findById(imagenId)
+                    .filter(imagen -> imagen.rutas().containsAll(copias))
+                    .isPresent()));
+            if (!enUso) {
+                ficheros.borrarYa(copias);
+            }
+        } catch (RuntimeException e) {
+            // Sin saber si están en uso es más seguro dejarlas: nadie conoce su URL
+            log.warn("Could not check whether copies of image {} are in use; keeping {}", imagenId, copias, e);
+        }
     }
 
     @Override
@@ -133,6 +213,10 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
         imagenes.save(imagen.rechazar());
         // La imagen ya no es visible; si el fichero no se puede borrar, queda huérfano pero no bloquea la moderación
         ficheros.borrarTrasCommit(imagen.rutas());
+    }
+
+    private Imagen cargar(UUID imagenId) {
+        return imagenes.findById(imagenId).orElseThrow(() -> new ImagenNotFoundException(imagenId));
     }
 
     /** La fila bloqueada garantiza que se modera o se borra con las rutas que tiene de verdad. */
