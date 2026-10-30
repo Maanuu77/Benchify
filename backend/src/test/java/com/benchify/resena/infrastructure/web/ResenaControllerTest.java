@@ -131,6 +131,23 @@ class ResenaControllerTest {
     }
 
     @Test
+    void pagesBeyondTheMaximumAreRejected() {
+        when(resenas.deUsuario("ana", new PageQuery(PageQuery.MAX_PAGE, 20))).thenReturn(PageResult.empty(
+                new PageQuery(PageQuery.MAX_PAGE, 20)));
+
+        assertThat(mvc.get().uri("/api/v1/usuarios/ana/resenas?page={page}", PageQuery.MAX_PAGE)).hasStatusOk();
+        assertThat(mvc.get().uri("/api/v1/usuarios/ana/resenas?page={page}", PageQuery.MAX_PAGE + 1))
+                .hasStatus(400)
+                .bodyJson()
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$.code").isEqualTo("VALIDATION_FAILED");
+                    assertThat(json).extractingPath("$.errors[0].field").isEqualTo("page");
+                    assertThat(json).extractingPath("$.errors[0].message")
+                            .isEqualTo("La página no puede ser mayor que 10000");
+                });
+    }
+
+    @Test
     void userReviewsArePublic() {
         when(resenas.deUsuario("ana", PageQuery.first(20))).thenReturn(new PageResult<>(List.of(RESENA), 0, 20, 1));
 

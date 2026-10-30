@@ -7,8 +7,9 @@ import jakarta.validation.constraints.Min;
 
 /** Parámetros {@code ?page=&size=} comunes a los listados paginados. */
 public record PageParams(
-        @Schema(description = "Página (base 0)", defaultValue = "0")
-        @Min(0) Integer page,
+        @Schema(description = "Página (base 0)", defaultValue = "0", maximum = "10000")
+        @Min(0) @Max(value = PageQuery.MAX_PAGE, message = "La página no puede ser mayor que " + PageQuery.MAX_PAGE)
+        Integer page,
         @Schema(description = "Elementos por página", defaultValue = "20", maximum = "100")
         @Min(1) @Max(PageQuery.MAX_SIZE) Integer size) {
 
