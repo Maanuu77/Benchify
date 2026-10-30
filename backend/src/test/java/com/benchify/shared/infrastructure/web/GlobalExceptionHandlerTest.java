@@ -4,6 +4,7 @@ import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.NotFoundException;
+import com.benchify.shared.domain.PreconditionFailedException;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -49,6 +50,8 @@ class GlobalExceptionHandlerTest {
     void mapsDomainExceptionsToTheirStatus() {
         assertThat(mvc.get().uri("/conflict")).hasStatus(409);
         assertThat(mvc.get().uri("/forbidden")).hasStatus(403);
+        assertThat(mvc.get().uri("/precondition")).hasStatus(412)
+                .bodyJson().extractingPath("$.code").isEqualTo("BANCO_VERSION_OBSOLETA");
         assertThat(mvc.get().uri("/rule")).hasStatus(422)
                 .bodyJson().extractingPath("$.code").isEqualTo("BANCO_NOT_PUBLISHED");
     }
@@ -141,6 +144,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/rule")
         void rule() {
             throw new BusinessRuleException("BANCO_NOT_PUBLISHED", "El banco no está publicado");
+        }
+
+        @GetMapping("/precondition")
+        void precondition() {
+            throw new PreconditionFailedException("BANCO_VERSION_OBSOLETA", "El banco ha cambiado");
         }
 
         @GetMapping("/access-denied")

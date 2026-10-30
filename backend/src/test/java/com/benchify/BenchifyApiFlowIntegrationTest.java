@@ -138,6 +138,24 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void anEditWithAnOldEtagDoesNotOverwriteANewerOne() {
+        String bancoId = proponerBanco();
+        String leida = mvc.get().uri("/api/v1/bancos/{id}", bancoId).header("Authorization", bearer(autora))
+                .exchange().getResponse().getHeader("ETag");
+        assertThat(leida).isEqualTo("\"0\"");
+
+        MvcTestResult primera = editarBanco(bancoId, leida, "Primera edición");
+        assertThat(primera).hasStatusOk().hasHeader("ETag", "\"1\"");
+        assertThat(editarBanco(bancoId, leida, "Edición sobre una copia vieja"))
+                .hasStatus(412).bodyJson().extractingPath("$.code").isEqualTo("BANCO_VERSION_OBSOLETA");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}", bancoId).header("Authorization", bearer(autora)))
+                .hasHeader("ETag", "\"1\"").bodyJson().extractingPath("$.titulo").isEqualTo("Primera edición");
+
+        // Sin If-Match se mantiene el comportamiento anterior: gana la última edición
+        assertThat(editarBanco(bancoId, null, "Sin comprobar")).hasStatusOk().hasHeader("ETag", "\"2\"");
+    }
+
+    @Test
     void theAuthorOfAnOldReviewFindsItBeyondTheFirstPage() {
         String bancoId = bancoPublicado();
         MvcTestResult publicada = mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId)
@@ -236,6 +254,17 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
         assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/aprobacion", id)
                 .header("Authorization", bearerAdmin(admin))).hasStatusOk();
         return id;
+    }
+
+    private MvcTestResult editarBanco(String bancoId, String ifMatch, String titulo) {
+        MockMvcTester.MockMvcRequestBuilder put = mvc.put().uri("/api/v1/bancos/{id}", bancoId)
+                .header("Authorization", bearer(autora))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\":\"%s\",\"lat\":%s,\"lng\":%s}".formatted(titulo, LAT, LNG));
+        if (ifMatch != null) {
+            put = put.header("If-Match", ifMatch);
+        }
+        return put.exchange();
     }
 
     private MvcTestResult checkIn(String bancoId, double lat, double lng) {

@@ -5,6 +5,7 @@ import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.DomainException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.NotFoundException;
+import com.benchify.shared.domain.PreconditionFailedException;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.persistence.PessimisticLockException;
 import jakarta.validation.ConstraintViolationException;
@@ -61,6 +62,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     ProblemDetail handleBusinessRule(BusinessRuleException ex) {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex);
+    }
+
+    @ExceptionHandler(PreconditionFailedException.class)
+    ProblemDetail handlePreconditionFailed(PreconditionFailedException ex) {
+        return problem(HttpStatus.PRECONDITION_FAILED, ex);
     }
 
     /**

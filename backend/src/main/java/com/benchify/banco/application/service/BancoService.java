@@ -49,9 +49,22 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
         return bancos.save(banco);
     }
 
+    /**
+     * Con versión esperada la fila se bloquea antes de compararla, así que la comprobación y el
+     * guardado son atómicos: de dos ediciones simultáneas desde la misma versión, la segunda recibe
+     * un 412 en lugar de pisar a la primera.
+     */
     @Override
-    public Banco editar(Actor actor, UUID bancoId, BancoCommand command) {
-        Banco banco = cargarVisible(bancoId, actor);
+    public Banco editar(Actor actor, UUID bancoId, BancoCommand command, Long versionEsperada) {
+        Banco banco;
+        if (versionEsperada == null) {
+            banco = cargarVisible(bancoId, actor);
+        } else {
+            banco = bancos.findByIdForUpdate(bancoId)
+                    .filter(b -> b.esVisiblePara(actor))
+                    .orElseThrow(() -> new BancoNotFoundException(bancoId));
+            banco.exigirVersion(versionEsperada, actor);
+        }
         banco.editar(toDatos(command), actor);
         return bancos.save(banco);
     }

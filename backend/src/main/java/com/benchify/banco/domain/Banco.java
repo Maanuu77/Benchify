@@ -3,6 +3,7 @@ package com.benchify.banco.domain;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ForbiddenException;
+import com.benchify.shared.domain.PreconditionFailedException;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -68,6 +69,20 @@ public class Banco {
         if (!actor.isAdmin() && estado == EstadoBanco.PUBLICADO) {
             estado = EstadoBanco.PENDIENTE;
             fechaVerificacion = null;
+        }
+    }
+
+    /**
+     * Quien edita debe partir de la versión actual: si no, otra edición se ha guardado entretanto y
+     * esta la pisaría. Los permisos se comprueban antes, para no responder con un conflicto de
+     * versión a quien de todos modos no podría editar.
+     */
+    public void exigirVersion(long versionEsperada, Actor actor) {
+        exigirGestion(actor);
+        exigirNoEliminado();
+        if (version != versionEsperada) {
+            throw new PreconditionFailedException("BANCO_VERSION_OBSOLETA",
+                    "El banco ha cambiado desde que lo cargaste; recárgalo y vuelve a intentarlo");
         }
     }
 

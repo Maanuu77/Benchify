@@ -3,6 +3,7 @@ package com.benchify.banco.domain;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ForbiddenException;
+import com.benchify.shared.domain.PreconditionFailedException;
 import com.benchify.shared.domain.Ubicacion;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -123,6 +124,25 @@ class BancoTest {
             assertThat(banco.estado()).isEqualTo(EstadoBanco.ELIMINADO);
             assertThatThrownBy(() -> banco.editar(datos("x"), ADMIN)).isInstanceOf(BusinessRuleException.class);
             assertThatThrownBy(() -> banco.eliminar(ADMIN)).isInstanceOf(BusinessRuleException.class);
+        }
+
+        @Test
+        void anEditMustStartFromTheCurrentVersion() {
+            Banco banco = new Banco(UUID.randomUUID(), datos("Versionado"), EstadoBanco.PUBLICADO, Autor.of("autor"),
+                    Valoracion.SIN_RESENAS, AHORA, AHORA, 4);
+
+            banco.exigirVersion(4, AUTOR);
+            banco.exigirVersion(4, ADMIN);
+            assertThatThrownBy(() -> banco.exigirVersion(3, AUTOR))
+                    .isInstanceOf(PreconditionFailedException.class)
+                    .extracting("code").isEqualTo("BANCO_VERSION_OBSOLETA");
+        }
+
+        @Test
+        void permissionsAreCheckedBeforeTheVersion() {
+            Banco banco = pendiente();
+
+            assertThatThrownBy(() -> banco.exigirVersion(7, OTRO)).isInstanceOf(ForbiddenException.class);
         }
     }
 
