@@ -33,6 +33,12 @@ public class ImagenEntity {
     @Column(nullable = false, length = 1024)
     private String url;
 
+    @Column(name = "ruta_miniatura", length = 512)
+    private String rutaMiniatura;
+
+    @Column(name = "url_miniatura", length = 1024)
+    private String urlMiniatura;
+
     @Column(name = "content_type", nullable = false, length = 50)
     private String contentType;
 

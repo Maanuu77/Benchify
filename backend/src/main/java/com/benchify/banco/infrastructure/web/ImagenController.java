@@ -38,12 +38,13 @@ class ImagenController {
     }
 
     @PostMapping(path = "/api/v1/bancos/{bancoId}/imagenes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Subir una foto (JPEG, PNG o WebP, máximo 5 MB)",
-            description = "Queda pendiente de moderación salvo que la suba un administrador.")
+    @Operation(summary = "Subir una foto (JPEG, PNG o WebP, máximo 10 MB)",
+            description = "Se guarda como JPEG sin metadatos (EXIF, GPS), con el lado mayor limitado a 2048 px y "
+                    + "con una miniatura. Queda pendiente de moderación salvo que la suba un administrador.")
     @SecurityRequirement(name = "firebase")
     ResponseEntity<ImagenResponse> subir(@CurrentActor Actor actor, @PathVariable UUID bancoId,
             @RequestPart("archivo") MultipartFile archivo) {
-        Imagen imagen = imagenes.subir(actor, bancoId, new ArchivoImagen(archivo.getContentType(), bytes(archivo)));
+        Imagen imagen = imagenes.subir(actor, bancoId, archivo(archivo));
         return ResponseEntity.created(URI.create(imagen.url())).body(mapper.toResponse(imagen));
     }
 
@@ -61,9 +62,11 @@ class ImagenController {
         return ResponseEntity.noContent().build();
     }
 
-    private static byte[] bytes(MultipartFile archivo) {
+    private static ArchivoImagen archivo(MultipartFile archivo) {
+        // El tamaño declarado se comprueba antes de cargar el fichero en memoria
+        ArchivoImagen.comprobarTamano(archivo.getSize());
         try {
-            return archivo.getBytes();
+            return new ArchivoImagen(archivo.getContentType(), archivo.getBytes());
         } catch (IOException e) {
             throw new UncheckedIOException("Could not read uploaded file", e);
         }

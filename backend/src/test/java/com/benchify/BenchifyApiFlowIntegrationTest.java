@@ -2,6 +2,7 @@ package com.benchify;
 
 import com.benchify.support.AbstractIntegrationTest;
 import com.benchify.support.InMemoryImageStorage;
+import com.benchify.support.TestImages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -140,7 +141,7 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     @Test
     void photosAreModeratedBeforeBecomingPublic() {
         String bancoId = bancoPublicado();
-        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 1, 2};
+        byte[] png = TestImages.png(64, 48);
 
         JsonNode subida = json(mvc.post().uri("/api/v1/bancos/{id}/imagenes", bancoId)
                 .header("Authorization", bearer(visitante))

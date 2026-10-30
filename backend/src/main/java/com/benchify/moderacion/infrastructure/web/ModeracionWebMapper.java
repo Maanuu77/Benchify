@@ -23,7 +23,11 @@ interface ModeracionWebMapper {
 
     ResenaModeracionResponse toResponse(Resena resena);
 
-    ImagenModeracionResponse toResponse(Imagen imagen);
+    default ImagenModeracionResponse toResponse(Imagen imagen) {
+        String thumbUrl = imagen.urlMiniatura() != null ? imagen.urlMiniatura() : imagen.url();
+        return new ImagenModeracionResponse(imagen.id(), imagen.bancoId(), imagen.url(), thumbUrl, imagen.estado(),
+                imagen.subidaPor(), imagen.tamanoBytes(), imagen.fechaSubida());
+    }
 
     default BancoModeracionResponse toResponse(Banco banco) {
         return toResponse(banco.id(), banco.datos(), banco.estado(), banco.autor(), banco.fechaSubida());

@@ -3,12 +3,14 @@ package com.benchify.banco.application.service;
 import com.benchify.banco.application.port.out.AlmacenImagenesPort;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.ImagenRepository;
+import com.benchify.banco.application.port.out.ProcesadorImagenesPort;
 import com.benchify.banco.domain.ArchivoImagen;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoNotFoundException;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.ImagenProcesada;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ForbiddenException;
@@ -30,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.doThrow;
@@ -44,6 +47,7 @@ class ImagenBancoServiceTest {
     private static final Instant AHORA = Instant.parse("2026-10-25T10:00:00Z");
     private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1, 2, 3};
     private static final ArchivoImagen ARCHIVO = new ArchivoImagen("image/jpeg", JPEG);
+    private static final ImagenProcesada PROCESADA = new ImagenProcesada(new byte[]{1, 2}, new byte[]{3});
     private static final Actor ANA = Actor.user("ana");
     private static final Actor LUIS = Actor.user("luis");
 
@@ -53,6 +57,8 @@ class ImagenBancoServiceTest {
     private ImagenRepository imagenes;
     @Mock
     private AlmacenImagenesPort almacen;
+    @Mock
+    private ProcesadorImagenesPort procesador;
 
     private ImagenBancoService service;
     private Banco publicado;
@@ -60,7 +66,7 @@ class ImagenBancoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ImagenBancoService(bancos, imagenes, almacen, Clock.fixed(AHORA, ZoneOffset.UTC));
+        service = new ImagenBancoService(bancos, imagenes, almacen, procesador, Clock.fixed(AHORA, ZoneOffset.UTC));
         DatosBanco datos = new DatosBanco("Banco", null, new Ubicacion(37, -6), null, null, null);
         publicado = Banco.proponer(UUID.randomUUID(), datos, ANA, AHORA);
         publicado.aprobar(AHORA);
@@ -68,17 +74,23 @@ class ImagenBancoServiceTest {
         lenient().when(bancos.findById(publicado.id())).thenReturn(Optional.of(publicado));
         lenient().when(bancos.findById(pendiente.id())).thenReturn(Optional.of(pendiente));
         lenient().when(imagenes.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(procesador.procesar(ARCHIVO)).thenReturn(PROCESADA);
     }
 
     @Test
     void anyUserCanUploadToAPublishedBenchAndItWaitsForModeration() {
-        when(almacen.guardar(startsWith("bancos/" + publicado.id() + "/"), eq(JPEG), eq("image/jpeg")))
-                .thenReturn("https://storage/x.jpg");
+        when(almacen.guardar(startsWith("bancos/" + publicado.id() + "/"), any(), eq("image/jpeg")))
+                .thenAnswer(inv -> "https://storage/" + inv.getArgument(0));
 
         Imagen imagen = service.subir(LUIS, publicado.id(), ARCHIVO);
 
-        assertThat(imagen.url()).isEqualTo("https://storage/x.jpg");
         assertThat(imagen.ruta()).endsWith(imagen.id() + ".jpg");
+        assertThat(imagen.url()).isEqualTo("https://storage/" + imagen.ruta());
+        assertThat(imagen.rutaMiniatura()).endsWith(imagen.id() + "_thumb.jpg");
+        assertThat(imagen.urlMiniatura()).isEqualTo("https://storage/" + imagen.rutaMiniatura());
+        assertThat(imagen.tamanoBytes()).isEqualTo(2);
+        verify(almacen).guardar(imagen.ruta(), PROCESADA.contenido(), "image/jpeg");
+        verify(almacen).guardar(imagen.rutaMiniatura(), PROCESADA.miniatura(), "image/jpeg");
         assertThat(imagen.subidaPor()).isEqualTo("luis");
         assertThat(imagen.estado()).isEqualTo(EstadoImagen.PENDIENTE);
         assertThat(imagen.fechaSubida()).isEqualTo(AHORA);
@@ -108,7 +120,8 @@ class ImagenBancoServiceTest {
         when(imagenes.save(any())).thenThrow(new IllegalStateException("db down"));
 
         assertThatThrownBy(() -> service.subir(ANA, publicado.id(), ARCHIVO)).isInstanceOf(IllegalStateException.class);
-        verify(almacen).borrar(startsWith("bancos/" + publicado.id()));
+        verify(almacen).borrar(argThat(ruta -> ruta.startsWith("bancos/" + publicado.id()) && !ruta.contains("_thumb")));
+        verify(almacen).borrar(argThat(ruta -> ruta.endsWith("_thumb.jpg")));
     }
 
     @Test

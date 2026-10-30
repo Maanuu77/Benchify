@@ -29,8 +29,9 @@ spring:
     clean-disabled: true
   servlet:
     multipart:
+      # Same limit as ArchivoImagen.MAX_BYTES; the request only adds the multipart framing
       max-file-size: 10MB
-      max-request-size: 15MB
+      max-request-size: 11MB
 
 server:
   port: ${PORT:8080}

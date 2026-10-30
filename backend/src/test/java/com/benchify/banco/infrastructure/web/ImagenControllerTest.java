@@ -59,6 +59,18 @@ class ImagenControllerTest {
     }
 
     @Test
+    void rejectsOversizedFilesBeforeReadingThem() {
+        byte[] enorme = new byte[(int) ArchivoImagen.MAX_BYTES + 1];
+        System.arraycopy(PNG, 0, enorme, 0, PNG.length);
+
+        assertThat(mvc.post().uri("/api/v1/bancos/{id}/imagenes", BANCO).header("Authorization", bearer("ana"))
+                .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", enorme)))
+                .hasStatus(422)
+                .bodyJson().extractingPath("$.code").isEqualTo("IMAGEN_DEMASIADO_GRANDE");
+        verifyNoInteractions(imagenes);
+    }
+
+    @Test
     void uploadRequiresAuthentication() {
         assertThat(mvc.post().uri("/api/v1/bancos/{id}/imagenes", BANCO)
                 .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", PNG)))
@@ -73,12 +85,20 @@ class ImagenControllerTest {
     }
 
     @Test
-    void listsImagesPublicly() {
-        when(imagenes.listar(BANCO, null)).thenReturn(List.of(IMAGEN));
+    void listsImagesPubliclyWithTheirThumbnails() {
+        Imagen conMiniatura = new Imagen(UUID.randomUUID(), BANCO, "bancos/y.jpg", "https://storage/y.jpg",
+                "bancos/y_thumb.jpg", "https://storage/y_thumb.jpg", "image/jpeg", 100, "ana", EstadoImagen.APROBADA,
+                Instant.parse("2026-10-25T10:00:00Z"));
+        when(imagenes.listar(BANCO, null)).thenReturn(List.of(IMAGEN, conMiniatura));
 
         assertThat(mvc.get().uri("/api/v1/bancos/{id}/imagenes", BANCO))
                 .hasStatusOk()
-                .bodyJson().extractingPath("$[0].url").isEqualTo("https://storage/x.png");
+                .bodyJson().satisfies(json -> {
+                    assertThat(json).extractingPath("$[0].url").isEqualTo("https://storage/x.png");
+                    // Las fotos anteriores a las miniaturas usan la foto completa
+                    assertThat(json).extractingPath("$[0].thumbUrl").isEqualTo("https://storage/x.png");
+                    assertThat(json).extractingPath("$[1].thumbUrl").isEqualTo("https://storage/y_thumb.jpg");
+                });
     }
 
     @Test
