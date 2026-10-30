@@ -49,6 +49,18 @@ class RateLimitConfigTest {
     }
 
     @Test
+    void theSpaCanReadRetryAfterOnACrossOrigin429() {
+        assertThat(mvc.post().uri("/api/v1/bancos/2/imagenes").header("Authorization", bearer("sara"))
+                .header("Origin", "http://localhost:4200")).hasStatusOk();
+
+        assertThat(mvc.post().uri("/api/v1/bancos/2/imagenes").header("Authorization", bearer("sara"))
+                .header("Origin", "http://localhost:4200"))
+                .hasStatus(429)
+                .hasHeader("Access-Control-Allow-Origin", "http://localhost:4200")
+                .headers().hasValue("Access-Control-Expose-Headers", "Location, Retry-After");
+    }
+
+    @Test
     void requestsRejectedBySecurityDoNotSpendTheQuota() {
         for (int i = 0; i < 5; i++) {
             assertThat(mvc.post().uri("/api/v1/bancos")).hasStatus(401);
