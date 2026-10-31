@@ -1,70 +1,291 @@
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
+// Sistema de diseño de Benchify ("minimal moderno"): tokens propios en :root y tema de Angular
+// Material 3 construido sobre ellos. Los colores usan light-dark(), así que el modo oscuro sigue
+// la preferencia del sistema sin duplicar reglas.
 @use '@angular/material' as mat;
 @use './styles/theme-colors' as benchify;
+
+:root {
+  color-scheme: light dark;
+
+  // ── Color ──────────────────────────────────────────────────────────────────
+  --bf-bg: light-dark(#fafaf7, #0f1110);
+  --bf-surface: light-dark(#ffffff, #171a18);
+  --bf-surface-2: light-dark(#f0f1ed, #212522);
+  --bf-ink: light-dark(#111311, #edefec);
+  --bf-ink-2: light-dark(#5b615c, #a3aaa4);
+  --bf-line: light-dark(rgb(17 19 17 / 10%), rgb(237 239 236 / 10%));
+  // El verde vivo de la marca solo para rellenos y marcadores: como texto no llega a AA
+  --bf-accent: #22c55e;
+  --bf-on-accent: #0b1f12;
+  // Verde para texto y enlaces (AA sobre el fondo de cada modo)
+  --bf-accent-ink: light-dark(#15803d, #4ade80);
+  --bf-accent-soft: light-dark(rgb(34 197 94 / 14%), rgb(34 197 94 / 16%));
+  --bf-danger: light-dark(#b42318, #f97066);
+  --bf-glass: light-dark(rgb(255 255 255 / 78%), rgb(24 27 25 / 76%));
+  --bf-glass-line: light-dark(rgb(255 255 255 / 75%), rgb(255 255 255 / 8%));
+  --bf-blur: saturate(180%) blur(20px);
+
+  // ── Elevación ──────────────────────────────────────────────────────────────
+  --bf-sh-1: 0 1px 2px light-dark(rgb(17 19 17 / 6%), rgb(0 0 0 / 40%)),
+    0 2px 8px light-dark(rgb(17 19 17 / 5%), rgb(0 0 0 / 30%));
+  --bf-sh-2: 0 12px 32px light-dark(rgb(17 19 17 / 12%), rgb(0 0 0 / 50%)),
+    0 2px 6px light-dark(rgb(17 19 17 / 6%), rgb(0 0 0 / 35%));
+
+  // ── Forma, espacio y movimiento ───────────────────────────────────────────
+  --bf-r-sm: 12px;
+  --bf-r: 16px;
+  --bf-r-lg: 24px;
+  --bf-r-pill: 999px;
+  --bf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --bf-dur: 240ms;
+  --bf-font: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
 
 html {
   height: 100%;
   @include mat.theme(
     (
       color: (
-        // Paleta propia generada desde #2E7D32 (verde parque) y #F9A825 (ámbar)
         primary: benchify.$primary-palette,
         tertiary: benchify.$tertiary-palette,
         theme-type: color-scheme,
       ),
-      typography: Roboto,
+      typography: (
+        plain-family: var(--bf-font),
+        brand-family: var(--bf-font),
+        bold-weight: 700,
+        medium-weight: 600,
+        regular-weight: 400,
+      ),
       density: 0,
+    )
+  );
+
+  // Material toma los colores de la marca: superficies, texto y verde accesible
+  @include mat.theme-overrides(
+    (
+      primary: var(--bf-accent-ink),
+      on-primary: light-dark(#ffffff, #0b1f12),
+      surface: var(--bf-bg),
+      on-surface: var(--bf-ink),
+      on-surface-variant: var(--bf-ink-2),
+      surface-container-lowest: var(--bf-surface),
+      surface-container-low: var(--bf-surface),
+      surface-container: var(--bf-surface),
+      surface-container-high: var(--bf-surface-2),
+      surface-container-highest: var(--bf-surface-2),
+      outline-variant: var(--bf-line),
+      error: var(--bf-danger),
+      corner-small: 8px,
+      corner-medium: var(--bf-r-sm),
+      corner-large: var(--bf-r),
+      corner-extra-large: var(--bf-r-lg),
+    )
+  );
+
+  // Botones: rellenos con el verde de la marca y esquinas suaves en lugar de píldora
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--bf-accent),
+      filled-label-text-color: var(--bf-on-accent),
+      filled-container-shape: 14px,
+      outlined-container-shape: 14px,
+      protected-container-shape: 14px,
+      text-container-shape: 14px,
+      tonal-container-shape: 14px,
+      tonal-container-color: var(--bf-surface-2),
+      tonal-label-text-color: var(--bf-ink),
+      filled-label-text-weight: 600,
+      outlined-label-text-weight: 600,
+      text-label-text-weight: 600,
+      tonal-label-text-weight: 600,
+    )
+  );
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: var(--bf-r-pill),
+      elevated-selected-container-color: var(--bf-accent),
+      selected-label-text-color: var(--bf-on-accent),
+      with-icon-selected-icon-color: var(--bf-on-accent),
+    )
+  );
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: var(--bf-r-sm),
+    )
+  );
+  @include mat.snack-bar-overrides(
+    (
+      container-shape: var(--bf-r-sm),
     )
   );
 }
 
 body {
-  // Respeta la preferencia de modo claro/oscuro del sistema
-  color-scheme: light dark;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
   margin: 0;
   height: 100%;
+  background: var(--bf-bg);
+  color: var(--bf-ink);
+  font: var(--mat-sys-body-medium);
+  font-family: var(--bf-font);
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--mat-sys-primary);
+  color: var(--bf-accent-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--bf-accent-ink);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
+
+// Material Icons autoalojados (@fontsource solo trae el @font-face)
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+// Solo para lectores de pantalla
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Paneles flotantes translúcidos sobre el mapa
+.bf-glass {
+  background: var(--bf-glass);
+  -webkit-backdrop-filter: var(--bf-blur);
+  backdrop-filter: var(--bf-blur);
+  border: 1px solid var(--bf-glass-line);
+  box-shadow: var(--bf-sh-2);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .bf-glass {
+    background: var(--bf-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 // ── Marcadores del mapa (Leaflet divIcon) ─────────────────────────────────────
-.bf-marker {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-  background: var(--mat-sys-primary);
-  border: 2px solid var(--mat-sys-on-primary);
-  box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
+.bf-pin {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bf-accent);
+  color: var(--bf-on-accent);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px light-dark(rgb(17 19 17 / 50%), rgb(0 0 0 / 60%)), 0 3px 8px rgb(0 0 0 / 22%);
+  transition: transform var(--bf-dur) var(--bf-ease);
 
-  .material-icons {
-    transform: rotate(45deg);
-    font-size: 20px;
-    color: var(--mat-sys-on-primary);
+  svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
   }
 
   &--selected {
-    background: var(--mat-sys-tertiary);
+    width: 46px;
+    height: 46px;
+    border-radius: 50% 50% 50% 6px;
+    border-width: 3px;
+    transform: rotate(-45deg);
+
+    svg {
+      width: 24px;
+      height: 24px;
+      transform: rotate(45deg);
+    }
+  }
+}
+
+.bf-cluster {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bf-surface);
+  color: var(--bf-ink);
+  border: 3px solid var(--bf-accent);
+  box-shadow: 0 0 0 3px var(--bf-surface), 0 4px 10px rgb(0 0 0 / 25%);
+  font: 700 14px var(--bf-font);
+}
+
+.bf-yo {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: light-dark(#111311, #edefec);
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 40%);
+  animation: bf-pulso 2.4s ease-out infinite;
+}
+
+@keyframes bf-pulso {
+  0% {
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 40%), 0 0 0 0 rgb(34 197 94 / 50%);
+  }
+  100% {
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 40%), 0 0 0 20px rgb(34 197 94 / 0%);
+  }
+}
+
+// Leaflet con la tipografía y los colores de la app
+.leaflet-container {
+  font-family: var(--bf-font);
+  background: var(--bf-bg);
+}
+
+.leaflet-control-attribution {
+  font-size: 11px;
+  background: var(--bf-glass) !important;
+  color: var(--bf-ink-2);
+  border-top-left-radius: 8px;
+
+  a {
+    color: var(--bf-ink-2);
   }
 }
 
 .snack-error {
   --mat-snack-bar-container-color: var(--mat-sys-error-container);
   --mat-snack-bar-supporting-text-color: var(--mat-sys-on-error-container);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
