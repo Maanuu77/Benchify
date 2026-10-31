@@ -12,7 +12,7 @@ import { GeolocationService } from '../../../core/geo/geolocation.service';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
 import { BancoDetallePage } from './banco-detalle-page';
-import { GaleriaImagenes, validarImagen } from './galeria-imagenes';
+import { GaleriaImagenes, validarTamanoImagen, validarTipoImagen } from './galeria-imagenes';
 import { ResenasSection } from './resenas-section';
 
 @Component({ selector: 'bf-bench-map, bf-galeria-imagenes, bf-resenas-section', template: '' })
@@ -165,11 +165,15 @@ describe('BancoDetallePage', () => {
   });
 });
 
-describe('validarImagen', () => {
-  it('accepts supported images up to 5 MB and rejects the rest', () => {
-    expect(validarImagen(new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }))).toBeNull();
-    expect(validarImagen(new File(['x'], 'a.gif', { type: 'image/gif' }))).toContain('JPEG, PNG o WebP');
-    expect(validarImagen(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'a.png', { type: 'image/png' })))
-      .toContain('5 MB');
+describe('validación de fotos', () => {
+  it('accepts supported types and rejects the rest', () => {
+    expect(validarTipoImagen(new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }))).toBeNull();
+    expect(validarTipoImagen(new File(['x'], 'a.gif', { type: 'image/gif' }))).toContain('JPEG, PNG o WebP');
+  });
+
+  it('accepts photos up to 10 MB, like the server', () => {
+    expect(validarTamanoImagen(new File([new Uint8Array(10 * 1024 * 1024)], 'a.png', { type: 'image/png' }))).toBeNull();
+    expect(validarTamanoImagen(new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'a.png', { type: 'image/png' })))
+      .toContain('10 MB');
   });
 });

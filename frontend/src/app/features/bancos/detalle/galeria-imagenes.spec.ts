@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { BancosApi } from '../../../core/api/bancos-api';
@@ -9,7 +11,8 @@ import { Confirmation } from '../../../shared/ui/confirm-dialog';
 import { GaleriaImagenes } from './galeria-imagenes';
 
 const imagen = (id: string, extra: Partial<Imagen> = {}): Imagen => ({
-  id, bancoId: 'b1', url: `https://storage.test/${id}.jpg`, estado: 'APROBADA', subidaPor: 'luis',
+  id, bancoId: 'b1', url: `https://storage.test/${id}.jpg`, thumbUrl: `https://storage.test/${id}_thumb.jpg`,
+  requiereAutenticacion: false, estado: 'APROBADA', subidaPor: 'luis',
   fechaSubida: '2026-10-01T10:00:00Z', ...extra,
 });
 
@@ -24,13 +27,18 @@ describe('GaleriaImagenes', () => {
     auth = new FakeAuthService();
     auth.signIn({ uid: 'ana' });
     api = {
-      imagenes: vi.fn(() => of([imagen('i1'), imagen('i2', { estado: 'PENDIENTE', subidaPor: 'ana' })])),
+      imagenes: vi.fn(() => of([imagen('i1'), imagen('i2', {
+        estado: 'PENDIENTE', subidaPor: 'ana', requiereAutenticacion: true,
+        url: 'http://api.test/api/v1/imagenes/i2/archivo', thumbUrl: 'http://api.test/api/v1/imagenes/i2/miniatura',
+      })])),
       subirImagen: vi.fn(() => of(imagen('i3', { estado: 'PENDIENTE' }))),
       eliminarImagen: vi.fn(() => of(undefined)),
     };
     notifier = { success: vi.fn(), error: vi.fn() };
     TestBed.configureTestingModule({
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
         { provide: AuthService, useValue: auth },
         { provide: BancosApi, useValue: api },
         { provide: Notifier, useValue: notifier },
@@ -50,6 +58,30 @@ describe('GaleriaImagenes', () => {
     expect(element.querySelector('img')?.getAttribute('alt')).toBe('Foto 1 de Glorieta');
     expect(element.textContent).toContain('Pendiente de revisión');
     expect(element.querySelectorAll('button[aria-label="Borrar foto"]')).toHaveLength(1);
+  });
+
+  it('shows thumbnails and downloads pending photos through the API', async () => {
+    const http = TestBed.inject(HttpTestingController);
+    const [publica, pendiente] = Array.from(element.querySelectorAll('img'));
+    expect(publica.getAttribute('src')).toBe('https://storage.test/i1_thumb.jpg');
+    expect(pendiente.hasAttribute('src')).toBe(false);
+
+    const blobUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pendiente');
+    const request = http.expectOne('http://api.test/api/v1/imagenes/i2/miniatura');
+    expect(request.request.responseType).toBe('blob');
+    request.flush(new Blob(['jpg']));
+
+    expect(blobUrl).toHaveBeenCalled();
+    expect(pendiente.getAttribute('src')).toBe('blob:pendiente');
+    blobUrl.mockRestore();
+  });
+
+  it('does not reload the photos when only the token is renewed', async () => {
+    TestBed.inject(HttpTestingController).match(() => true);
+    auth.signIn({ uid: 'ana', displayName: 'Ana renovada' });
+    await fixture.whenStable();
+
+    expect(api['imagenes']).toHaveBeenCalledTimes(1);
   });
 
   it('replaces a photo that fails to load with an accessible placeholder', async () => {

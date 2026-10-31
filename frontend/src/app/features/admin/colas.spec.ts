@@ -1,3 +1,4 @@
+import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -23,8 +24,8 @@ describe('review and photo queues', () => {
       mantenerResena: vi.fn(() => of({})),
       eliminarResena: vi.fn(() => of(undefined)),
       imagenesPendientes: vi.fn(() => of(pagina<ImagenModeracion>([
-        { id: 'i1', bancoId: 'b1', url: 'https://s/1.jpg', estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 73, fechaSubida: '2026-10-01' },
-        { id: 'i2', bancoId: 'b1', url: 'https://s/2.jpg', estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 2_621_440, fechaSubida: '2026-10-01' },
+        { id: 'i1', bancoId: 'b1', url: 'https://s/1.jpg', thumbUrl: 'https://s/1_thumb.jpg', requiereAutenticacion: false, estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 73, fechaSubida: '2026-10-01' },
+        { id: 'i2', bancoId: 'b1', url: 'https://s/2.jpg', thumbUrl: 'https://s/2_thumb.jpg', requiereAutenticacion: false, estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 2_621_440, fechaSubida: '2026-10-01' },
       ]))),
       aprobarImagen: vi.fn(() => of({})),
       rechazarImagen: vi.fn(() => of(undefined)),
@@ -32,6 +33,7 @@ describe('review and photo queues', () => {
     confirmation = { ask: vi.fn(async () => true) };
     TestBed.configureTestingModule({
       providers: [
+        provideHttpClient(),
         provideRouter([]),
         { provide: AdminApi, useValue: api },
         { provide: Confirmation, useValue: confirmation },
