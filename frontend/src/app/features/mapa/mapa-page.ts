@@ -110,14 +110,19 @@ export class MapaPage {
     // Vista y filtros a la URL (sin crear entradas de historial) para poder volver y compartir
     combineLatest([toObservable(this.vista), toObservable(this.filtro)])
       .pipe(skip(1), debounceTime(400), takeUntilDestroyed())
-      .subscribe(([vista, filtro]) =>
+      .subscribe(([vista, filtro]) => {
+        // Si el usuario ya está yendo a otra página (p. ej. ha pulsado un enlace mientras el mapa se
+        // movía), una navegación aquí cancelaría la suya
+        if (this.router.currentNavigation()) {
+          return;
+        }
         void this.router.navigate([], {
           relativeTo: this.route,
           queryParams: aQueryParams({ vista, filtro }),
           queryParamsHandling: 'merge',
           replaceUrl: true,
-        }),
-      );
+        });
+      });
   }
 
   protected cambiarVista(vista: Vista): void {
