@@ -40,7 +40,7 @@ import { MatIcon } from '@angular/material/icon';
     .stars {
       display: inline-flex;
       align-items: center;
-      color: var(--mat-sys-tertiary);
+      color: var(--bf-ink);
     }
     .star {
       border: 0;
@@ -51,7 +51,7 @@ import { MatIcon } from '@angular/material/icon';
       border-radius: 50%;
     }
     .star:focus-visible {
-      outline: 2px solid var(--mat-sys-primary);
+      outline: 2px solid var(--bf-accent-ink);
     }
   `,
 })

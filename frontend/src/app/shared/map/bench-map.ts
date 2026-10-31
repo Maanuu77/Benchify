@@ -60,6 +60,8 @@ export class BenchMap {
   /** Banco resaltado en el mapa. */
   readonly seleccionado = input<string | null>(null);
   readonly ariaLabel = input('Mapa de bancos');
+  /** Sin zoom con la rueda ni arrastre en móvil: para mapas dentro de una página que se desplaza. */
+  readonly interactivo = input(true);
 
   readonly areaChange = output<BoundingBox>();
   /** Centro y zoom tras cada movimiento, para poder volver a la misma vista (p. ej. desde la URL). */
@@ -128,6 +130,8 @@ export class BenchMap {
       minZoom: ZOOM_MINIMO,
       maxBounds: [[-90, -180], [90, 180]],
       maxBoundsViscosity: 1,
+      scrollWheelZoom: this.interactivo(),
+      dragging: this.interactivo() || !this.L.Browser.mobile,
     }).setView([lat, lng], this.zoom());
     this.quitarCapaBase = anadirCapaBase(this.L, this.map);
     this.cluster = this.L.markerClusterGroup({
