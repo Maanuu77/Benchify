@@ -5,6 +5,51 @@ Todos los cambios relevantes de Benchify. Formato basado en
 [versionado semántico](https://semver.org/lang/es/). Los números `#n` son issues del
 [roadmap](docs/ROADMAP.md).
 
+## [Sin publicar]
+
+Desde la 1.0.1 los números `#n` son issues de GitHub
+([tablero](https://github.com/users/Maanuu77/projects/1)); los de versiones anteriores son del roadmap antiguo.
+
+### Seguridad
+
+- Las fotos pendientes de moderación ya no son públicas: se guardan en `pendientes/` y solo las
+  ven su autor y los administradores a través de la API; al aprobarlas pasan a la ruta pública.
+  `storage.rules` deja de permitir listar carpetas y las fotos públicas ya no se cachean como
+  inmutables (#14).
+- El rol de la base de datos es el que autoriza. Al cambiarlo se revocan las sesiones del usuario
+  y un token antiguo ya no puede volver a escribir el rol anterior (#15).
+- Las fotos se recodifican a JPEG sin metadatos EXIF/GPS, con un máximo de 2048 px, una miniatura
+  de 480 px y un límite de 40 megapíxeles (#27).
+- Límite de frecuencia en las escrituras: 30 por minuto y 10 subidas de fotos cada 10 minutos por
+  usuario, con 429 `DEMASIADAS_PETICIONES` y `Retry-After`. Un usuario puede tener como máximo
+  5 bancos pendientes (#26).
+
+### Corregido
+
+- Las subidas a Storage ya no ocupan una conexión de la base de datos, los ficheros se borran solo
+  después del commit y un fallo al guardar no deja ficheros huérfanos (#16).
+- Condiciones de carrera en el límite de 10 fotos por banco y en el intervalo de 12 h entre
+  check-ins (#23), y en los reportes de reseñas, que ya no se pierden ante ediciones simultáneas (#24).
+- El primer inicio de sesión con peticiones en paralelo ya no devuelve 500; una violación de
+  restricción en la base de datos responde 409 `CONFLICTO_DATOS` (#22).
+- Las reseñas y estadísticas de un perfil y el total de check-ins ya no muestran datos de bancos
+  no publicados (#25).
+- Al borrar un banco se borran también sus fotos del bucket (#33).
+- `ultimo_acceso` se actualiza cada 15 minutos de uso (#34).
+- Las cabeceras `Location` de reseñas e imágenes apuntan a recursos que existen (#38).
+
+### Añadido
+
+- `GET /api/v1/bancos/{id}/resenas/mia`, `GET /api/v1/resenas/{id}` y `GET /api/v1/imagenes/{id}`
+  (con `/archivo` y `/miniatura` para las fotos pendientes) (#14, #31, #38).
+- `ETag` en la ficha de un banco y `If-Match` opcional al editarlo (412 `BANCO_VERSION_OBSOLETA`) (#38).
+- Las imágenes exponen `thumbUrl` (#27).
+
+### Cambiado
+
+- Límite de subida de fotos unificado en 10 MB (#27) y máximo de 10000 en el número de página (#41).
+- Migraciones V8 (miniaturas de las imágenes) y V10 (versión de las reseñas para el bloqueo optimista).
+
 ## [1.0.1] - 2026-10-27
 
 ### Corregido
