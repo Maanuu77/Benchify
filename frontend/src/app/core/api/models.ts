@@ -103,6 +103,10 @@ export interface Imagen {
   id: string;
   bancoId: string;
   url: string;
+  /** Miniatura para galerías; en las fotos antiguas es la misma url. */
+  thumbUrl: string;
+  /** Las fotos pendientes no son públicas: url y thumbUrl se piden a la API con el token. */
+  requiereAutenticacion: boolean;
   estado: EstadoImagen;
   subidaPor: string;
   fechaSubida: string;
@@ -208,6 +212,8 @@ export interface ImagenModeracion {
   id: string;
   bancoId: string;
   url: string;
+  thumbUrl: string;
+  requiereAutenticacion: boolean;
   estado: EstadoImagen;
   subidaPor: string;
   tamanoBytes: number;

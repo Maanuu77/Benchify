@@ -20,6 +20,14 @@ export interface Punto {
   lng: number;
 }
 
+/** Con menos zoom el área visible daría la vuelta al mundo. */
+export const ZOOM_MINIMO = 3;
+
+/** Leaflet puede devolver longitudes fuera de ±180 al desplazarse; la API las rechaza. */
+function limitar(valor: number, maximo: number): number {
+  return Math.max(-maximo, Math.min(maximo, valor));
+}
+
 /** Mapa de Leaflet con marcadores agrupados. Emite el área visible cada vez que el usuario la mueve. */
 @Component({
   selector: 'bf-bench-map',
@@ -81,7 +89,13 @@ export class BenchMap {
   private async init(): Promise<void> {
     this.L = await cargarLeaflet();
     const { lat, lng } = this.centro();
-    this.map = this.L.map(this.host().nativeElement, { zoomControl: true }).setView([lat, lng], this.zoom());
+    // Sin zoom de "mundo entero" ni salir de él: el área pedida a la API siempre es válida
+    this.map = this.L.map(this.host().nativeElement, {
+      zoomControl: true,
+      minZoom: ZOOM_MINIMO,
+      maxBounds: [[-90, -180], [90, 180]],
+      maxBoundsViscosity: 1,
+    }).setView([lat, lng], this.zoom());
     this.L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(this.map);
     this.cluster = this.L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 50 });
     this.map.addLayer(this.cluster);
@@ -94,10 +108,10 @@ export class BenchMap {
     const bounds = this.map?.getBounds();
     if (!bounds) return;
     this.areaChange.emit({
-      minLat: bounds.getSouth(),
-      minLng: bounds.getWest(),
-      maxLat: bounds.getNorth(),
-      maxLng: bounds.getEast(),
+      minLat: limitar(bounds.getSouth(), 90),
+      minLng: limitar(bounds.getWest(), 180),
+      maxLat: limitar(bounds.getNorth(), 90),
+      maxLng: limitar(bounds.getEast(), 180),
     });
   }
 

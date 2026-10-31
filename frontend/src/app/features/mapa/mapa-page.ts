@@ -5,10 +5,10 @@ import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatListItem, MatListItemLine, MatListItemTitle, MatNavList } from '@angular/material/list';
 import { RouterLink } from '@angular/router';
-import { combineLatest, debounceTime, filter, switchMap } from 'rxjs';
+import { combineLatest, debounceTime, filter, of, switchMap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Loadable, loadable } from '../../core/api/api-error';
-import { BancosApi } from '../../core/api/bancos-api';
+import { BancosApi, MAX_RESULTADOS_MAPA } from '../../core/api/bancos-api';
 import { BancoCercano, BancoResumen, BoundingBox, FiltroBancos, Page } from '../../core/api/models';
 import { GeolocationService } from '../../core/geo/geolocation.service';
 import { Notifier } from '../../core/ui/notifier';
@@ -47,7 +47,18 @@ export class MapaPage {
   protected readonly usuario = signal<Punto | null>(null);
   protected readonly seleccionado = signal<BancoResumen | null>(null);
   protected readonly localizando = signal(false);
-  protected readonly cercanos = signal<Loadable<Page<BancoCercano>> | null>(null);
+  /** Punto de la búsqueda "cerca de mí"; null cuando la lista de cercanos está cerrada. */
+  private readonly origenCercanos = signal<Punto | null>(null);
+
+  /** Bancos cercanos: se vuelven a pedir al cambiar los filtros y solo cuenta la última respuesta. */
+  protected readonly cercanos = toSignal(
+    combineLatest([toObservable(this.origenCercanos), toObservable(this.filtro)]).pipe(
+      switchMap(([origen, filtro]) =>
+        origen ? loadable(this.api.cercanos(origen.lat, origen.lng, RADIO_CERCANIA, filtro, { size: 20 })) : of(null),
+      ),
+    ),
+    { initialValue: null as Loadable<Page<BancoCercano>> | null },
+  );
 
   /** Bancos del área visible; se vuelve a pedir al mover el mapa o cambiar filtros. */
   protected readonly estado = toSignal(
@@ -63,6 +74,9 @@ export class MapaPage {
     source: this.estado,
     computation: (estado, anterior) => (estado.status === 'success' ? estado.value : (anterior?.value ?? [])),
   });
+
+  /** La API devuelve como mucho este número de bancos por área: si se llega, hay más sin mostrar. */
+  protected readonly enLimite = computed(() => this.bancos().length >= MAX_RESULTADOS_MAPA);
 
   protected readonly mejorValorados = computed(() =>
     [...this.bancos()].sort((a, b) => b.puntuacionMedia - a.puntuacionMedia || b.numResenas - a.numResenas).slice(0, 20),
@@ -83,16 +97,27 @@ export class MapaPage {
   }
 
   protected cargarCercanos(posicion: Punto): void {
-    loadable(this.api.cercanos(posicion.lat, posicion.lng, RADIO_CERCANIA, this.filtro(), { size: 20 }))
-      .subscribe((estado) => this.cercanos.set(estado));
+    // Un objeto nuevo aunque sea el mismo punto: así "reintentar" vuelve a pedir la lista
+    this.origenCercanos.set({ ...posicion });
   }
 
   protected cerrarCercanos(): void {
-    this.cercanos.set(null);
+    this.origenCercanos.set(null);
   }
 
+  /** Vuelve a pedir los bancos del área visible tras un error. */
+  protected reintentarArea(): void {
+    const area = this.area();
+    if (area) {
+      this.area.set({ ...area });
+    }
+  }
+
+  /**
+   * Al recorrer la lista con el teclado solo se selecciona el banco: mover el mapa cambiaría el
+   * área y con ella la propia lista que se está recorriendo.
+   */
   protected enfocar(banco: BancoResumen): void {
     this.seleccionado.set(banco);
-    this.mapa()?.volarA(banco);
   }
 }

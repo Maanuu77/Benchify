@@ -1,28 +1,40 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
-import { firstValueFrom } from 'rxjs';
+import { catchError, combineLatest, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { toApiError } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
 import { Imagen } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Notifier } from '../../../core/ui/notifier';
+import { comprimirImagen } from '../../../shared/imagenes/comprimir-imagen';
+import { ImagenSrc } from '../../../shared/imagenes/imagen-src';
 import { Confirmation } from '../../../shared/ui/confirm-dialog';
 
-export const TIPOS_IMAGEN = ['image/jpeg', 'image/png', 'image/webp'];
-export const MAX_BYTES_IMAGEN = 5 * 1024 * 1024;
+/** Resultado de pedir las fotos: la lista, o null y el mensaje si ha fallado. */
+interface CargaFotos {
+  lista: Imagen[] | null;
+  error: string | null;
+}
 
-/** Comprobación previa en el cliente; el backend valida además el contenido real del fichero. */
-export function validarImagen(file: File): string | null {
-  if (!TIPOS_IMAGEN.includes(file.type)) return 'Solo se admiten fotos JPEG, PNG o WebP.';
-  if (file.size > MAX_BYTES_IMAGEN) return 'La foto no puede superar 5 MB.';
-  return null;
+export const TIPOS_IMAGEN = ['image/jpeg', 'image/png', 'image/webp'];
+/** Mismo límite que el servidor; se comprueba después de comprimir la foto en el navegador. */
+export const MAX_BYTES_IMAGEN = 10 * 1024 * 1024;
+
+/** Comprobaciones previas en el cliente; el backend valida además el contenido real del fichero. */
+export function validarTipoImagen(file: File): string | null {
+  return TIPOS_IMAGEN.includes(file.type) ? null : 'Solo se admiten fotos JPEG, PNG o WebP.';
+}
+
+export function validarTamanoImagen(file: File): string | null {
+  return file.size > MAX_BYTES_IMAGEN ? 'La foto no puede superar 10 MB.' : null;
 }
 
 @Component({
   selector: 'bf-galeria-imagenes',
-  imports: [MatButton, MatIconButton, MatIcon, MatProgressBar],
+  imports: [MatButton, MatIconButton, MatIcon, MatProgressBar, ImagenSrc],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section aria-labelledby="titulo-fotos">
@@ -50,8 +62,9 @@ export function validarImagen(file: File): string | null {
                   <span>Foto no disponible</span>
                 </div>
               } @else {
-                <img [src]="imagen.url" [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy"
-                     (error)="marcarRota(imagen.id)" />
+                <img [bfImagenSrc]="imagen.thumbUrl" [autenticada]="imagen.requiereAutenticacion"
+                     [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy"
+                     (error)="marcarRota(imagen.id)" (fallo)="marcarRota(imagen.id)" />
               }
               @if (imagen.estado === 'PENDIENTE') {
                 <span class="pendiente">Pendiente de revisión</span>
@@ -141,35 +154,54 @@ export class GaleriaImagenes {
   readonly puedeSubir = input(false);
 
   protected readonly tipos = TIPOS_IMAGEN.join(',');
-  protected readonly imagenes = signal<Imagen[]>([]);
-  protected readonly error = signal<string | null>(null);
   protected readonly subiendo = signal(false);
   /** Imágenes cuyo fichero no se ha podido descargar (borrado o sin conexión con Storage). */
   protected readonly rotas = signal(new Set<string>());
   protected readonly miUid = computed(() => this.auth.session()?.uid ?? null);
+  private readonly recarga = signal(0);
 
-  constructor() {
-    effect(() => {
-      this.bancoId();
-      this.auth.session();
-      void this.cargar();
-    });
-  }
+  /**
+   * Depende del usuario y no de la sesión entera: la sesión cambia con cada renovación del token
+   * y la galería se volvería a pedir cada hora. Solo cuenta la respuesta de la última petición.
+   */
+  private readonly carga = toSignal(
+    combineLatest([toObservable(this.bancoId), toObservable(this.miUid), toObservable(this.recarga)]).pipe(
+      switchMap(([bancoId]) =>
+        this.api.imagenes(bancoId).pipe(
+          map((lista): CargaFotos => ({ lista, error: null })),
+          catchError((error: unknown) => of<CargaFotos>({ lista: null, error: toApiError(error).message })),
+        ),
+      ),
+    ),
+    { initialValue: { lista: [], error: null } as CargaFotos },
+  );
+  /** Si falla una recarga se conservan las fotos que ya había. */
+  protected readonly imagenes = linkedSignal<CargaFotos, Imagen[]>({
+    source: this.carga,
+    computation: (carga, anterior) => carga.lista ?? anterior?.value ?? [],
+  });
+  protected readonly error = computed(() => this.carga().error);
 
   protected async subir(selector: HTMLInputElement): Promise<void> {
-    const file = selector.files?.[0];
+    const original = selector.files?.[0];
     selector.value = '';
-    if (!file) return;
-    const invalida = validarImagen(file);
-    if (invalida) {
-      this.notifier.error(invalida);
+    if (!original) return;
+    const tipoInvalido = validarTipoImagen(original);
+    if (tipoInvalido) {
+      this.notifier.error(tipoInvalido);
       return;
     }
     this.subiendo.set(true);
     try {
+      const file = await comprimirImagen(original);
+      const demasiadoGrande = validarTamanoImagen(file);
+      if (demasiadoGrande) {
+        this.notifier.error(demasiadoGrande);
+        return;
+      }
       const imagen = await firstValueFrom(this.api.subirImagen(this.bancoId(), file));
       this.notifier.success(imagen.estado === 'APROBADA' ? 'Foto publicada' : 'Foto enviada: se publicará cuando la revisemos');
-      await this.cargar();
+      this.recarga.update((n) => n + 1);
     } catch (error) {
       this.notifier.error(error);
     } finally {
@@ -191,15 +223,6 @@ export class GaleriaImagenes {
       this.imagenes.update((lista) => lista.filter((i) => i.id !== imagen.id));
     } catch (error) {
       this.notifier.error(error);
-    }
-  }
-
-  private async cargar(): Promise<void> {
-    try {
-      this.imagenes.set(await firstValueFrom(this.api.imagenes(this.bancoId())));
-      this.error.set(null);
-    } catch (error) {
-      this.error.set(toApiError(error).message);
     }
   }
 }

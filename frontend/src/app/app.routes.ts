@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminGuard, anonymousGuard, authGuard } from './core/auth/guards';
+import { cambiosSinGuardarGuard } from './features/bancos/formulario/cambios-sin-guardar.guard';
 
 /** Cada feature se carga bajo demanda (lazy loading) para mantener pequeño el bundle inicial. */
 export const routes: Routes = [
@@ -13,12 +14,16 @@ export const routes: Routes = [
     path: 'bancos/nuevo',
     title: 'Añadir banco · Benchify',
     canActivate: [authGuard],
+    runGuardsAndResolvers: 'always',
+    canDeactivate: [cambiosSinGuardarGuard],
     loadComponent: () => import('./features/bancos/formulario/banco-form-page').then((m) => m.BancoFormPage),
   },
   {
     path: 'bancos/:id/editar',
     title: 'Editar banco · Benchify',
     canActivate: [authGuard],
+    runGuardsAndResolvers: 'always',
+    canDeactivate: [cambiosSinGuardarGuard],
     loadComponent: () => import('./features/bancos/formulario/banco-form-page').then((m) => m.BancoFormPage),
   },
   {
@@ -30,6 +35,7 @@ export const routes: Routes = [
     path: 'perfil',
     title: 'Mi perfil · Benchify',
     canActivate: [authGuard],
+    runGuardsAndResolvers: 'always',
     loadComponent: () => import('./features/perfil/perfil-page').then((m) => m.PerfilPage),
   },
   {

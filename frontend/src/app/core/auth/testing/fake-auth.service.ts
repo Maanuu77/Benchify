@@ -28,7 +28,15 @@ export class FakeAuthService {
     this.token = null;
   }
 
-  async idToken(): Promise<string | null> {
+  /** Veces que se ha pedido un token nuevo a la fuerza. */
+  forcedRefreshes = 0;
+
+  readonly actualizarNombre = vi.fn(async () => undefined);
+
+  async idToken(forceRefresh = false): Promise<string | null> {
+    if (forceRefresh) {
+      this.forcedRefreshes++;
+    }
     return this.token;
   }
 }

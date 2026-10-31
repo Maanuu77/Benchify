@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
@@ -54,7 +54,7 @@ export class PerfilPage {
   protected readonly esPropio = computed(() => !!this.uid() && this.uid() === this.auth.session()?.uid);
   private readonly recarga = signal(0);
 
-  protected readonly estado = toSignal(
+  private readonly carga = toSignal(
     toObservable(computed(() => ({ uid: this.uid(), recarga: this.recarga() }))).pipe(
       map(({ uid }) => uid),
       filter((uid): uid is string => uid !== null),
@@ -67,6 +67,15 @@ export class PerfilPage {
     ),
     { initialValue: { status: 'loading' } as Loadable<DatosPerfil> },
   );
+
+  /** Tras guardar se sigue mostrando el perfil anterior mientras llega el nuevo, sin desmontar la página. */
+  protected readonly estado = linkedSignal<Loadable<DatosPerfil>, Loadable<DatosPerfil>>({
+    source: this.carga,
+    computation: (nuevo, anterior) =>
+      nuevo.status === 'loading' && anterior?.value.status === 'success' && anterior.value.value.perfil.id === this.uid()
+        ? anterior.value
+        : nuevo,
+  });
 
   protected readonly datosPerfil = computed(() => {
     const estado = this.estado();
@@ -106,6 +115,8 @@ export class PerfilPage {
     }
     try {
       await firstValueFrom(this.usuariosApi.actualizarPerfil(this.nombre.trim(), this.ciudad.trim() || null));
+      // La cabecera muestra el nombre de la sesión de Firebase: se actualiza también allí
+      await this.auth.actualizarNombre(this.nombre.trim()).catch(() => undefined);
       this.editando.set(false);
       this.notifier.success('Perfil actualizado');
       this.reintentar();

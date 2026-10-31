@@ -36,4 +36,27 @@ describe('StarRating', () => {
     buttons[4].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
     expect(fixture.componentInstance.value()).toBe(5);
   });
+
+  it('rounds averages to one decimal for screen readers', async () => {
+    fixture.componentRef.setInput('value', 4.3333);
+    await fixture.whenStable();
+
+    expect(element.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('4,3 de 5 estrellas');
+  });
+
+  it('jumps to the ends with Home and End and exposes the invalid state', async () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('invalido', true);
+    fixture.componentRef.setInput('describedBy', 'error-x');
+    await fixture.whenStable();
+    const grupo = element.querySelector('[role="radiogroup"]')!;
+    expect(grupo.getAttribute('aria-invalid')).toBe('true');
+    expect(grupo.getAttribute('aria-describedby')).toBe('error-x');
+
+    const buttons = element.querySelectorAll<HTMLButtonElement>('button[role="radio"]');
+    buttons[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+    expect(fixture.componentInstance.value()).toBe(5);
+    buttons[4].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+    expect(fixture.componentInstance.value()).toBe(1);
+  });
 });

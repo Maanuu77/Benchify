@@ -4,7 +4,12 @@
   @if (puedeEscribir()) {
     <form class="formulario" (ngSubmit)="enviar()">
       <h3>{{ editando() ? 'Editar tu reseña' : '¿Qué te ha parecido?' }}</h3>
-      <bf-star-rating [editable]="true" [(value)]="puntuacion" label="Tu puntuación" />
+      <bf-star-rating [editable]="true" [(value)]="puntuacion" label="Tu puntuación"
+                      [invalido]="faltaPuntuacion()" [describedBy]="faltaPuntuacion() ? 'error-puntuacion' : null"
+                      (valueChange)="faltaPuntuacion.set(false)" />
+      @if (faltaPuntuacion()) {
+        <p id="error-puntuacion" class="error-campo" role="alert">Elige una puntuación de 1 a 5 estrellas.</p>
+      }
       <mat-form-field appearance="outline" class="comentario">
         <mat-label>Comentario (opcional)</mat-label>
         <textarea matInput name="comentario" [(ngModel)]="comentario" maxlength="1000" rows="3"></textarea>

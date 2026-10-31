@@ -12,7 +12,7 @@ import { GeolocationService } from '../../../core/geo/geolocation.service';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
 import { BancoDetallePage } from './banco-detalle-page';
-import { GaleriaImagenes, validarImagen } from './galeria-imagenes';
+import { GaleriaImagenes, validarTamanoImagen, validarTipoImagen } from './galeria-imagenes';
 import { ResenasSection } from './resenas-section';
 
 @Component({ selector: 'bf-bench-map, bf-galeria-imagenes, bf-resenas-section', template: '' })
@@ -90,6 +90,31 @@ describe('BancoDetallePage', () => {
     expect(element.textContent).not.toContain('Eliminar');
   });
 
+  it('refreshes the bench without unmounting the page', async () => {
+    await crear();
+    const cabecera = element.querySelector('h1');
+    bancos.obtener.mockReturnValue(of({ ...BANCO, numResenas: 4 }));
+
+    fixture.componentInstance['recargar']();
+    await fixture.whenStable();
+
+    expect(element.querySelector('h1')).toBe(cabecera);
+    expect(element.textContent).toContain('4 reseñas');
+  });
+
+  it('reloads the bench and the favourite when the user signs in', async () => {
+    usuarios['esFavorito'].mockReturnValue(of(true));
+    await crear();
+    expect(usuarios['esFavorito']).not.toHaveBeenCalled();
+
+    auth.signIn();
+    await fixture.whenStable();
+
+    expect(bancos.obtener).toHaveBeenCalledTimes(2);
+    expect(usuarios['esFavorito']).toHaveBeenCalledWith('b1');
+    expect(element.querySelector('[aria-pressed]')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('shows a not found page for a 404', async () => {
     bancos.obtener.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
     await crear();
@@ -140,11 +165,15 @@ describe('BancoDetallePage', () => {
   });
 });
 
-describe('validarImagen', () => {
-  it('accepts supported images up to 5 MB and rejects the rest', () => {
-    expect(validarImagen(new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }))).toBeNull();
-    expect(validarImagen(new File(['x'], 'a.gif', { type: 'image/gif' }))).toContain('JPEG, PNG o WebP');
-    expect(validarImagen(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'a.png', { type: 'image/png' })))
-      .toContain('5 MB');
+describe('validación de fotos', () => {
+  it('accepts supported types and rejects the rest', () => {
+    expect(validarTipoImagen(new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }))).toBeNull();
+    expect(validarTipoImagen(new File(['x'], 'a.gif', { type: 'image/gif' }))).toContain('JPEG, PNG o WebP');
+  });
+
+  it('accepts photos up to 10 MB, like the server', () => {
+    expect(validarTamanoImagen(new File([new Uint8Array(10 * 1024 * 1024)], 'a.png', { type: 'image/png' }))).toBeNull();
+    expect(validarTamanoImagen(new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'a.png', { type: 'image/png' })))
+      .toContain('10 MB');
   });
 });

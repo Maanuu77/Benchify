@@ -79,3 +79,9 @@ h2 {
     overflow: visible;
   }
 }
+
+.aviso-limite {
+  margin: 0 0 8px;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}

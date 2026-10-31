@@ -84,5 +84,8 @@ describe('PerfilPage', () => {
     await fixture.whenStable();
 
     expect(usuarios['actualizarPerfil']).toHaveBeenCalledWith('Ana María', 'Triana');
+    expect(auth.actualizarNombre).toHaveBeenCalledWith('Ana María');
+    // Se refresca sin volver a 'cargando': el formulario de edición se cierra sobre la misma página
+    expect(element.querySelector('h1')).not.toBeNull();
   });
 });

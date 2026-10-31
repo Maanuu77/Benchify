@@ -26,6 +26,7 @@ export class AuthService {
   private readonly auth = inject(Auth);
   private readonly state = signal<AuthState>({ status: 'loading' });
   private resolveReady!: () => void;
+  private version = 0;
 
   /** Se resuelve cuando Firebase ha restaurado (o descartado) la sesión guardada. */
   readonly ready = new Promise<void>((resolve) => (this.resolveReady = resolve));
@@ -61,9 +62,15 @@ export class AuthService {
     await signOut(this.auth);
   }
 
-  /** ID token vigente (Firebase lo renueva solo si va a caducar); null si no hay sesión. */
-  async idToken(): Promise<string | null> {
-    return this.auth.currentUser ? this.auth.currentUser.getIdToken() : null;
+  /**
+   * ID token vigente; null si no hay sesión. Espera a que Firebase restaure la sesión guardada:
+   * antes de eso `currentUser` es null y las primeras peticiones saldrían como anónimas.
+   * Con `forceRefresh` pide uno nuevo aunque el actual no haya caducado (p. ej. tras un cambio de rol).
+   */
+  async idToken(forceRefresh = false): Promise<string | null> {
+    await this.ready;
+    const user = this.auth.currentUser;
+    return user ? user.getIdToken(forceRefresh) : null;
   }
 
   /** Pide un token nuevo, p. ej. tras un cambio de rol, para recibir los claims actualizados. */
@@ -71,13 +78,37 @@ export class AuthService {
     await this.auth.currentUser?.getIdToken(true);
   }
 
-  private async update(user: User | null): Promise<void> {
+  /** Cambia el nombre visible también en Firebase, para que la cabecera y el token lo reflejen. */
+  async actualizarNombre(nombre: string): Promise<void> {
+    const user = this.auth.currentUser;
     if (!user) {
-      this.state.set({ status: 'anonymous' });
-    } else {
-      const { claims } = await user.getIdTokenResult();
-      this.state.set({ status: 'authenticated', session: toSession(user, claims) });
+      return;
     }
-    this.resolveReady();
+    await updateProfile(user, { displayName: nombre });
+    // Un token nuevo dispara onIdTokenChanged y la sesión se actualiza con el nombre
+    await user.getIdToken(true);
+  }
+
+  private async update(user: User | null): Promise<void> {
+    // Las llamadas se solapan si el usuario cambia rápido: solo vale la última
+    const version = ++this.version;
+    try {
+      if (!user) {
+        this.state.set({ status: 'anonymous' });
+        return;
+      }
+      let claims: Record<string, unknown> = {};
+      try {
+        claims = (await user.getIdTokenResult()).claims;
+      } catch {
+        // Sin conexión y con el token caducado: sesión con rol USER; el backend decide el rol real
+      }
+      if (version === this.version) {
+        this.state.set({ status: 'authenticated', session: toSession(user, claims) });
+      }
+    } finally {
+      // Aunque algo falle, los guards no pueden quedarse esperando para siempre
+      this.resolveReady();
+    }
   }
 }

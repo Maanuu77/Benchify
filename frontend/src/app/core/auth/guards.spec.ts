@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, provideRouter, Router, RouterStateSnapshot, UrlSegment, UrlTree } from '@angular/router';
 import { AuthService } from './auth.service';
-import { adminGuard, anonymousGuard, authGuard } from './guards';
+import { adminGuard, anonymousGuard, authGuard, revalidarRutaAlPerderAcceso } from './guards';
 import { FakeAuthService } from './testing/fake-auth.service';
 
 describe('guards', () => {
@@ -50,5 +50,39 @@ describe('guards', () => {
 
     auth.signIn();
     expect(router.serializeUrl((await runAnonymous()) as UrlTree)).toBe('/mapa');
+  });
+
+  describe('revalidarRutaAlPerderAcceso', () => {
+    let navigate: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+      TestBed.runInInjectionContext(() => revalidarRutaAlPerderAcceso());
+      TestBed.tick();
+    });
+
+    it('re-runs the guards when the session is lost or an admin is demoted', () => {
+      auth.signIn({ rol: 'ADMIN' });
+      TestBed.tick();
+      expect(navigate).not.toHaveBeenCalled();
+
+      auth.signIn({ rol: 'USER' });
+      TestBed.tick();
+      expect(navigate).toHaveBeenCalledTimes(1);
+      expect(navigate).toHaveBeenLastCalledWith(router.url, { onSameUrlNavigation: 'reload' });
+
+      auth.signOut();
+      TestBed.tick();
+      expect(navigate).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves signing in to the login page', () => {
+      auth.signIn();
+      TestBed.tick();
+      auth.signIn({ rol: 'ADMIN' });
+      TestBed.tick();
+
+      expect(navigate).not.toHaveBeenCalled();
+    });
   });
 });

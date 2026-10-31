@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
 import { ImagenModeracion } from '../../core/api/models';
 import { Notifier } from '../../core/ui/notifier';
+import { ImagenSrc } from '../../shared/imagenes/imagen-src';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
@@ -13,7 +14,7 @@ import { Cola } from './cola';
 
 @Component({
   selector: 'bf-cola-imagenes',
-  imports: [DatePipe, RouterLink, MatButton, LoadingState, ErrorState, EmptyState],
+  imports: [DatePipe, RouterLink, MatButton, LoadingState, ErrorState, EmptyState, ImagenSrc],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h2>Fotos pendientes ({{ cola.total() }})</h2>
@@ -25,7 +26,8 @@ import { Cola } from './cola';
       <ul class="galeria">
         @for (imagen of cola.items(); track imagen.id; let i = $index) {
           <li>
-            <img [src]="imagen.url" [alt]="'Foto pendiente ' + (i + 1)" loading="lazy" />
+            <img [bfImagenSrc]="imagen.thumbUrl" [autenticada]="imagen.requiereAutenticacion"
+                 [alt]="'Foto pendiente ' + (i + 1)" loading="lazy" />
             <p class="meta">
               {{ imagen.fechaSubida | date: 'short' }} · {{ tamano(imagen.tamanoBytes) }} ·
               <a [routerLink]="['/bancos', imagen.bancoId]">ver banco</a>

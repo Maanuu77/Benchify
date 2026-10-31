@@ -20,7 +20,7 @@ describe('ResenasSection', () => {
   let fixture: ComponentFixture<ResenasSection>;
   let element: HTMLElement;
   let auth: FakeAuthService;
-  let api: Record<'deBanco' | 'publicar' | 'editar' | 'eliminar' | 'reportar', ReturnType<typeof vi.fn>>;
+  let api: Record<'deBanco' | 'mia' | 'publicar' | 'editar' | 'eliminar' | 'reportar', ReturnType<typeof vi.fn>>;
   let confirmation: { ask: ReturnType<typeof vi.fn> };
 
   async function crear(resenas: Resena[], autorBancoId = 'autor-banco'): Promise<void> {
@@ -35,7 +35,7 @@ describe('ResenasSection', () => {
   beforeEach(() => {
     auth = new FakeAuthService();
     api = {
-      deBanco: vi.fn(), publicar: vi.fn(() => of(resena('nueva', 'ana'))), editar: vi.fn(() => of({})),
+      deBanco: vi.fn(), mia: vi.fn(() => of(null)), publicar: vi.fn(() => of(resena('nueva', 'ana'))), editar: vi.fn(() => of({})),
       eliminar: vi.fn(() => of(undefined)), reportar: vi.fn(() => of(undefined)),
     };
     confirmation = { ask: vi.fn(async () => true) };
@@ -64,9 +64,23 @@ describe('ResenasSection', () => {
     expect(element.querySelector('form')).toBeNull();
 
     auth.signIn({ uid: 'ana' });
+    api.mia.mockReturnValue(of(resena('r1', 'ana')));
     await crear([resena('r1', 'ana')]);
     expect(element.querySelector('form')).toBeNull();
     expect(element.textContent).toContain('Editar');
+  });
+
+  it('hides the form when the own review is beyond the loaded page', async () => {
+    auth.signIn({ uid: 'ana' });
+    api.mia.mockReturnValue(of(resena('antigua', 'ana')));
+    api.deBanco.mockReturnValue(of(pagina([resena('r1', 'luis')], 25)));
+    fixture = TestBed.createComponent(ResenasSection);
+    fixture.componentRef.setInput('bancoId', 'b1');
+    fixture.componentRef.setInput('autorBancoId', 'x');
+    await fixture.whenStable();
+
+    expect(api.mia).toHaveBeenCalledWith('b1');
+    expect(fixture.nativeElement.querySelector('form')).toBeNull();
   });
 
   it('publishes a review, reloads the list and notifies the page', async () => {
@@ -85,6 +99,22 @@ describe('ResenasSection', () => {
     expect(api.publicar).toHaveBeenCalledWith('b1', { puntuacion: 5, comentario: 'Genial' });
     expect(api.deBanco).toHaveBeenCalledTimes(2);
     expect(emitido).toHaveBeenCalled();
+  });
+
+  it('explains next to the stars that a score is required', async () => {
+    auth.signIn({ uid: 'ana' });
+    await crear([]);
+
+    element.querySelector('form')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+
+    expect(api.publicar).not.toHaveBeenCalled();
+    expect(element.querySelector('#error-puntuacion')?.textContent).toContain('Elige una puntuación');
+    expect(element.querySelector('[role=radiogroup]')?.getAttribute('aria-describedby')).toBe('error-puntuacion');
+
+    element.querySelectorAll<HTMLButtonElement>('button[role=radio]')[2].click();
+    await fixture.whenStable();
+    expect(element.querySelector('#error-puntuacion')).toBeNull();
   });
 
   it('reports someone else\'s review after confirmation', async () => {
