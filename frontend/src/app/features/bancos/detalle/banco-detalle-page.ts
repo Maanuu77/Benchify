@@ -6,7 +6,7 @@ import { MatButton } from '@angular/material/button';
 import { MatChip, MatChipSet } from '@angular/material/chips';
 import { MatIcon } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
-import { catchError, combineLatest, firstValueFrom, of, startWith, switchMap } from 'rxjs';
+import { catchError, combineLatest, filter, firstValueFrom, of, startWith, switchMap } from 'rxjs';
 import { Loadable, loadable } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
 import { Banco, BancoResumen } from '../../../core/api/models';
@@ -60,11 +60,15 @@ export class BancoDetallePage {
   protected readonly estados = ESTADOS;
   protected readonly materiales = MATERIALES;
 
-  /** Cambia al iniciar o cerrar sesión: el autor ve su banco pendiente y el resto no. */
-  private readonly uid = computed(() => this.auth.session()?.uid ?? null);
+  /**
+   * Cambia al iniciar o cerrar sesión: el autor ve su banco pendiente y el resto no. Vale undefined
+   * mientras Firebase restaura la sesión, para no pedir nada que habría que volver a pedir enseguida.
+   */
+  private readonly uid = computed(() => (this.auth.isLoading() ? undefined : (this.auth.session()?.uid ?? null)));
+  private readonly uid$ = toObservable(this.uid).pipe(filter((uid) => uid !== undefined));
 
   private readonly carga = toSignal(
-    combineLatest([toObservable(this.id), toObservable(this.uid), toObservable(this.recarga)])
+    combineLatest([toObservable(this.id), this.uid$, toObservable(this.recarga)])
       .pipe(switchMap(([id]) => loadable(this.bancosApi.obtener(id)))),
     { initialValue: { status: 'loading' } as Loadable<Banco> },
   );
@@ -107,13 +111,13 @@ export class BancoDetallePage {
 
   /** Lo que dice la API para el banco y el usuario actuales; al cambiar cualquiera se descarta la respuesta anterior. */
   private readonly favoritoRemoto = toSignal(
-    combineLatest([toObservable(this.id), toObservable(this.uid)]).pipe(
+    combineLatest([toObservable(this.id), this.uid$]).pipe(
       switchMap(([id, uid]) => (uid ? this.usuariosApi.esFavorito(id).pipe(catchError(() => of(false))) : of(false))),
     ),
     { initialValue: false },
   );
   private readonly totalRemoto = toSignal(
-    combineLatest([toObservable(this.id), toObservable(this.uid)]).pipe(
+    combineLatest([toObservable(this.id), this.uid$]).pipe(
       switchMap(([id]) =>
         this.usuariosApi.totalCheckIns(id).pipe(startWith(null), catchError(() => of(null))),
       ),
