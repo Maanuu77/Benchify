@@ -146,8 +146,16 @@
 }
 
 h1 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
-  font: 700 22px/1.2 var(--bf-font);
+  font: 700 20px/1.2 var(--bf-font);
+  letter-spacing: -0.02em;
+}
+
+.cerca {
+  flex: none;
+  white-space: nowrap;
 }
 
 h2 {

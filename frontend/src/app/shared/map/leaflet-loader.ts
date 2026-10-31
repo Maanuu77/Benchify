@@ -32,33 +32,21 @@ function cargarEstilos(): void {
   document.head.appendChild(link);
 }
 
-/** Mapas base de CARTO (datos de OpenStreetMap): grises neutros para que los marcadores verdes destaquen. */
-export const TILES = {
-  claro: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  oscuro: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-} as const;
-export const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
-  '&copy; <a href="https://carto.com/attributions">CARTO</a>';
-
 /**
- * Añade al mapa la capa base del modo de color actual y la cambia si el sistema pasa a modo
- * claro u oscuro. Devuelve la función que deja de escuchar el cambio.
+ * Teselas estándar de OpenStreetMap (sin clave de API). El estilo minimal (gris en claro, invertido
+ * en oscuro) se consigue con un filtro CSS sobre la capa, en styles.scss (.bf-teselas).
  */
+export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+/** Añade la capa base al mapa. Devuelve la función que la quita. */
 export function anadirCapaBase(L: LeafletLib, map: Leaflet.Map): () => void {
-  const oscuro = window.matchMedia?.('(prefers-color-scheme: dark)');
-  let capa: Leaflet.TileLayer | null = null;
-  const poner = () => {
-    capa?.remove();
-    capa = L.tileLayer(oscuro?.matches ? TILES.oscuro : TILES.claro, {
-      attribution: TILE_ATTRIBUTION,
-      subdomains: 'abcd',
-      maxZoom: 20,
-    }).addTo(map);
-  };
-  poner();
-  oscuro?.addEventListener('change', poner);
-  return () => oscuro?.removeEventListener('change', poner);
+  const capa = L.tileLayer(TILE_URL, {
+    attribution: TILE_ATTRIBUTION,
+    maxZoom: 19,
+    className: 'bf-teselas',
+  }).addTo(map);
+  return () => capa.remove();
 }
 
 /** Silueta de banco de la marca (24×24), en línea para no depender de imágenes que el bundler no resuelve. */

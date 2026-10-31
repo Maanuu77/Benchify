@@ -263,6 +263,18 @@ h3 {
   background: var(--bf-bg);
 }
 
+// OpenStreetMap con aspecto minimal: casi gris en claro e invertido en oscuro, para que los
+// marcadores verdes sean lo único con color
+.bf-teselas {
+  filter: saturate(0.25) brightness(1.04) contrast(0.92);
+}
+
+@media (prefers-color-scheme: dark) {
+  .bf-teselas {
+    filter: invert(1) hue-rotate(180deg) saturate(0.2) brightness(0.82) contrast(0.9);
+  }
+}
+
 .leaflet-control-attribution {
   font-size: 11px;
   background: var(--bf-glass) !important;
