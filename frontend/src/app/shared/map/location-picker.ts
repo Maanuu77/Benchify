@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { Punto } from './bench-map';
-import { cargarLeaflet, iconoBanco, LeafletLib, TILE_ATTRIBUTION, TILE_URL } from './leaflet-loader';
+import { anadirCapaBase, cargarLeaflet, iconoBanco, LeafletLib } from './leaflet-loader';
 
 /**
  * Mapa para elegir dónde está un banco: clic en el mapa o arrastrar el marcador.
@@ -40,11 +40,15 @@ export class LocationPicker {
   private readonly ready = signal(false);
   private L!: LeafletLib;
   private map?: Leaflet.Map;
+  private quitarCapaBase?: () => void;
   private marker?: Leaflet.Marker;
 
   constructor() {
     afterNextRender(() => void this.init());
-    inject(DestroyRef).onDestroy(() => this.map?.remove());
+    inject(DestroyRef).onDestroy(() => {
+      this.quitarCapaBase?.();
+      this.map?.remove();
+    });
 
     effect(() => {
       const punto = this.ubicacion();
@@ -58,7 +62,7 @@ export class LocationPicker {
     this.L = await cargarLeaflet();
     const inicial = this.ubicacion() ?? this.centro();
     this.map = this.L.map(this.host().nativeElement).setView([inicial.lat, inicial.lng], this.zoom());
-    this.L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(this.map);
+    this.quitarCapaBase = anadirCapaBase(this.L, this.map);
     this.map.on('click', (event: Leaflet.LeafletMouseEvent) => this.ubicacion.set(redondear(event.latlng)));
     this.ready.set(true);
   }
