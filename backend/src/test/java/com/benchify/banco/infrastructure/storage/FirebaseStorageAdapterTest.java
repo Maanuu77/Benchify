@@ -3,6 +3,7 @@ package com.benchify.banco.infrastructure.storage;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -24,7 +25,7 @@ class FirebaseStorageAdapterTest {
             new FirebaseStorageAdapter(storage, "benchify.appspot.com", "https://firebasestorage.googleapis.com/");
 
     @Test
-    void uploadsWithContentTypeAndLongCacheAndReturnsDownloadUrl() throws Exception {
+    void uploadsWithContentTypeAndADayOfCacheAndReturnsDownloadUrl() throws Exception {
         byte[] bytes = {1, 2, 3};
 
         String url = adapter.guardar("bancos/abc/def.jpg", bytes, "image/jpeg");
@@ -36,7 +37,7 @@ class FirebaseStorageAdapterTest {
         assertThat(blob.getValue().getBucket()).isEqualTo("benchify.appspot.com");
         assertThat(blob.getValue().getName()).isEqualTo("bancos/abc/def.jpg");
         assertThat(blob.getValue().getContentType()).isEqualTo("image/jpeg");
-        assertThat(blob.getValue().getCacheControl()).isEqualTo(FirebaseStorageAdapter.CACHE_CONTROL);
+        assertThat(blob.getValue().getCacheControl()).isEqualTo("public, max-age=86400");
         assertThat(url).isEqualTo(
                 "https://firebasestorage.googleapis.com/v0/b/benchify.appspot.com/o/bancos%2Fabc%2Fdef.jpg?alt=media");
     }
@@ -48,6 +49,26 @@ class FirebaseStorageAdapterTest {
         assertThatThrownBy(() -> adapter.guardar("bancos/x.jpg", new byte[]{1}, "image/jpeg"))
                 .isInstanceOf(UncheckedIOException.class)
                 .hasMessageContaining("bancos/x.jpg");
+    }
+
+    @Test
+    void readsPendingFilesWithTheAdminCredentials() {
+        BlobId blob = BlobId.of("benchify.appspot.com", "pendientes/abc/def.jpg");
+        when(storage.readAllBytes(blob)).thenReturn(new byte[]{4, 5});
+
+        assertThat(adapter.leer("pendientes/abc/def.jpg")).hasValueSatisfying(
+                contenido -> assertThat(contenido).containsExactly(4, 5));
+    }
+
+    @Test
+    void aMissingFileReadsAsEmptyAndOtherErrorsPropagate() {
+        when(storage.readAllBytes(BlobId.of("benchify.appspot.com", "pendientes/no-existe.jpg")))
+                .thenThrow(new StorageException(404, "Not Found"));
+        when(storage.readAllBytes(BlobId.of("benchify.appspot.com", "pendientes/caido.jpg")))
+                .thenThrow(new StorageException(503, "Unavailable"));
+
+        assertThat(adapter.leer("pendientes/no-existe.jpg")).isEmpty();
+        assertThatThrownBy(() -> adapter.leer("pendientes/caido.jpg")).isInstanceOf(StorageException.class);
     }
 
     @Test

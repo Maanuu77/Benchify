@@ -1,6 +1,6 @@
 package com.benchify.moderacion.application.service;
 
-import com.benchify.banco.application.port.out.AlmacenImagenesPort;
+import com.benchify.banco.application.port.in.ImagenesBancoUseCase;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.ImagenRepository;
 import com.benchify.banco.domain.Banco;
@@ -36,7 +36,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -53,7 +52,7 @@ class ModeracionServiceTest {
     @Mock
     private ImagenRepository imagenes;
     @Mock
-    private AlmacenImagenesPort almacen;
+    private ImagenesBancoUseCase imagenesBanco;
     @Mock
     private ResenaRepository resenaRepository;
     @Mock
@@ -65,10 +64,9 @@ class ModeracionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ModeracionService(bancos, imagenes, almacen, resenaRepository, resenas, usuarios,
+        service = new ModeracionService(bancos, imagenes, imagenesBanco, resenaRepository, resenas, usuarios,
                 Clock.fixed(AHORA, ZoneOffset.UTC));
         lenient().when(bancos.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(imagenes.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @ParameterizedTest
@@ -82,7 +80,7 @@ class ModeracionServiceTest {
         assertThatThrownBy(() -> service.aprobarBanco(noAdmin, id)).isInstanceOf(ForbiddenException.class);
         assertThatThrownBy(() -> service.eliminarResena(noAdmin, id)).isInstanceOf(ForbiddenException.class);
         assertThatThrownBy(() -> service.rechazarImagen(noAdmin, id)).isInstanceOf(ForbiddenException.class);
-        verifyNoInteractions(bancos, imagenes, resenas, almacen);
+        verifyNoInteractions(bancos, imagenes, resenas, imagenesBanco);
     }
 
     @Test
@@ -116,23 +114,14 @@ class ModeracionServiceTest {
     }
 
     @Test
-    void approvingAnImageMakesItPublic() {
-        Imagen pendiente = imagen();
-        when(imagenes.findById(pendiente.id())).thenReturn(Optional.of(pendiente));
+    void imageDecisionsDelegateToTheBenchFeature() {
+        Imagen aprobada = imagen().aprobar();
+        when(imagenesBanco.aprobar(ADMIN, aprobada.id())).thenReturn(aprobada);
 
-        assertThat(service.aprobarImagen(ADMIN, pendiente.id()).estado()).isEqualTo(EstadoImagen.APROBADA);
-    }
+        assertThat(service.aprobarImagen(ADMIN, aprobada.id())).isEqualTo(aprobada);
+        service.rechazarImagen(ADMIN, aprobada.id());
 
-    @Test
-    void rejectingAnImageDeletesTheFileEvenIfStorageFails() {
-        Imagen pendiente = imagen();
-        when(imagenes.findById(pendiente.id())).thenReturn(Optional.of(pendiente));
-        doThrow(new IllegalStateException("bucket down")).when(almacen).borrar(pendiente.ruta());
-
-        service.rechazarImagen(ADMIN, pendiente.id());
-
-        verify(imagenes).save(pendiente.rechazar());
-        verify(almacen).borrar(pendiente.ruta());
+        verify(imagenesBanco).rechazar(ADMIN, aprobada.id());
     }
 
     @Test

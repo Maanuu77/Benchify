@@ -56,11 +56,72 @@ class ImagenTest {
     }
 
     @Test
-    void storagePathGroupsImagesByBench() {
-        UUID imagen = UUID.randomUUID();
+    void sizeCanBeCheckedBeforeReadingTheFile() {
+        ArchivoImagen.comprobarTamano(ArchivoImagen.MAX_BYTES);
 
-        assertThat(Imagen.rutaPara(BANCO, imagen, new ArchivoImagen("image/png", PNG)))
-                .isEqualTo("bancos/" + BANCO + "/" + imagen + ".png");
+        assertThatThrownBy(() -> ArchivoImagen.comprobarTamano(ArchivoImagen.MAX_BYTES + 1))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("10 MB")
+                .extracting("code").isEqualTo("IMAGEN_DEMASIADO_GRANDE");
+    }
+
+    @Test
+    void storagePathGroupsImagesByBenchAndTheThumbnailLivesNextToThePhoto() {
+        UUID imagen = UUID.randomUUID();
+        String ruta = Imagen.rutaPara(BANCO, imagen, EstadoImagen.APROBADA);
+
+        assertThat(ruta).isEqualTo("bancos/" + BANCO + "/" + imagen + ".jpg");
+        assertThat(Imagen.rutaMiniatura(ruta)).isEqualTo("bancos/" + BANCO + "/" + imagen + "_thumb.jpg");
+        assertThat(Imagen.rutaMiniatura("bancos/sin.punto/foto")).isEqualTo("bancos/sin.punto/foto_thumb");
+    }
+
+    @Test
+    void pendingPhotosLiveInAPrivateFolderUntilTheyArePublished() {
+        UUID imagen = UUID.randomUUID();
+        String ruta = Imagen.rutaPara(BANCO, imagen, EstadoImagen.PENDIENTE);
+
+        assertThat(ruta).isEqualTo("pendientes/" + BANCO + "/" + imagen + ".jpg");
+        assertThat(Imagen.rutaPublica(ruta)).isEqualTo("bancos/" + BANCO + "/" + imagen + ".jpg");
+        assertThat(Imagen.rutaPublica(Imagen.rutaMiniatura(ruta)))
+                .isEqualTo("bancos/" + BANCO + "/" + imagen + "_thumb.jpg");
+        // Las pendientes subidas antes de la carpeta privada ya están en la pública
+        assertThat(Imagen.rutaPublica("bancos/x/y.png")).isEqualTo("bancos/x/y.png");
+        assertThat(Imagen.estadoInicial(Actor.user("ana"))).isEqualTo(EstadoImagen.PENDIENTE);
+        assertThat(Imagen.estadoInicial(Actor.admin("root"))).isEqualTo(EstadoImagen.APROBADA);
+    }
+
+    @Test
+    void publishingMovesEveryFileOfThePhoto() {
+        Imagen pendiente = nueva(Actor.user("ana"));
+        String publica = Imagen.rutaPublica(pendiente.ruta());
+        String miniaturaPublica = Imagen.rutaPublica(pendiente.rutaMiniatura());
+
+        Imagen aprobada = pendiente.aprobar().conFicheros(new FicheroAlmacenado(publica, "https://cdn/foto"),
+                new FicheroAlmacenado(miniaturaPublica, "https://cdn/mini"));
+
+        assertThat(pendiente.estaEnCarpetaPendientes()).isTrue();
+        assertThat(aprobada.estaEnCarpetaPendientes()).isFalse();
+        assertThat(aprobada.rutas()).containsExactly(publica, miniaturaPublica);
+        assertThat(aprobada.url()).isEqualTo("https://cdn/foto");
+        assertThat(aprobada.urlMiniatura()).isEqualTo("https://cdn/mini");
+        assertThat(aprobada).usingRecursiveComparison()
+                .ignoringFields("ruta", "url", "rutaMiniatura", "urlMiniatura", "estado")
+                .isEqualTo(pendiente);
+        assertThatThrownBy(() -> pendiente.conFicheros(new FicheroAlmacenado(publica, "https://cdn/foto"), null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void servesTheThumbnailOrTheFullPhotoForLegacyRows() {
+        Imagen conMiniatura = nueva(Actor.user("ana"));
+        Imagen antigua = new Imagen(UUID.randomUUID(), BANCO, "bancos/x.png", "https://cdn/x.png", "image/png", 10,
+                "ana", EstadoImagen.PENDIENTE, AHORA);
+
+        assertThat(conMiniatura.rutaFichero(true)).isEqualTo(conMiniatura.rutaMiniatura());
+        assertThat(conMiniatura.rutaFichero(false)).isEqualTo(conMiniatura.ruta());
+        assertThat(antigua.rutaFichero(true)).isEqualTo("bancos/x.png");
+        assertThat(antigua.conFicheros(new FicheroAlmacenado("bancos/z.png", "https://cdn/z.png"), null).rutas())
+                .containsExactly("bancos/z.png");
     }
 
     @Test
@@ -68,7 +129,9 @@ class ImagenTest {
         Imagen imagen = nueva(Actor.user("ana"));
 
         assertThat(imagen.estado()).isEqualTo(EstadoImagen.PENDIENTE);
-        assertThat(imagen.tamanoBytes()).isEqualTo(JPEG.length);
+        assertThat(imagen.contentType()).isEqualTo("image/jpeg");
+        assertThat(imagen.tamanoBytes()).isEqualTo(1234);
+        assertThat(imagen.rutas()).containsExactly(imagen.ruta(), imagen.rutaMiniatura());
         assertThat(imagen.esVisiblePara(null)).isFalse();
         assertThat(imagen.esVisiblePara(Actor.user("luis"))).isFalse();
         assertThat(imagen.esVisiblePara(Actor.user("ana"))).isTrue();
@@ -91,11 +154,40 @@ class ImagenTest {
 
         assertThatThrownBy(aprobada::rechazar).isInstanceOf(BusinessRuleException.class);
         assertThatThrownBy(rechazada::aprobar).isInstanceOf(BusinessRuleException.class);
+        assertThat(rechazada.rutaMiniatura()).isNotNull();
+    }
+
+    @Test
+    void imagesUploadedBeforeThumbnailsOnlyHaveOneFile() {
+        Imagen antigua = new Imagen(UUID.randomUUID(), BANCO, "bancos/x.png", "https://cdn/x.png", "image/png", 10,
+                "ana", EstadoImagen.APROBADA, AHORA);
+
+        assertThat(antigua.rutaMiniatura()).isNull();
+        assertThat(antigua.urlMiniatura()).isNull();
+        assertThat(antigua.rutas()).containsExactly("bancos/x.png");
+    }
+
+    @Test
+    void aThumbnailNeedsBothPathAndUrl() {
+        assertThatThrownBy(() -> new Imagen(UUID.randomUUID(), BANCO, "bancos/x.jpg", "https://cdn/x.jpg",
+                "bancos/x_thumb.jpg", null, "image/jpeg", 10, "ana", EstadoImagen.APROBADA, AHORA))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void processedImageHasValueEquality() {
+        ImagenProcesada procesada = new ImagenProcesada(JPEG.clone(), PNG.clone());
+
+        assertThat(procesada).isEqualTo(new ImagenProcesada(JPEG, PNG)).hasSameHashCodeAs(new ImagenProcesada(JPEG, PNG));
+        assertThat(procesada).isNotEqualTo(new ImagenProcesada(JPEG, JPEG));
+        assertThat(procesada.tamanoBytes()).isEqualTo(JPEG.length);
+        assertThat(procesada).hasToString("ImagenProcesada[6 bytes, miniatura 10 bytes]");
     }
 
     private static Imagen nueva(Actor actor) {
         UUID id = UUID.randomUUID();
-        ArchivoImagen archivo = new ArchivoImagen("image/jpeg", JPEG);
-        return Imagen.nueva(id, BANCO, Imagen.rutaPara(BANCO, id, archivo), "https://cdn/x.jpg", archivo, actor, AHORA);
+        String ruta = Imagen.rutaPara(BANCO, id, Imagen.estadoInicial(actor));
+        return Imagen.nueva(id, BANCO, new FicheroAlmacenado(ruta, "https://cdn/" + ruta),
+                new FicheroAlmacenado(Imagen.rutaMiniatura(ruta), "https://cdn/thumb"), 1234, actor, AHORA);
     }
 }

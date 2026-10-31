@@ -5,6 +5,7 @@ import com.benchify.banco.application.port.in.ConsultarBancosUseCase;
 import com.benchify.banco.application.port.in.GestionarBancoUseCase;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.EtiquetaRepository;
+import com.benchify.banco.application.port.out.ImagenRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BancoNotFoundException;
@@ -14,6 +15,7 @@ import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.DireccionPostal;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
+import com.benchify.banco.domain.Imagen;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.PageQuery;
@@ -35,11 +37,16 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
 
     private final BancoRepository bancos;
     private final EtiquetaRepository etiquetas;
+    private final ImagenRepository imagenes;
+    private final BorradoFicherosImagen ficheros;
     private final Clock clock;
 
-    public BancoService(BancoRepository bancos, EtiquetaRepository etiquetas, Clock clock) {
+    public BancoService(BancoRepository bancos, EtiquetaRepository etiquetas, ImagenRepository imagenes,
+            BorradoFicherosImagen ficheros, Clock clock) {
         this.bancos = bancos;
         this.etiquetas = etiquetas;
+        this.imagenes = imagenes;
+        this.ficheros = ficheros;
         this.clock = clock;
     }
 
@@ -74,11 +81,22 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
         return bancos.save(banco);
     }
 
+    /**
+     * El borrado del banco es lógico, pero no se puede deshacer: sus fotos se borran del todo, las filas
+     * ahora y los ficheros del bucket tras el commit, para que dejen de ser accesibles. La fila del banco
+     * se bloquea para que una subida simultánea no deje una foto suelta.
+     */
     @Override
     public void eliminar(Actor actor, UUID bancoId) {
-        Banco banco = cargarVisible(bancoId, actor);
+        Banco banco = bancos.findByIdForUpdate(bancoId)
+                .filter(b -> b.esVisiblePara(actor))
+                .orElseThrow(() -> new BancoNotFoundException(bancoId));
         banco.eliminar(actor);
         bancos.save(banco);
+        List<String> rutas = imagenes.deleteByBanco(bancoId).stream()
+                .flatMap(imagen -> imagen.rutas().stream())
+                .toList();
+        ficheros.borrarTrasCommit(rutas);
     }
 
     @Override

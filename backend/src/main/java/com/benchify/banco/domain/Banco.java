@@ -140,7 +140,8 @@ public class Banco {
         }
     }
 
-    private void exigirNoEliminado() {
+    /** Un banco eliminado no admite cambios ni contenido nuevo, aunque los administradores lo sigan viendo. */
+    public void exigirNoEliminado() {
         if (estado == EstadoBanco.ELIMINADO) {
             throw new BusinessRuleException("BANCO_ELIMINADO", "El banco está eliminado");
         }

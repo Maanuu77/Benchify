@@ -125,11 +125,23 @@ class ModeracionControllerTest {
 
         assertThat(mvc.get().uri("/api/v1/admin/imagenes/pendientes").header("Authorization", bearerAdmin("root")))
                 .hasStatusOk()
-                .bodyJson().extractingPath("$.content[0].tamanoBytes").isEqualTo(2048);
+                .bodyJson().satisfies(json -> {
+                    assertThat(json).extractingPath("$.content[0].tamanoBytes").isEqualTo(2048);
+                    // Las pendientes no son públicas: se descargan de la API con el token del administrador
+                    assertThat(json).extractingPath("$.content[0].url")
+                            .isEqualTo("http://localhost/api/v1/imagenes/" + imagen.id() + "/archivo");
+                    assertThat(json).extractingPath("$.content[0].thumbUrl")
+                            .isEqualTo("http://localhost/api/v1/imagenes/" + imagen.id() + "/miniatura");
+                    assertThat(json).extractingPath("$.content[0].requiereAutenticacion").isEqualTo(true);
+                });
         assertThat(mvc.post().uri("/api/v1/admin/imagenes/{id}/aprobacion", imagen.id())
                 .header("Authorization", bearerAdmin("root")))
                 .hasStatusOk()
-                .bodyJson().extractingPath("$.estado").isEqualTo("APROBADA");
+                .bodyJson().satisfies(json -> {
+                    assertThat(json).extractingPath("$.estado").isEqualTo("APROBADA");
+                    assertThat(json).extractingPath("$.url").isEqualTo("https://storage/x.jpg");
+                    assertThat(json).extractingPath("$.requiereAutenticacion").isEqualTo(false);
+                });
         assertThat(mvc.post().uri("/api/v1/admin/imagenes/{id}/rechazo", imagen.id())
                 .header("Authorization", bearerAdmin("root"))).hasStatus(204);
         verify(moderacion).rechazarImagen(ADMIN, imagen.id());
