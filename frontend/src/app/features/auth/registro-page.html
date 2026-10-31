@@ -1,9 +1,15 @@
 <section class="page">
-  <mat-card appearance="outlined" class="card">
-    <mat-card-header>
-      <mat-card-title><h1>Crear cuenta</h1></mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
+  <aside class="marca-panel" aria-hidden="true">
+    <img src="logo-mark.svg" alt="" width="72" height="72" />
+    <p class="lema">Encuentra tu banco.<br />Siéntate. Compártelo.</p>
+    <p class="sub">El mapa colaborativo de los bancos públicos de tu ciudad.</p>
+  </aside>
+
+  <div class="form-panel">
+    <div class="card">
+      <img class="logo-movil" src="logo-mark.svg" alt="" width="44" height="44" />
+      <h1>Crear cuenta</h1>
+      <p class="intro">Únete y ayuda a que nadie se quede sin un buen sitio donde sentarse.</p>
       <form [formGroup]="form" (ngSubmit)="register()" novalidate>
         <mat-form-field appearance="outline">
           <mat-label>Nombre</mat-label>
@@ -25,7 +31,11 @@
 
         <mat-form-field appearance="outline">
           <mat-label>Contraseña</mat-label>
-          <input matInput type="password" formControlName="password" autocomplete="new-password" required />
+          <input matInput [type]="verPassword() ? 'text' : 'password'" formControlName="password" autocomplete="new-password" required />
+          <button matIconButton matSuffix type="button" (click)="verPassword.set(!verPassword())"
+                  [attr.aria-label]="verPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'" [attr.aria-pressed]="verPassword()">
+            <mat-icon>{{ verPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
           <mat-hint>Mínimo 8 caracteres</mat-hint>
           @if (form.controls.password.hasError('minlength')) {
             <mat-error>Mínimo 8 caracteres</mat-error>
@@ -36,7 +46,7 @@
 
         <mat-form-field appearance="outline">
           <mat-label>Repite la contraseña</mat-label>
-          <input matInput type="password" formControlName="confirmacion" autocomplete="new-password" required />
+          <input matInput [type]="verPassword() ? 'text' : 'password'" formControlName="confirmacion" autocomplete="new-password" required />
         </mat-form-field>
         @if (form.hasError('passwordsMismatch') && form.controls.confirmacion.touched) {
           <p class="error" role="alert">Las contraseñas no coinciden</p>
@@ -50,6 +60,6 @@
       </form>
 
       <p class="switch">¿Ya tienes cuenta? <a routerLink="/login" [queryParams]="{ returnUrl: returnUrl() }">Inicia sesión</a></p>
-    </mat-card-content>
-  </mat-card>
+    </div>
+  </div>
 </section>
