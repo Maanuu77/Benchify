@@ -17,6 +17,7 @@ import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.ForbiddenException;
+import com.benchify.shared.domain.Rol;
 import com.benchify.shared.domain.Ubicacion;
 import com.benchify.support.RecordingTransactionManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,6 +91,13 @@ class ImagenBancoServiceTest {
         lenient().when(procesador.procesar(ARCHIVO)).thenReturn(PROCESADA);
         lenient().when(almacen.guardar(anyString(), any(), anyString()))
                 .thenAnswer(inv -> "https://storage/" + inv.getArgument(0));
+    }
+
+    @Test
+    void aUserMustVerifyTheEmailBeforeUploading() {
+        assertThatThrownBy(() -> service.subir(new Actor("luis", Rol.USER, false), UUID.randomUUID(), ARCHIVO))
+                .isInstanceOf(ForbiddenException.class);
+        verifyNoInteractions(procesador, almacen);
     }
 
     @Test

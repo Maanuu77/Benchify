@@ -6,6 +6,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ActorTest {
 
@@ -32,5 +34,14 @@ class ActorTest {
     @Test
     void nonStringClaimFallsBackToUser() {
         assertThat(Rol.fromClaim(Boolean.TRUE)).isEqualTo(Rol.USER);
+    }
+
+    @Test
+    void publishingRequiresAVerifiedEmailExceptForAdmins() {
+        assertThatThrownBy(() -> new Actor("ana", Rol.USER, false).exigirEmailVerificado())
+                .isInstanceOfSatisfying(ForbiddenException.class, e -> assertThat(e.code()).isEqualTo("EMAIL_NO_VERIFICADO"));
+        assertThatCode(() -> new Actor("ana", Rol.USER, true).exigirEmailVerificado()).doesNotThrowAnyException();
+        assertThatCode(() -> new Actor("admin", Rol.ADMIN, false).exigirEmailVerificado()).doesNotThrowAnyException();
+        assertThat(Actor.user("ana").emailVerificado()).isTrue();
     }
 }

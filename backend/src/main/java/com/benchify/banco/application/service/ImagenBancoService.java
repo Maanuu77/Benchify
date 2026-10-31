@@ -64,6 +64,7 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
 
     @Override
     public Imagen subir(Actor actor, UUID bancoId, ArchivoImagen archivo) {
+        actor.exigirEmailVerificado();
         // Comprobación previa sin bloqueo: evita procesar y subir una foto que se va a rechazar
         lectura.executeWithoutResult(status -> exigirHueco(admiteFotos(bancos.findById(bancoId), bancoId, actor)));
 
