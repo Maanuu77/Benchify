@@ -24,8 +24,21 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
   usuario, con 429 `DEMASIADAS_PETICIONES` y `Retry-After`. Un usuario puede tener como máximo
   5 bancos pendientes (#26).
 
+- Firebase Hosting envía `Content-Security-Policy`, `X-Frame-Options: DENY` y
+  `Cross-Origin-Opener-Policy`, y las rutas de la SPA ya no se cachean (#32).
+
 ### Corregido
 
+- Frontend: las primeras peticiones tras recargar ya llevan el token, los guards no se quedan
+  esperando si falla la restauración de la sesión, y ante un 401/403 se pide un token nuevo y se
+  reintenta una vez; perder la sesión o el rol en otra pestaña saca de la página protegida (#15, #17, #18).
+- Frontend: la ficha y el perfil se refrescan sin desmontarse, se descartan las respuestas de otro
+  banco o sesión y el formulario de reseña sabe si ya has reseñado el banco (#20, #30, #31, #35).
+- Mapa: recorrer la lista con el teclado ya no la vacía, "Cerca de mí" respeta los filtros, el área
+  pedida siempre es válida, se avisa del límite de 500 bancos y se puede reintentar (#21, #28, #29).
+- Moderación: "Cargar más" ya no se salta elementos tras moderar (#19).
+- Formulario de banco: aviso de cambios sin guardar, comprobación del autor, mensajes de
+  coordenadas y edición con `If-Match` (#37, #38). Estrellas accesibles (#36).
 - Las subidas a Storage ya no ocupan una conexión de la base de datos, los ficheros se borran solo
   después del commit y un fallo al guardar no deja ficheros huérfanos (#16).
 - Condiciones de carrera en el límite de 10 fotos por banco y en el intervalo de 12 h entre
@@ -43,7 +56,9 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 - `GET /api/v1/bancos/{id}/resenas/mia`, `GET /api/v1/resenas/{id}` y `GET /api/v1/imagenes/{id}`
   (con `/archivo` y `/miniatura` para las fotos pendientes) (#14, #31, #38).
 - `ETag` en la ficha de un banco y `If-Match` opcional al editarlo (412 `BANCO_VERSION_OBSOLETA`) (#38).
-- Las imágenes exponen `thumbUrl` (#27).
+- Las imágenes exponen `thumbUrl` (#27). La galería y la moderación usan miniaturas, las fotos
+  pendientes se descargan con el token y las fotos se reducen a 1600 px en WebP en el navegador
+  antes de subirlas (#27).
 
 ### Cambiado
 
