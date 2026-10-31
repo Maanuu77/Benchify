@@ -75,3 +75,9 @@ time,
   display: block;
   margin: 16px auto 0;
 }
+
+.error-campo {
+  margin: 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-error);
+}

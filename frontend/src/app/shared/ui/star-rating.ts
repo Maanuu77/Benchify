@@ -3,7 +3,7 @@ import { MatIcon } from '@angular/material/icon';
 
 /**
  * Puntuación de 1 a 5 estrellas. En modo lectura muestra medias estrellas; en modo edición es
- * un grupo de radio accesible con teclado (flechas) y lectores de pantalla.
+ * un grupo de radio accesible con teclado (flechas, Inicio y Fin) y lectores de pantalla.
  */
 @Component({
   selector: 'bf-star-rating',
@@ -11,7 +11,8 @@ import { MatIcon } from '@angular/material/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (editable()) {
-      <div class="stars" role="radiogroup" [attr.aria-label]="label()">
+      <div class="stars" role="radiogroup" [attr.aria-label]="label()"
+           [attr.aria-invalid]="invalido() || null" [attr.aria-describedby]="describedBy()">
         @for (star of stars; track star) {
           <button
             type="button"
@@ -58,6 +59,10 @@ export class StarRating {
   readonly value = model(0);
   readonly editable = input(false);
   readonly label = input('Puntuación');
+  /** Marca el grupo como inválido (p. ej. al enviar sin puntuación). */
+  readonly invalido = input(false);
+  /** Id del mensaje de error o ayuda asociado. */
+  readonly describedBy = input<string | null>(null);
 
   protected readonly stars = [1, 2, 3, 4, 5];
 
@@ -70,14 +75,18 @@ export class StarRating {
     }),
   );
 
-  protected readonly readLabel = computed(() => `${this.value().toLocaleString('es-ES')} de 5 estrellas`);
+  protected readonly readLabel = computed(
+    () => `${this.value().toLocaleString('es-ES', { maximumFractionDigits: 1 })} de 5 estrellas`,
+  );
 
   protected onKeydown(event: KeyboardEvent): void {
-    const delta = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1
-      : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
-    if (delta === 0) return;
+    const actual = this.value() || 0;
+    const next = event.key === 'Home' ? 1
+      : event.key === 'End' ? 5
+      : event.key === 'ArrowRight' || event.key === 'ArrowUp' ? Math.min(5, Math.max(1, actual + 1))
+      : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? Math.max(1, actual - 1) : 0;
+    if (next === 0) return;
     event.preventDefault();
-    const next = Math.min(5, Math.max(1, (this.value() || 0) + delta));
     this.value.set(next);
     const group = (event.currentTarget as HTMLElement).closest('[role="radiogroup"]');
     group?.querySelectorAll<HTMLButtonElement>('button')[next - 1]?.focus();

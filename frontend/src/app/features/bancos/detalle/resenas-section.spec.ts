@@ -101,6 +101,22 @@ describe('ResenasSection', () => {
     expect(emitido).toHaveBeenCalled();
   });
 
+  it('explains next to the stars that a score is required', async () => {
+    auth.signIn({ uid: 'ana' });
+    await crear([]);
+
+    element.querySelector('form')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+
+    expect(api.publicar).not.toHaveBeenCalled();
+    expect(element.querySelector('#error-puntuacion')?.textContent).toContain('Elige una puntuación');
+    expect(element.querySelector('[role=radiogroup]')?.getAttribute('aria-describedby')).toBe('error-puntuacion');
+
+    element.querySelectorAll<HTMLButtonElement>('button[role=radio]')[2].click();
+    await fixture.whenStable();
+    expect(element.querySelector('#error-puntuacion')).toBeNull();
+  });
+
   it('reports someone else\'s review after confirmation', async () => {
     auth.signIn({ uid: 'ana' });
     await crear([resena('r1', 'luis')]);

@@ -53,6 +53,8 @@ export class ResenasSection {
   protected puntuacion = 0;
   protected comentario = '';
   protected readonly enviando = signal(false);
+  /** Se intentó enviar sin puntuación: el error se muestra junto a las estrellas. */
+  protected readonly faltaPuntuacion = signal(false);
 
   protected readonly miUid = computed(() => this.auth.session()?.uid ?? null);
   private readonly recargaMia = signal(0);
@@ -105,7 +107,7 @@ export class ResenasSection {
 
   protected async enviar(): Promise<void> {
     if (this.puntuacion < 1) {
-      this.notifier.error('Elige una puntuación de 1 a 5 estrellas.');
+      this.faltaPuntuacion.set(true);
       return;
     }
     this.enviando.set(true);
@@ -178,6 +180,7 @@ export class ResenasSection {
   }
 
   private limpiarFormulario(): void {
+    this.faltaPuntuacion.set(false);
     this.puntuacion = 0;
     this.comentario = '';
   }
