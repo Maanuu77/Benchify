@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, shareReplay } from 'rxjs';
+import { map, Observable, shareReplay } from 'rxjs';
 import { API_URL } from '../config/api-url';
 import { params } from './http-params';
 import {
@@ -46,8 +46,16 @@ export class BancosApi {
     return this.http.post<Banco>(`${this.url}/bancos`, request);
   }
 
-  editar(id: string, request: BancoRequest): Observable<Banco> {
-    return this.http.put<Banco>(`${this.url}/bancos/${id}`, request);
+  /** Banco y su versión (cabecera ETag), para editarlo sin pisar cambios ajenos. */
+  obtenerParaEditar(id: string): Observable<{ banco: Banco; etag: string | null }> {
+    return this.http
+      .get<Banco>(`${this.url}/bancos/${id}`, { observe: 'response' })
+      .pipe(map((response) => ({ banco: response.body!, etag: response.headers.get('ETag') })));
+  }
+
+  /** Con `etag`, el backend rechaza la edición (412 BANCO_VERSION_OBSOLETA) si otra persona lo ha cambiado. */
+  editar(id: string, request: BancoRequest, etag: string | null = null): Observable<Banco> {
+    return this.http.put<Banco>(`${this.url}/bancos/${id}`, request, etag ? { headers: { 'If-Match': etag } } : {});
   }
 
   eliminar(id: string): Observable<void> {

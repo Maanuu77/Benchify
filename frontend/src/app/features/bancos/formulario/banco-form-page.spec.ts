@@ -12,6 +12,7 @@ import { GeolocationService } from '../../../core/geo/geolocation.service';
 import { Notifier } from '../../../core/ui/notifier';
 import { Punto } from '../../../shared/map/bench-map';
 import { LocationPicker, redondear } from '../../../shared/map/location-picker';
+import { Confirmation } from '../../../shared/ui/confirm-dialog';
 import { GaleriaImagenes } from '../detalle/galeria-imagenes';
 import { BancoFormPage, maxEtiquetasValidator } from './banco-form-page';
 
@@ -29,23 +30,29 @@ const BANCO = { id: 'b1', titulo: 'Nuevo', estado: 'PENDIENTE' } as Banco;
 describe('BancoFormPage', () => {
   let fixture: ComponentFixture<BancoFormPage>;
   let element: HTMLElement;
-  let api: Record<'proponer' | 'editar' | 'obtener' | 'etiquetas', ReturnType<typeof vi.fn>>;
+  let api: Record<'proponer' | 'editar' | 'obtenerParaEditar' | 'etiquetas', ReturnType<typeof vi.fn>>;
+  let auth: FakeAuthService;
+  let confirmation: { ask: ReturnType<typeof vi.fn> };
   let notifier: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     api = {
       proponer: vi.fn(() => of(BANCO)),
       editar: vi.fn(() => of(BANCO)),
-      obtener: vi.fn(),
+      obtenerParaEditar: vi.fn(),
       etiquetas: vi.fn(() => of([{ id: 1, nombre: 'relax', color: '#3498DB', icono: 'spa' }])),
     };
     notifier = { success: vi.fn(), error: vi.fn() };
+    auth = new FakeAuthService();
+    auth.signIn({ uid: 'ana' });
+    confirmation = { ask: vi.fn(async () => false) };
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         { provide: BancosApi, useValue: api },
         { provide: Notifier, useValue: notifier },
-        { provide: AuthService, useValue: new FakeAuthService() },
+        { provide: AuthService, useValue: auth },
+        { provide: Confirmation, useValue: confirmation },
         { provide: GeolocationService, useValue: { posicionActual: vi.fn() } },
       ],
     });
@@ -113,19 +120,46 @@ describe('BancoFormPage', () => {
 
   it('loads the bench when editing and saves with PUT', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    api.obtener.mockReturnValue(of({
-      ...BANCO, titulo: 'Existente', descripcion: null, lat: 37.1, lng: -6.1, direccion: null, ciudad: 'Sevilla',
+    api.obtenerParaEditar.mockReturnValue(of({ etag: '"3"', banco: {
+      ...BANCO, autor: { id: 'ana', nombre: 'Ana' }, titulo: 'Existente', descripcion: null, lat: 37.1, lng: -6.1, direccion: null, ciudad: 'Sevilla',
       provincia: null, conSombra: true, accesible: false, conRespaldo: false, material: 'MADERA',
       etiquetas: [{ id: 1, nombre: 'relax', color: '#3498DB', icono: 'spa' }],
-    }));
+    } }));
     await crear('b1');
 
     expect(element.querySelector('h1')?.textContent).toContain('Editar banco');
     expect(element.querySelector<HTMLInputElement>('[formcontrolname=titulo]')!.value).toBe('Existente');
     await enviar();
 
-    expect(api.editar).toHaveBeenCalledWith('b1', expect.objectContaining({ titulo: 'Existente', etiquetaIds: [1] }));
+    expect(api.editar).toHaveBeenCalledWith('b1', expect.objectContaining({ titulo: 'Existente', etiquetaIds: [1] }), '"3"');
     expect(navigate).toHaveBeenCalledWith(['/bancos', 'b1']);
+  });
+
+  it('does not let someone else edit the bench', async () => {
+    api.obtenerParaEditar.mockReturnValue(of({ etag: '"1"', banco: { ...BANCO, autor: { id: 'luis', nombre: 'Luis' } } }));
+    await crear('b1');
+
+    expect(element.textContent).toContain('Solo quien propuso este banco o un moderador puede editarlo.');
+    expect(element.querySelector('form')).toBeNull();
+  });
+
+  it('asks before leaving with unsaved changes', async () => {
+    await crear();
+    expect(fixture.componentInstance.puedeSalir()).toBe(true);
+
+    escribir('titulo', 'A medias');
+    await expect(fixture.componentInstance.puedeSalir()).resolves.toBe(false);
+    expect(confirmation.ask).toHaveBeenCalledWith(expect.objectContaining({ titulo: '¿Salir sin guardar?' }));
+  });
+
+  it('explains out-of-range coordinates', async () => {
+    await crear();
+
+    escribir('lat', '95');
+    element.querySelector<HTMLInputElement>('[formcontrolname=lat]')!.dispatchEvent(new Event('blur'));
+    await fixture.whenStable();
+
+    expect(element.textContent).toContain('Entre -90 y 90');
   });
 });
 
