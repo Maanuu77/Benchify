@@ -1,5 +1,6 @@
 package com.benchify.checkin.infrastructure.web;
 
+import com.benchify.banco.domain.BancoNotFoundException;
 import com.benchify.checkin.application.port.in.CheckInConBanco;
 import com.benchify.checkin.application.port.in.CheckInsUseCase;
 import com.benchify.checkin.domain.CheckIn;
@@ -70,8 +71,19 @@ class CheckInControllerTest {
     }
 
     @Test
+    void theCountOfAnInvisibleBenchIs404() {
+        when(checkIns.totalDeBanco(BANCO, null)).thenThrow(new BancoNotFoundException(BANCO));
+        when(checkIns.totalDeBanco(BANCO, Actor.user("ana"))).thenReturn(2L);
+
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", BANCO))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("BANCO_NOT_FOUND");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", BANCO).header("Authorization", bearer("ana")))
+                .hasStatusOk().bodyJson().extractingPath("$.total").isEqualTo(2);
+    }
+
+    @Test
     void countIsPublicAndHistoryIsPersonal() {
-        when(checkIns.totalDeBanco(BANCO)).thenReturn(4L);
+        when(checkIns.totalDeBanco(BANCO, null)).thenReturn(4L);
         when(checkIns.misCheckIns(Actor.user("ana"), PageQuery.first(20)))
                 .thenReturn(new PageResult<>(List.of(new CheckInConBanco(CHECK_IN, "Torre del Oro")), 0, 20, 1));
 

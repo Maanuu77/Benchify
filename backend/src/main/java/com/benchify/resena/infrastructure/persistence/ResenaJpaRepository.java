@@ -19,9 +19,11 @@ interface ResenaJpaRepository extends JpaRepository<ResenaEntity, UUID> {
 
     boolean existsByBancoIdAndAutorId(UUID bancoId, String autorId);
 
+    Optional<ResenaEntity> findByBancoIdAndAutorId(UUID bancoId, String autorId);
+
     Page<ResenaEntity> findByBancoId(UUID bancoId, Pageable pageable);
 
-    Page<ResenaEntity> findByAutorId(String autorId, Pageable pageable);
+    Page<ResenaEntity> findByAutorIdAndEstadoBanco(String autorId, String estadoBanco, Pageable pageable);
 
     Page<ResenaEntity> findByReportadaTrue(Pageable pageable);
 

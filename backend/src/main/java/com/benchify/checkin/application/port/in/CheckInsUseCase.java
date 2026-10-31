@@ -16,5 +16,6 @@ public interface CheckInsUseCase {
     /** Check-ins del actor, los más recientes primero, con el título del banco. */
     PageResult<CheckInConBanco> misCheckIns(Actor actor, PageQuery page);
 
-    long totalDeBanco(UUID bancoId);
+    /** @param actor quien consulta, o {@code null}; el banco debe ser visible para él */
+    long totalDeBanco(UUID bancoId, Actor actor);
 }

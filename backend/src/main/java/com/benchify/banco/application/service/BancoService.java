@@ -43,15 +43,33 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
         this.clock = clock;
     }
 
+    /**
+     * Contar las propuestas pendientes del autor las bloquea hasta que esta transacción termina,
+     * así que la comprobación del límite y la inserción son atómicas.
+     */
     @Override
     public Banco proponer(Actor actor, BancoCommand command) {
+        Banco.exigirCupoDePropuestas(actor, () -> bancos.countPendientesByAutorForUpdate(actor.userId()));
         Banco banco = Banco.proponer(UUID.randomUUID(), toDatos(command), actor, clock.instant());
         return bancos.save(banco);
     }
 
+    /**
+     * Con versión esperada la fila se bloquea antes de compararla, así que la comprobación y el
+     * guardado son atómicos: de dos ediciones simultáneas desde la misma versión, la segunda recibe
+     * un 412 en lugar de pisar a la primera.
+     */
     @Override
-    public Banco editar(Actor actor, UUID bancoId, BancoCommand command) {
-        Banco banco = cargarVisible(bancoId, actor);
+    public Banco editar(Actor actor, UUID bancoId, BancoCommand command, Long versionEsperada) {
+        Banco banco;
+        if (versionEsperada == null) {
+            banco = cargarVisible(bancoId, actor);
+        } else {
+            banco = bancos.findByIdForUpdate(bancoId)
+                    .filter(b -> b.esVisiblePara(actor))
+                    .orElseThrow(() -> new BancoNotFoundException(bancoId));
+            banco.exigirVersion(versionEsperada, actor);
+        }
         banco.editar(toDatos(command), actor);
         return bancos.save(banco);
     }

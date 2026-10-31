@@ -4,6 +4,8 @@ import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.NotFoundException;
+import com.benchify.shared.domain.PreconditionFailedException;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
@@ -48,6 +50,8 @@ class GlobalExceptionHandlerTest {
     void mapsDomainExceptionsToTheirStatus() {
         assertThat(mvc.get().uri("/conflict")).hasStatus(409);
         assertThat(mvc.get().uri("/forbidden")).hasStatus(403);
+        assertThat(mvc.get().uri("/precondition")).hasStatus(412)
+                .bodyJson().extractingPath("$.code").isEqualTo("BANCO_VERSION_OBSOLETA");
         assertThat(mvc.get().uri("/rule")).hasStatus(422)
                 .bodyJson().extractingPath("$.code").isEqualTo("BANCO_NOT_PUBLISHED");
     }
@@ -101,6 +105,8 @@ class GlobalExceptionHandlerTest {
     void concurrentUpdatesAreConflicts() {
         assertThat(mvc.get().uri("/stale")).hasStatus(409)
                 .bodyJson().extractingPath("$.code").isEqualTo("CONFLICTO_CONCURRENTE");
+        assertThat(mvc.get().uri("/stale-jpa")).hasStatus(409)
+                .bodyJson().extractingPath("$.code").isEqualTo("CONFLICTO_CONCURRENTE");
     }
 
     @Test
@@ -140,6 +146,11 @@ class GlobalExceptionHandlerTest {
             throw new BusinessRuleException("BANCO_NOT_PUBLISHED", "El banco no está publicado");
         }
 
+        @GetMapping("/precondition")
+        void precondition() {
+            throw new PreconditionFailedException("BANCO_VERSION_OBSOLETA", "El banco ha cambiado");
+        }
+
         @GetMapping("/access-denied")
         void accessDenied() {
             throw new AccessDeniedException("denied");
@@ -166,6 +177,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/stale")
         void stale() {
             throw new OptimisticLockingFailureException("version mismatch");
+        }
+
+        @GetMapping("/stale-jpa")
+        void staleJpa() {
+            throw new OptimisticLockException("Row was updated or deleted by another transaction");
         }
 
         @GetMapping("/boom")

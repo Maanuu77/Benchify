@@ -138,6 +138,73 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void anEditWithAnOldEtagDoesNotOverwriteANewerOne() {
+        String bancoId = proponerBanco();
+        String leida = mvc.get().uri("/api/v1/bancos/{id}", bancoId).header("Authorization", bearer(autora))
+                .exchange().getResponse().getHeader("ETag");
+        assertThat(leida).isEqualTo("\"0\"");
+
+        MvcTestResult primera = editarBanco(bancoId, leida, "Primera edición");
+        assertThat(primera).hasStatusOk().hasHeader("ETag", "\"1\"");
+        assertThat(editarBanco(bancoId, leida, "Edición sobre una copia vieja"))
+                .hasStatus(412).bodyJson().extractingPath("$.code").isEqualTo("BANCO_VERSION_OBSOLETA");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}", bancoId).header("Authorization", bearer(autora)))
+                .hasHeader("ETag", "\"1\"").bodyJson().extractingPath("$.titulo").isEqualTo("Primera edición");
+
+        // Sin If-Match se mantiene el comportamiento anterior: gana la última edición
+        assertThat(editarBanco(bancoId, null, "Sin comprobar")).hasStatusOk().hasHeader("ETag", "\"2\"");
+    }
+
+    @Test
+    void theAuthorOfAnOldReviewFindsItBeyondTheFirstPage() {
+        String bancoId = bancoPublicado();
+        MvcTestResult publicada = mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId)
+                .header("Authorization", bearer(visitante))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":3}").exchange();
+        String resenaId = json(publicada).get("id").asString();
+        for (int i = 0; i < 20; i++) {
+            assertThat(mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId)
+                    .header("Authorization", bearer("critico-" + i + "-" + visitante))
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":5}")).hasStatus(201);
+        }
+
+        // La cabecera Location apunta a un recurso que existe
+        assertThat(mvc.get().uri(publicada.getResponse().getHeader("Location")))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas", bancoId))
+                .bodyJson().extractingPath("$.content[*].id").asArray().doesNotContain(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", bancoId).header("Authorization", bearer(visitante)))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", bancoId).header("Authorization", bearer(autora)))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("RESENA_NO_ENCONTRADA");
+    }
+
+    @Test
+    void aHiddenBenchDisappearsFromPublicProfilesAndCounters() {
+        String bancoId = bancoPublicado();
+        assertThat(mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId).header("Authorization", bearer(visitante))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":4}")).hasStatus(201);
+        assertThat(checkIn(bancoId, LAT, LNG)).hasStatus(201);
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/resenas", visitante))
+                .bodyJson().extractingPath("$.totalElements").isEqualTo(1);
+
+        assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/rechazo", bancoId)
+                .header("Authorization", bearerAdmin(admin))).hasStatusOk();
+
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/resenas", visitante))
+                .bodyJson().extractingPath("$.totalElements").isEqualTo(0);
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/estadisticas", visitante))
+                .bodyJson().extractingPath("$.resenas").isEqualTo(0);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("BANCO_NOT_FOUND");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId).header("Authorization", bearer(visitante)))
+                .hasStatus(404);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId).header("Authorization", bearer(autora)))
+                .hasStatusOk().bodyJson().extractingPath("$.total").isEqualTo(1);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", UUID.randomUUID())).hasStatus(404);
+    }
+
+    @Test
     void photosAreModeratedBeforeBecomingPublic() {
         String bancoId = bancoPublicado();
         byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 1, 2};
@@ -187,6 +254,17 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
         assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/aprobacion", id)
                 .header("Authorization", bearerAdmin(admin))).hasStatusOk();
         return id;
+    }
+
+    private MvcTestResult editarBanco(String bancoId, String ifMatch, String titulo) {
+        MockMvcTester.MockMvcRequestBuilder put = mvc.put().uri("/api/v1/bancos/{id}", bancoId)
+                .header("Authorization", bearer(autora))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\":\"%s\",\"lat\":%s,\"lng\":%s}".formatted(titulo, LAT, LNG));
+        if (ifMatch != null) {
+            put = put.header("If-Match", ifMatch);
+        }
+        return put.exchange();
     }
 
     private MvcTestResult checkIn(String bancoId, double lat, double lng) {

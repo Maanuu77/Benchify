@@ -12,7 +12,12 @@ public interface CheckInRepository {
 
     CheckIn save(CheckIn checkIn);
 
-    Optional<Instant> findUltimaFecha(String usuarioId, UUID bancoId);
+    /**
+     * Fecha del último check-in del usuario en el banco. Antes bloquea la pareja (usuario, banco)
+     * hasta el final de la transacción: dos peticiones simultáneas no pueden pasar a la vez la
+     * comprobación del intervalo mínimo y guardar las dos.
+     */
+    Optional<Instant> findUltimaFechaForUpdate(String usuarioId, UUID bancoId);
 
     /** Más recientes primero. */
     PageResult<CheckIn> findByUsuario(String usuarioId, PageQuery page);

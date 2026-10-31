@@ -63,7 +63,7 @@ class CheckInServiceTest {
 
     @Test
     void registersCheckInNextToThePublishedBench() {
-        when(checkIns.findUltimaFecha("ana", banco.id())).thenReturn(Optional.empty());
+        when(checkIns.findUltimaFechaForUpdate("ana", banco.id())).thenReturn(Optional.empty());
 
         CheckIn checkIn = service.registrar(ANA, banco.id(), new Ubicacion(37.3826, -5.996));
 
@@ -74,7 +74,7 @@ class CheckInServiceTest {
 
     @Test
     void appliesTheCooldownFromTheLastCheckIn() {
-        when(checkIns.findUltimaFecha("ana", banco.id())).thenReturn(Optional.of(AHORA.minusSeconds(60)));
+        when(checkIns.findUltimaFechaForUpdate("ana", banco.id())).thenReturn(Optional.of(AHORA.minusSeconds(60)));
 
         assertThatThrownBy(() -> service.registrar(ANA, banco.id(), POSICION_BANCO))
                 .isInstanceOf(ConflictException.class);
@@ -110,6 +110,23 @@ class CheckInServiceTest {
     void countsCheckInsOfABench() {
         when(checkIns.countByBanco(banco.id())).thenReturn(7L);
 
-        assertThat(service.totalDeBanco(banco.id())).isEqualTo(7);
+        assertThat(service.totalDeBanco(banco.id(), null)).isEqualTo(7);
+    }
+
+    @Test
+    void theTotalOfAMissingOrInvisibleBenchIs404() {
+        UUID inexistente = UUID.randomUUID();
+        when(bancos.findById(inexistente)).thenReturn(Optional.empty());
+        Banco pendiente = Banco.proponer(UUID.randomUUID(), new DatosBanco("Mío", null, POSICION_BANCO, null, null, null),
+                ANA, AHORA);
+        when(bancos.findById(pendiente.id())).thenReturn(Optional.of(pendiente));
+        when(checkIns.countByBanco(pendiente.id())).thenReturn(0L);
+
+        assertThatThrownBy(() -> service.totalDeBanco(inexistente, ANA)).isInstanceOf(BancoNotFoundException.class);
+        assertThatThrownBy(() -> service.totalDeBanco(pendiente.id(), null)).isInstanceOf(BancoNotFoundException.class);
+        assertThatThrownBy(() -> service.totalDeBanco(pendiente.id(), Actor.user("luis")))
+                .isInstanceOf(BancoNotFoundException.class);
+        assertThat(service.totalDeBanco(pendiente.id(), ANA)).isZero();
+        verify(checkIns, never()).countByBanco(inexistente);
     }
 }

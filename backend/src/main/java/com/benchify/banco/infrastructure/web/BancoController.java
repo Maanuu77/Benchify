@@ -24,6 +24,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,6 +46,9 @@ import java.util.UUID;
 @RequestMapping("/api/v1/bancos")
 @Tag(name = "Bancos", description = "Mapa, búsqueda por cercanía y gestión de bancos")
 class BancoController {
+
+    /** Las versiones empiezan en 0: una ETag mal formada se traduce a esta y nunca coincide. */
+    private static final long VERSION_INEXISTENTE = -1;
 
     private final ConsultarBancosUseCase consultarBancos;
     private final GestionarBancoUseCase gestionarBanco;
@@ -85,13 +90,15 @@ class BancoController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Ficha de un banco",
-            description = "Los bancos no publicados solo los ven su autor y los administradores.")
-    BancoResponse obtener(@PathVariable UUID id, @CurrentActor(required = false) Actor actor) {
-        return mapper.toResponse(consultarBancos.obtener(id, actor));
+            description = "Los bancos no publicados solo los ven su autor y los administradores. La cabecera ETag "
+                    + "identifica la versión: se puede enviar en If-Match al editar.")
+    ResponseEntity<BancoResponse> obtener(@PathVariable UUID id, @CurrentActor(required = false) Actor actor) {
+        return conEtag(consultarBancos.obtener(id, actor));
     }
 
     @PostMapping
-    @Operation(summary = "Proponer un banco nuevo", description = "Queda pendiente de moderación.")
+    @Operation(summary = "Proponer un banco nuevo", description = "Queda pendiente de moderación. Un usuario puede "
+            + "tener como mucho " + Banco.MAX_PENDIENTES_POR_AUTOR + " pendientes a la vez (422 BANCO_LIMITE_PENDIENTES).")
     @SecurityRequirement(name = "firebase")
     ResponseEntity<BancoResponse> proponer(@CurrentActor Actor actor, @Valid @RequestBody BancoRequest request) {
         Banco banco = gestionarBanco.proponer(actor, mapper.toCommand(request));
@@ -100,10 +107,15 @@ class BancoController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Editar un banco propio", description = "Si estaba publicado vuelve a moderación.")
+    @Operation(summary = "Editar un banco propio",
+            description = "Si estaba publicado vuelve a moderación. Con If-Match responde 412 "
+                    + "(BANCO_VERSION_OBSOLETA) si el banco ha cambiado desde que se leyó.")
     @SecurityRequirement(name = "firebase")
-    BancoResponse editar(@CurrentActor Actor actor, @PathVariable UUID id, @Valid @RequestBody BancoRequest request) {
-        return mapper.toResponse(gestionarBanco.editar(actor, id, mapper.toCommand(request)));
+    ResponseEntity<BancoResponse> editar(@CurrentActor Actor actor, @PathVariable UUID id,
+            @Parameter(description = "ETag de la ficha leída (opcional)")
+            @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+            @Valid @RequestBody BancoRequest request) {
+        return conEtag(gestionarBanco.editar(actor, id, mapper.toCommand(request), versionEsperada(ifMatch)));
     }
 
     @DeleteMapping("/{id}")
@@ -112,6 +124,34 @@ class BancoController {
     ResponseEntity<Void> eliminar(@CurrentActor Actor actor, @PathVariable UUID id) {
         gestionarBanco.eliminar(actor, id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** La ETag es la versión del banco, que cambia con cada escritura: {@code "3"}. */
+    private ResponseEntity<BancoResponse> conEtag(Banco banco) {
+        return ResponseEntity.ok().eTag("\"" + banco.version() + "\"").body(mapper.toResponse(banco));
+    }
+
+    /**
+     * Versión que indica {@code If-Match}, o {@code null} si no se envía o es {@code *}. Se admite
+     * una sola ETag, también en su forma débil ({@code W/"3"}) por si un proxy la ha debilitado al
+     * comprimir la respuesta. Una ETag que no es una versión nunca coincide.
+     */
+    private static Long versionEsperada(String ifMatch) {
+        if (ifMatch == null || ifMatch.isBlank() || ifMatch.strip().equals("*")) {
+            return null;
+        }
+        String etag = ifMatch.strip();
+        if (etag.startsWith("W/")) {
+            etag = etag.substring(2);
+        }
+        if (etag.length() >= 2 && etag.startsWith("\"") && etag.endsWith("\"")) {
+            etag = etag.substring(1, etag.length() - 1);
+        }
+        try {
+            return Long.parseLong(etag);
+        } catch (NumberFormatException e) {
+            return VERSION_INEXISTENTE;
+        }
     }
 
     /** Filtros comunes del mapa y de la búsqueda por cercanía. */
