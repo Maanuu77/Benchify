@@ -16,6 +16,9 @@ import {
   PageRequest,
 } from './models';
 
+/** Máximo de bancos que devuelve la API para un área del mapa (ConsultarBancosUseCase en el backend). */
+export const MAX_RESULTADOS_MAPA = 500;
+
 @Injectable({ providedIn: 'root' })
 export class BancosApi {
   private readonly http = inject(HttpClient);

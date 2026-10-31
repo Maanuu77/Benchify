@@ -105,6 +105,51 @@ describe('MapaPage', () => {
     expect(element.textContent).toContain('230 m');
   });
 
+  it('retries the visible area after an error', async () => {
+    api.enArea.mockReturnValueOnce(throwError(() => new Error('down')));
+    await moverMapa();
+
+    (element.querySelector('[role=alert] button') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(300);
+    fixture.detectChanges();
+
+    expect(api.enArea).toHaveBeenCalledTimes(2);
+    expect(element.textContent).toContain('2 bancos en esta zona');
+  });
+
+  it('warns when the API result limit is reached', async () => {
+    api.enArea.mockReturnValue(of(Array.from({ length: 500 }, (_, i) => banco(String(i), 3))));
+    await moverMapa();
+
+    expect(element.textContent).toContain('Más de 500 bancos en esta zona');
+    expect(element.textContent).toContain('Acerca el mapa');
+  });
+
+  it('refreshes the nearby list when the filters change', async () => {
+    geo.posicionActual.mockResolvedValue({ lat: 37.38, lng: -5.99, precision: 10 });
+    api.cercanos.mockReturnValue(of({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }));
+    await moverMapa();
+    (element.querySelector('.panel-header button') as HTMLButtonElement).click();
+    await vi.runAllTimersAsync();
+
+    fixture.componentInstance['filtro'].set({ accesible: true });
+    await vi.runAllTimersAsync();
+
+    expect(api.cercanos).toHaveBeenLastCalledWith(37.38, -5.99, RADIO_CERCANIA, { accesible: true }, { size: 20 });
+  });
+
+  it('selects a bench from the list without moving the map', async () => {
+    await moverMapa();
+    const mapa = fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub).componentInstance;
+
+    (element.querySelector('[matListItemTitle]')!.closest('a') as HTMLElement).dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    expect(element.querySelector('.seleccionado h2')?.textContent).toBe('Banco b');
+    expect(mapa.volarA).not.toHaveBeenCalled();
+    expect(api.enArea).toHaveBeenCalledTimes(1);
+  });
+
   it('reports a denied geolocation without breaking the page', async () => {
     geo.posicionActual.mockRejectedValue(new Error('Necesitamos permiso para usar tu ubicación.'));
 
