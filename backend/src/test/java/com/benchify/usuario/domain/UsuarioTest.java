@@ -1,6 +1,7 @@
 package com.benchify.usuario.domain;
 
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.Rol;
 import org.junit.jupiter.api.Test;
 
@@ -104,5 +105,25 @@ class UsuarioTest {
         assertThatThrownBy(() -> usuario.actualizarPerfil("Ana", "x".repeat(101)))
                 .isInstanceOf(BusinessRuleException.class)
                 .extracting("code").isEqualTo("USUARIO_CIUDAD_INVALIDA");
+    }
+
+    @Test
+    void deletingTheAccountRemovesPersonalDataAndCannotBeRepeated() {
+        Usuario ana = Usuario.registrar(new IdentidadUsuario("ana", "ana@x.com", "Ana", "https://img/a.png", Rol.ADMIN),
+                Instant.parse("2026-01-01T00:00:00Z"));
+        Instant ahora = Instant.parse("2026-10-31T10:00:00Z");
+
+        Usuario eliminada = ana.eliminar(ahora);
+
+        assertThat(eliminada.estaEliminado()).isTrue();
+        assertThat(eliminada.nombre()).isEqualTo(Usuario.NOMBRE_ELIMINADO);
+        assertThat(eliminada.email()).isNull();
+        assertThat(eliminada.avatarUrl()).isNull();
+        assertThat(eliminada.ciudad()).isNull();
+        assertThat(eliminada.rol()).isEqualTo(Rol.USER);
+        assertThat(eliminada.fechaRegistro()).isEqualTo(ana.fechaRegistro());
+        assertThatThrownBy(() -> eliminada.eliminar(ahora))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting("code").isEqualTo("CUENTA_ELIMINADA");
     }
 }

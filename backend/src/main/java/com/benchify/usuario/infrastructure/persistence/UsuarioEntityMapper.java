@@ -7,8 +7,10 @@ import org.mapstruct.Mapping;
 @Mapper
 interface UsuarioEntityMapper {
 
-    // conRol(Rol) es una operación de dominio, no una propiedad: MapStruct lo tomaría por un setter fluido
+    // conRol(Rol) y eliminar(Instant) son operaciones de dominio, no propiedades: MapStruct las tomaría
+    // por setters fluidos
     @Mapping(target = "conRol", ignore = true)
+    @Mapping(target = "eliminar", ignore = true)
     Usuario toDomain(UsuarioEntity entity);
 
     UsuarioEntity toEntity(Usuario usuario);

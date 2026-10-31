@@ -89,6 +89,11 @@ class UsuarioPersistenceAdapter implements UsuarioRepository {
     }
 
     @Override
+    public void anonimizar(Usuario usuario) {
+        exigirFila(usuario.id(), repository.anonimizar(usuario.id(), usuario.nombre(), usuario.eliminadoEn()));
+    }
+
+    @Override
     public boolean existeAdministrador() {
         return repository.existsByRol(Rol.ADMIN);
     }

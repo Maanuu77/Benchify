@@ -31,4 +31,12 @@ interface UsuarioJpaRepository extends JpaRepository<UsuarioEntity, String> {
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update UsuarioEntity u set u.rol = :rol where u.id = :id")
     int actualizarRol(@Param("id") String id, @Param("rol") Rol rol);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update UsuarioEntity u set u.email = null, u.nombre = :nombre, u.avatarUrl = null, u.ciudad = null,
+                u.rol = com.benchify.shared.domain.Rol.USER, u.ultimoAcceso = :eliminadoEn, u.eliminadoEn = :eliminadoEn
+            where u.id = :id
+            """)
+    int anonimizar(@Param("id") String id, @Param("nombre") String nombre, @Param("eliminadoEn") Instant eliminadoEn);
 }

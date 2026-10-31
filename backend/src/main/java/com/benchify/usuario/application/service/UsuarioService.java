@@ -9,6 +9,7 @@ import com.benchify.shared.domain.Rol;
 import com.benchify.usuario.application.port.in.AdministrarUsuariosUseCase;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase;
 import com.benchify.usuario.application.port.in.SincronizarUsuarioUseCase;
+import com.benchify.usuario.application.port.out.ActividadPersonalPort;
 import com.benchify.usuario.application.port.out.CacheRolesPort;
 import com.benchify.usuario.application.port.out.EstadisticasUsuarioPort;
 import com.benchify.usuario.application.port.out.ProveedorIdentidadPort;
@@ -43,14 +44,17 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
     private final ProveedorIdentidadPort proveedorIdentidad;
     private final CacheRolesPort cacheRoles;
     private final EstadisticasUsuarioPort estadisticas;
+    private final ActividadPersonalPort actividadPersonal;
     private final Clock clock;
 
     public UsuarioService(UsuarioRepository usuarios, ProveedorIdentidadPort proveedorIdentidad,
-            CacheRolesPort cacheRoles, EstadisticasUsuarioPort estadisticas, Clock clock) {
+            CacheRolesPort cacheRoles, EstadisticasUsuarioPort estadisticas, ActividadPersonalPort actividadPersonal,
+            Clock clock) {
         this.usuarios = usuarios;
         this.proveedorIdentidad = proveedorIdentidad;
         this.cacheRoles = cacheRoles;
         this.estadisticas = estadisticas;
+        this.actividadPersonal = actividadPersonal;
         this.clock = clock;
     }
 
@@ -58,6 +62,8 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
     public Usuario sincronizar(IdentidadUsuario identidad) {
         Instant ahora = clock.instant();
         Optional<Usuario> guardado = usuarios.findById(identidad.id());
+        // Un token emitido antes de la baja sigue siendo válido un rato: no puede volver a usar la cuenta
+        guardado.ifPresent(Usuario::exigirActiva);
         Usuario usuario;
         if (guardado.isEmpty()) {
             // Alta: se toma el rol del token, así entra el primer administrador
@@ -100,6 +106,19 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
         Usuario actualizado = obtener(actor.userId()).actualizarPerfil(command.nombre(), command.ciudad());
         usuarios.actualizarPerfil(actualizado);
         return actualizado;
+    }
+
+    @Override
+    public void eliminarCuenta(Actor actor) {
+        Usuario eliminado = obtener(actor.userId()).eliminar(clock.instant());
+        usuarios.anonimizar(eliminado);
+        actividadPersonal.borrar(actor.userId());
+        log.info("User {} deleted their account", actor.userId());
+        despuesDelCommit(() -> {
+            cacheRoles.invalidar(actor.userId());
+            enProveedorIdentidad(actor.userId(), () -> proveedorIdentidad.revocarSesiones(actor.userId()));
+            enProveedorIdentidad(actor.userId(), () -> proveedorIdentidad.eliminarUsuario(actor.userId()));
+        });
     }
 
     @Override

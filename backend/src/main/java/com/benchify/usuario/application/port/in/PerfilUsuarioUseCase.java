@@ -12,6 +12,9 @@ public interface PerfilUsuarioUseCase {
 
     EstadisticasUsuario estadisticas(String usuarioId);
 
+    /** Baja del usuario: anonimiza su perfil, borra su actividad privada y su cuenta de Firebase. */
+    void eliminarCuenta(Actor actor);
+
     record ActualizarPerfilCommand(String nombre, String ciudad) {
     }
 }

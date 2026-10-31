@@ -20,6 +20,7 @@ import java.time.Instant;
 
 import static com.benchify.support.StubIdTokenVerifier.bearer;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +66,14 @@ class UsuarioControllerTest {
                 .content("{\"nombre\":\"Ana B.\",\"ciudad\":\"Triana\"}"))
                 .hasStatusOk()
                 .bodyJson().extractingPath("$.ciudad").isEqualTo("Triana");
+    }
+
+    @Test
+    void deletesOwnAccount() {
+        assertThat(mvc.delete().uri("/api/v1/usuarios/me").header("Authorization", bearer("ana"))).hasStatus(204);
+        verify(perfilUsuario).eliminarCuenta(Actor.user("ana"));
+
+        assertThat(mvc.delete().uri("/api/v1/usuarios/me")).hasStatus(401);
     }
 
     @Test
