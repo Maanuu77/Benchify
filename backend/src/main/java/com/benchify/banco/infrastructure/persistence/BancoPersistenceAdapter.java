@@ -11,9 +11,11 @@ import com.benchify.banco.domain.FiltroBancos;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Ubicacion;
+import com.benchify.shared.infrastructure.persistence.BloqueosTransaccionales;
 import com.benchify.shared.infrastructure.persistence.SpringDataPages;
 import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -37,14 +39,16 @@ class BancoPersistenceAdapter implements BancoRepository, EtiquetaRepository {
     private final BancoSpatialQueries spatial;
     private final BancoEntityMapper mapper;
     private final EntityManager entityManager;
+    private final NamedParameterJdbcTemplate jdbc;
 
     BancoPersistenceAdapter(BancoJpaRepository bancos, EtiquetaJpaRepository etiquetas, BancoSpatialQueries spatial,
-            BancoEntityMapper mapper, EntityManager entityManager) {
+            BancoEntityMapper mapper, EntityManager entityManager, NamedParameterJdbcTemplate jdbc) {
         this.bancos = bancos;
         this.etiquetas = etiquetas;
         this.spatial = spatial;
         this.mapper = mapper;
         this.entityManager = entityManager;
+        this.jdbc = jdbc;
     }
 
     @Override
@@ -77,11 +81,6 @@ class BancoPersistenceAdapter implements BancoRepository, EtiquetaRepository {
     @Override
     public List<Banco> findAllById(List<UUID> ids) {
         return cargarEnOrden(ids);
-    }
-
-    @Override
-    public boolean existsPublicado(UUID id) {
-        return bancos.existsByIdAndEstado(id, EstadoBanco.PUBLICADO);
     }
 
     @Override
@@ -124,6 +123,12 @@ class BancoPersistenceAdapter implements BancoRepository, EtiquetaRepository {
     @Override
     public long countByEstado(EstadoBanco estado) {
         return bancos.countByEstado(estado);
+    }
+
+    @Override
+    public long countPendientesByAutorForUpdate(String autorId) {
+        BloqueosTransaccionales.bloquear(jdbc, "bancos-pendientes:" + autorId);
+        return bancos.countByCreadoPorAndEstado(autorId, EstadoBanco.PENDIENTE);
     }
 
     @Override

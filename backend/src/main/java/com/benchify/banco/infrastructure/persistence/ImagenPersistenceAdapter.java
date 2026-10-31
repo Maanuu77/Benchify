@@ -32,8 +32,18 @@ class ImagenPersistenceAdapter implements ImagenRepository {
     }
 
     @Override
+    public Imagen saveAndFlush(Imagen imagen) {
+        return mapper.toDomain(repository.saveAndFlush(mapper.toEntity(imagen)));
+    }
+
+    @Override
     public Optional<Imagen> findById(UUID id) {
         return repository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Imagen> findByIdForUpdate(UUID id) {
+        return repository.findByIdForUpdate(id).map(mapper::toDomain);
     }
 
     @Override
@@ -50,6 +60,13 @@ class ImagenPersistenceAdapter implements ImagenRepository {
     @Override
     public long countActivasByBanco(UUID bancoId) {
         return repository.countByBancoIdAndEstadoNot(bancoId, EstadoImagen.RECHAZADA);
+    }
+
+    @Override
+    public List<Imagen> deleteByBanco(UUID bancoId) {
+        List<ImagenEntity> borradas = repository.findByBancoIdForUpdate(bancoId);
+        repository.deleteAll(borradas);
+        return borradas.stream().map(mapper::toDomain).toList();
     }
 
     @Override

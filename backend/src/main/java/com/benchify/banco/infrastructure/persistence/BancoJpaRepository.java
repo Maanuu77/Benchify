@@ -15,8 +15,6 @@ import java.util.UUID;
 
 interface BancoJpaRepository extends JpaRepository<BancoEntity, UUID> {
 
-    boolean existsByIdAndEstado(UUID id, EstadoBanco estado);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from BancoEntity b where b.id = :id")
     Optional<BancoEntity> findByIdForUpdate(@Param("id") UUID id);
@@ -26,4 +24,6 @@ interface BancoJpaRepository extends JpaRepository<BancoEntity, UUID> {
     Page<BancoEntity> findByEstado(EstadoBanco estado, Pageable pageable);
 
     long countByEstado(EstadoBanco estado);
+
+    long countByCreadoPorAndEstado(String creadoPor, EstadoBanco estado);
 }

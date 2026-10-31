@@ -1,14 +1,18 @@
 rules_version = '2';
 
-// Las fotos de bancos son públicas para leer. Solo el backend las escribe, con el Admin SDK,
-// que no está sujeto a estas reglas: así toda subida pasa por la validación y la moderación.
+// Solo el backend escribe, con el Admin SDK, que no está sujeto a estas reglas: así toda subida
+// pasa por la validación y la moderación.
 service firebase.storage {
   match /b/{bucket}/o {
+    // Fotos aprobadas: se leen una a una conociendo su nombre (imposible de adivinar), pero no se
+    // puede listar la carpeta.
     match /bancos/{bancoId}/{imagen} {
-      allow read: if true;
-      allow write: if false;
+      allow get: if true;
+      allow list, write: if false;
     }
 
+    // Todo lo demás, incluidas las fotos pendientes de moderación (pendientes/), queda cerrado: la
+    // API se las sirve solo a quien las subió y a los administradores.
     match /{allPaths=**} {
       allow read, write: if false;
     }

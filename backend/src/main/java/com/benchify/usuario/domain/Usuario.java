@@ -3,6 +3,7 @@ package com.benchify.usuario.domain;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.Rol;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -23,6 +24,9 @@ public record Usuario(
     public static final int MAX_NOMBRE = 100;
     public static final int MAX_CIUDAD = 100;
 
+    /** Cada cuánto se guarda {@link #ultimoAcceso} aunque no haya cambiado nada más. */
+    public static final Duration REFRESCO_ULTIMO_ACCESO = Duration.ofMinutes(15);
+
     public Usuario {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(nombre, "nombre");
@@ -31,26 +35,37 @@ public record Usuario(
         Objects.requireNonNull(ultimoAcceso, "ultimoAcceso");
     }
 
-    /** Alta de un usuario que inicia sesión por primera vez. */
+    /**
+     * Alta de un usuario que inicia sesión por primera vez, con el rol del token: así se da de alta
+     * el primer administrador. Después el rol ya no se toma del token (véase {@link #sincronizar}).
+     */
     public static Usuario registrar(IdentidadUsuario identidad, Instant ahora) {
         return new Usuario(identidad.id(), identidad.email(), nombreVisible(identidad), identidad.avatarUrl(),
                 null, identidad.rol(), ahora, ahora);
     }
 
     /**
-     * Sincroniza los datos que vienen del proveedor de identidad. El nombre no se toca:
-     * una vez registrado, el usuario lo gestiona desde su perfil.
+     * Sincroniza los datos que vienen del proveedor de identidad. Ni el nombre (una vez registrado
+     * lo gestiona el usuario desde su perfil) ni el rol (la base de datos es la fuente de verdad y
+     * un token antiguo no puede cambiarlo) se tocan.
      */
     public Usuario sincronizar(IdentidadUsuario identidad, Instant ahora) {
         String avatar = identidad.avatarUrl() != null ? identidad.avatarUrl() : avatarUrl;
-        return new Usuario(id, identidad.email(), nombre, avatar, ciudad, identidad.rol(), fechaRegistro, ahora);
+        return new Usuario(id, identidad.email(), nombre, avatar, ciudad, rol, fechaRegistro, ahora);
     }
 
-    /** {@code true} si la identidad trae cambios que merece la pena persistir. */
+    /** {@code true} si la identidad trae cambios que merece la pena persistir (el rol no cuenta). */
     public boolean difiereDe(IdentidadUsuario identidad) {
-        return rol != identidad.rol()
-                || !Objects.equals(email, identidad.email())
+        return !Objects.equals(email, identidad.email())
                 || (identidad.avatarUrl() != null && !identidad.avatarUrl().equals(avatarUrl));
+    }
+
+    /**
+     * {@code true} si hay que escribir al sincronizar: la identidad trae cambios o el último acceso
+     * guardado tiene más de {@link #REFRESCO_ULTIMO_ACCESO}.
+     */
+    public boolean debeSincronizarse(IdentidadUsuario identidad, Instant ahora) {
+        return difiereDe(identidad) || ultimoAcceso.isBefore(ahora.minus(REFRESCO_ULTIMO_ACCESO));
     }
 
     public Usuario actualizarPerfil(String nuevoNombre, String nuevaCiudad) {

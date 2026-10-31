@@ -5,7 +5,6 @@ import com.benchify.shared.domain.Rol;
 import com.benchify.support.ApiControllerTest;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase.ActualizarPerfilCommand;
-import com.benchify.usuario.application.port.in.SincronizarUsuarioUseCase;
 import com.benchify.usuario.domain.EstadisticasUsuario;
 import com.benchify.usuario.domain.IdentidadUsuario;
 import com.benchify.usuario.domain.Usuario;
@@ -21,7 +20,6 @@ import java.time.Instant;
 
 import static com.benchify.support.StubIdTokenVerifier.bearer;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -36,26 +34,19 @@ class UsuarioControllerTest {
     private MockMvcTester mvc;
     @MockitoBean
     private PerfilUsuarioUseCase perfilUsuario;
-    @Autowired
-    private SincronizarUsuarioUseCase sincronizarUsuario;
 
     @Test
-    void returnsOwnProfileAndSyncsTheUserFirst() {
-        // uid propio: el interceptor recuerda usuarios ya sincronizados dentro del contexto compartido
-        Usuario nuevo = Usuario.registrar(new IdentidadUsuario("nuevo", "nuevo@x.com", "Nuevo", null, Rol.USER),
-                Instant.parse("2026-01-01T00:00:00Z"));
-        when(perfilUsuario.obtener("nuevo")).thenReturn(nuevo);
+    void returnsOwnProfile() {
+        when(perfilUsuario.obtener("ana")).thenReturn(ANA);
 
-        assertThat(mvc.get().uri("/api/v1/usuarios/me").header("Authorization", bearer("nuevo")))
+        assertThat(mvc.get().uri("/api/v1/usuarios/me").header("Authorization", bearer("ana")))
                 .hasStatusOk()
                 .bodyJson()
                 .satisfies(json -> {
-                    assertThat(json).extractingPath("$.id").isEqualTo("nuevo");
-                    assertThat(json).extractingPath("$.email").isEqualTo("nuevo@x.com");
+                    assertThat(json).extractingPath("$.id").isEqualTo("ana");
+                    assertThat(json).extractingPath("$.email").isEqualTo("ana@x.com");
                     assertThat(json).extractingPath("$.rol").isEqualTo("USER");
                 });
-        verify(sincronizarUsuario).sincronizar(
-                new IdentidadUsuario("nuevo", "nuevo@benchify.test", "Usuario nuevo", null, Rol.USER));
     }
 
     @Test

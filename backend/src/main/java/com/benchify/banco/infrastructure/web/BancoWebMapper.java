@@ -35,9 +35,12 @@ interface BancoWebMapper {
 
     EtiquetaResponse toResponse(Etiqueta etiqueta);
 
-    ImagenResponse toResponse(Imagen imagen);
-
     List<EtiquetaResponse> toEtiquetaResponses(List<Etiqueta> etiquetas);
+
+    default ImagenResponse toResponse(Imagen imagen) {
+        return new ImagenResponse(imagen.id(), imagen.bancoId(), ImagenUrls.foto(imagen), ImagenUrls.miniatura(imagen),
+                ImagenUrls.requiereAutenticacion(imagen), imagen.estado(), imagen.subidaPor(), imagen.fechaSubida());
+    }
 
     default BancoResponse toResponse(Banco banco) {
         return toResponse(banco.id(), banco.datos(), banco.estado(), banco.autor(), banco.valoracion(),

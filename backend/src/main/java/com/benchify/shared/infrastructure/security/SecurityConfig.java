@@ -29,7 +29,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, IdTokenVerifier idTokenVerifier,
-            ProblemDetailSecurityHandler problemHandler) {
+            RoleResolver roleResolver, ProblemDetailSecurityHandler problemHandler) {
         return http
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // API stateless con token en la cabecera Authorization: CSRF no aplica
@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .addFilterBefore(new FirebaseAuthenticationFilter(idTokenVerifier, problemHandler),
+                .addFilterBefore(new FirebaseAuthenticationFilter(idTokenVerifier, roleResolver, problemHandler),
                         AnonymousAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error", "/actuator/health", "/actuator/health/**").permitAll()
@@ -49,10 +49,12 @@ public class SecurityConfig {
                         // Lecturas personales que conviven con rutas públicas
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/usuarios/me", "/api/v1/usuarios/me/**",
-                                "/api/v1/bancos/*/favorito").authenticated()
-                        // Lecturas públicas: mapa, fichas, reseñas, etiquetas y perfiles
+                                "/api/v1/bancos/*/favorito", "/api/v1/bancos/*/resenas/mia").authenticated()
+                        // Lecturas públicas: mapa, fichas, fotos, reseñas, etiquetas y perfiles; las fotos
+                        // pendientes solo se sirven a quien las puede ver (lo decide el caso de uso)
                         .requestMatchers(HttpMethod.GET,
-                                "/api/v1/bancos", "/api/v1/bancos/**",
+                                "/api/v1/bancos", "/api/v1/bancos/**", "/api/v1/imagenes/**",
+                                "/api/v1/resenas/*",
                                 "/api/v1/etiquetas",
                                 "/api/v1/usuarios/*", "/api/v1/usuarios/*/bancos",
                                 "/api/v1/usuarios/*/resenas", "/api/v1/usuarios/*/estadisticas").permitAll()

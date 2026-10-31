@@ -59,6 +59,7 @@ public class ResenaService implements ResenasUseCase {
         return resena;
     }
 
+    /** Si otra petición ha editado la reseña a la vez, falla con un conflicto en lugar de pisarla. */
     @Override
     public Resena editar(Actor actor, UUID resenaId, ResenaCommand command) {
         Resena resena = cargar(resenaId);
@@ -77,43 +78,79 @@ public class ResenaService implements ResenasUseCase {
         recalcularValoracion(banco);
     }
 
+    /**
+     * El contador se incrementa con un UPDATE atómico, así que ni otro reporte ni una edición
+     * simultánea pueden perderlo. El bloqueo de la fila lo serializa con la moderación.
+     */
     @Override
     public Resena reportar(Actor actor, UUID resenaId) {
-        Resena resena = resenas.findByIdForUpdate(resenaId).orElseThrow(() -> new ResenaNotFoundException(resenaId));
+        Resena resena = cargarParaActualizar(resenaId);
         resena.exigirReportablePor(actor);
         if (!resenas.registrarReporte(resenaId, actor.userId(), clock.instant())) {
             throw new ConflictException("RESENA_YA_REPORTADA", "Ya has reportado esta reseña");
         }
-        return resenas.save(resena.conReporteAdicional());
+        return resenas.sumarReporte(resenaId, Resena.UMBRAL_REPORTES);
     }
 
+    /**
+     * Bloquea la fila antes de borrar los reportes: un reporte que llegue a la vez espera y se
+     * cuenta después, en lugar de quedar registrado con el contador a cero.
+     */
     @Override
     public Resena descartarReportes(Actor actor, UUID resenaId) {
         if (!actor.isAdmin()) {
             throw new ForbiddenException("ADMIN_REQUIRED", "Solo un administrador puede moderar reseñas");
         }
+        cargarParaActualizar(resenaId);
+        return resenas.borrarReportes(resenaId);
+    }
+
+    /** Si el banco no es visible para el actor, la reseña se trata como inexistente. */
+    @Override
+    @Transactional(readOnly = true)
+    public Resena obtener(UUID resenaId, Actor actor) {
         Resena resena = cargar(resenaId);
-        resenas.borrarReportes(resenaId);
-        return resenas.save(resena.sinReportes());
+        if (bancos.findById(resena.bancoId()).filter(b -> b.esVisiblePara(actor)).isEmpty()) {
+            throw new ResenaNotFoundException(resenaId);
+        }
+        return resena;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Resena mia(UUID bancoId, Actor actor) {
+        cargarBancoVisible(bancoId, actor);
+        return resenas.findByBancoAndAutor(bancoId, actor.userId())
+                .orElseThrow(() -> ResenaNotFoundException.sinResenaPropia(bancoId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResult<Resena> deBanco(UUID bancoId, Actor actor, PageQuery page) {
-        bancos.findById(bancoId)
-                .filter(b -> b.esVisiblePara(actor))
-                .orElseThrow(() -> new BancoNotFoundException(bancoId));
+        cargarBancoVisible(bancoId, actor);
         return resenas.findByBanco(bancoId, page);
     }
 
+    /** El perfil es público: no revela bancos pendientes, ocultos ni eliminados. */
     @Override
     @Transactional(readOnly = true)
     public PageResult<Resena> deUsuario(String usuarioId, PageQuery page) {
-        return resenas.findByAutor(usuarioId, page);
+        return resenas.findByAutorEnBancosPublicados(usuarioId, page);
     }
 
     private Resena cargar(UUID resenaId) {
         return resenas.findById(resenaId).orElseThrow(() -> new ResenaNotFoundException(resenaId));
+    }
+
+    private Resena cargarParaActualizar(UUID resenaId) {
+        return resenas.findByIdForUpdate(resenaId).orElseThrow(() -> new ResenaNotFoundException(resenaId));
+    }
+
+    /** Un banco que el actor no puede ver se trata como inexistente para no revelar su existencia. */
+    private Banco cargarBancoVisible(UUID bancoId, Actor actor) {
+        return bancos.findById(bancoId)
+                .filter(b -> b.esVisiblePara(actor))
+                .orElseThrow(() -> new BancoNotFoundException(bancoId));
     }
 
     private Banco bloquearBanco(UUID bancoId) {

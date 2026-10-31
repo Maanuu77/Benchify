@@ -35,6 +35,6 @@ public interface ModeracionUseCase {
 
     Imagen aprobarImagen(Actor actor, UUID imagenId);
 
-    /** Marca la imagen como rechazada y borra el fichero del almacenamiento. */
+    /** Marca la imagen como rechazada y, tras confirmarlo, borra sus ficheros del almacenamiento. */
     void rechazarImagen(Actor actor, UUID imagenId);
 }

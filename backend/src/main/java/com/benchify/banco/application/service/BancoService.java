@@ -5,6 +5,7 @@ import com.benchify.banco.application.port.in.ConsultarBancosUseCase;
 import com.benchify.banco.application.port.in.GestionarBancoUseCase;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.EtiquetaRepository;
+import com.benchify.banco.application.port.out.ImagenRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BancoNotFoundException;
@@ -14,6 +15,7 @@ import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.DireccionPostal;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
+import com.benchify.banco.domain.Imagen;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.PageQuery;
@@ -35,32 +37,66 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
 
     private final BancoRepository bancos;
     private final EtiquetaRepository etiquetas;
+    private final ImagenRepository imagenes;
+    private final BorradoFicherosImagen ficheros;
     private final Clock clock;
 
-    public BancoService(BancoRepository bancos, EtiquetaRepository etiquetas, Clock clock) {
+    public BancoService(BancoRepository bancos, EtiquetaRepository etiquetas, ImagenRepository imagenes,
+            BorradoFicherosImagen ficheros, Clock clock) {
         this.bancos = bancos;
         this.etiquetas = etiquetas;
+        this.imagenes = imagenes;
+        this.ficheros = ficheros;
         this.clock = clock;
     }
 
+    /**
+     * Contar las propuestas pendientes del autor las bloquea hasta que esta transacción termina,
+     * así que la comprobación del límite y la inserción son atómicas.
+     */
     @Override
     public Banco proponer(Actor actor, BancoCommand command) {
+        Banco.exigirCupoDePropuestas(actor, () -> bancos.countPendientesByAutorForUpdate(actor.userId()));
         Banco banco = Banco.proponer(UUID.randomUUID(), toDatos(command), actor, clock.instant());
         return bancos.save(banco);
     }
 
+    /**
+     * Con versión esperada la fila se bloquea antes de compararla, así que la comprobación y el
+     * guardado son atómicos: de dos ediciones simultáneas desde la misma versión, la segunda recibe
+     * un 412 en lugar de pisar a la primera.
+     */
     @Override
-    public Banco editar(Actor actor, UUID bancoId, BancoCommand command) {
-        Banco banco = cargarVisible(bancoId, actor);
+    public Banco editar(Actor actor, UUID bancoId, BancoCommand command, Long versionEsperada) {
+        Banco banco;
+        if (versionEsperada == null) {
+            banco = cargarVisible(bancoId, actor);
+        } else {
+            banco = bancos.findByIdForUpdate(bancoId)
+                    .filter(b -> b.esVisiblePara(actor))
+                    .orElseThrow(() -> new BancoNotFoundException(bancoId));
+            banco.exigirVersion(versionEsperada, actor);
+        }
         banco.editar(toDatos(command), actor);
         return bancos.save(banco);
     }
 
+    /**
+     * El borrado del banco es lógico, pero no se puede deshacer: sus fotos se borran del todo, las filas
+     * ahora y los ficheros del bucket tras el commit, para que dejen de ser accesibles. La fila del banco
+     * se bloquea para que una subida simultánea no deje una foto suelta.
+     */
     @Override
     public void eliminar(Actor actor, UUID bancoId) {
-        Banco banco = cargarVisible(bancoId, actor);
+        Banco banco = bancos.findByIdForUpdate(bancoId)
+                .filter(b -> b.esVisiblePara(actor))
+                .orElseThrow(() -> new BancoNotFoundException(bancoId));
         banco.eliminar(actor);
         bancos.save(banco);
+        List<String> rutas = imagenes.deleteByBanco(bancoId).stream()
+                .flatMap(imagen -> imagen.rutas().stream())
+                .toList();
+        ficheros.borrarTrasCommit(rutas);
     }
 
     @Override

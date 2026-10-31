@@ -29,8 +29,9 @@ spring:
     clean-disabled: true
   servlet:
     multipart:
+      # Same limit as ArchivoImagen.MAX_BYTES; the request only adds the multipart framing
       max-file-size: 10MB
-      max-request-size: 15MB
+      max-request-size: 11MB
 
 server:
   port: ${PORT:8080}
@@ -44,6 +45,16 @@ benchify:
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:demo-benchify}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}
+  rate-limit:
+    # Writes under /api/** per user (client IP when anonymous). Buckets live in memory, so every
+    # Cloud Run instance enforces its own limit
+    writes:
+      capacity: 30
+      period: 1m
+    # POST /api/v1/bancos/{id}/imagenes
+    uploads:
+      capacity: 10
+      period: 10m
 
 management:
   endpoints:

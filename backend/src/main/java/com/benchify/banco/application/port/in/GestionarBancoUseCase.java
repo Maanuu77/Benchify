@@ -9,7 +9,12 @@ public interface GestionarBancoUseCase {
 
     Banco proponer(Actor actor, BancoCommand command);
 
-    Banco editar(Actor actor, UUID bancoId, BancoCommand command);
+    /**
+     * @param versionEsperada versión de la que parte el cliente ({@code If-Match}), o {@code null}
+     *                        para editar sin comprobarla (gana la última edición)
+     * @throws com.benchify.shared.domain.PreconditionFailedException si el banco ya no está en esa versión
+     */
+    Banco editar(Actor actor, UUID bancoId, BancoCommand command, Long versionEsperada);
 
     void eliminar(Actor actor, UUID bancoId);
 }

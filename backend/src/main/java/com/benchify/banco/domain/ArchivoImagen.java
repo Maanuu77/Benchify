@@ -11,7 +11,8 @@ import java.util.Map;
  */
 public record ArchivoImagen(String contentType, byte[] contenido) {
 
-    public static final long MAX_BYTES = 5L * 1024 * 1024;
+    /** Cabe una foto de móvil sin comprimir; al guardarla se recodifica y ocupa mucho menos. */
+    public static final long MAX_BYTES = 10L * 1024 * 1024;
 
     private static final Map<String, String> EXTENSIONES = Map.of(
             "image/jpeg", "jpg",
@@ -22,15 +23,21 @@ public record ArchivoImagen(String contentType, byte[] contenido) {
         if (contenido == null || contenido.length == 0) {
             throw new BusinessRuleException("IMAGEN_VACIA", "El fichero está vacío");
         }
-        if (contenido.length > MAX_BYTES) {
-            throw new BusinessRuleException("IMAGEN_DEMASIADO_GRANDE", "La imagen no puede superar 5 MB");
-        }
+        comprobarTamano(contenido.length);
         if (contentType == null || !EXTENSIONES.containsKey(contentType)) {
             throw new BusinessRuleException("IMAGEN_FORMATO_NO_SOPORTADO", "Formatos admitidos: JPEG, PNG y WebP");
         }
         if (!firmaCoincide(contentType, contenido)) {
             throw new BusinessRuleException("IMAGEN_CONTENIDO_INVALIDO",
                     "El contenido del fichero no corresponde a una imagen " + EXTENSIONES.get(contentType).toUpperCase());
+        }
+    }
+
+    /** Permite rechazar un fichero por su tamaño declarado antes de cargarlo en memoria. */
+    public static void comprobarTamano(long bytes) {
+        if (bytes > MAX_BYTES) {
+            throw new BusinessRuleException("IMAGEN_DEMASIADO_GRANDE",
+                    "La imagen no puede superar " + MAX_BYTES / (1024 * 1024) + " MB");
         }
     }
 

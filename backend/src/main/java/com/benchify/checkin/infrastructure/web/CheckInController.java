@@ -49,9 +49,10 @@ class CheckInController {
     }
 
     @GetMapping("/api/v1/bancos/{bancoId}/checkins/total")
-    @Operation(summary = "Número de check-ins de un banco")
-    TotalCheckInsResponse total(@PathVariable UUID bancoId) {
-        return new TotalCheckInsResponse(checkIns.totalDeBanco(bancoId));
+    @Operation(summary = "Número de check-ins de un banco",
+            description = "404 si el banco no existe o quien consulta no puede verlo.")
+    TotalCheckInsResponse total(@PathVariable UUID bancoId, @CurrentActor(required = false) Actor actor) {
+        return new TotalCheckInsResponse(checkIns.totalDeBanco(bancoId, actor));
     }
 
     @GetMapping("/api/v1/usuarios/me/checkins")

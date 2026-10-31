@@ -5,9 +5,13 @@ import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.DomainException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.NotFoundException;
+import com.benchify.shared.domain.PreconditionFailedException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PessimisticLockException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -61,12 +65,31 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex);
     }
 
-    /** Dos escrituras simultáneas sobre el mismo recurso (versión optimista o bloqueo). */
-    @ExceptionHandler({OptimisticLockingFailureException.class, PessimisticLockingFailureException.class})
+    @ExceptionHandler(PreconditionFailedException.class)
+    ProblemDetail handlePreconditionFailed(PreconditionFailedException ex) {
+        return problem(HttpStatus.PRECONDITION_FAILED, ex);
+    }
+
+    /**
+     * Dos escrituras simultáneas sobre el mismo recurso (versión optimista o bloqueo). Las
+     * excepciones de JPA llegan sin traducir cuando un adaptador vuelca el {@code EntityManager}.
+     */
+    @ExceptionHandler({OptimisticLockingFailureException.class, PessimisticLockingFailureException.class,
+            OptimisticLockException.class, PessimisticLockException.class})
     ProblemDetail handleConcurrentUpdate(RuntimeException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "El recurso se ha modificado a la vez desde otra petición; vuelve a intentarlo");
         problem.setProperty(CODE, "CONFLICTO_CONCURRENTE");
+        return problem;
+    }
+
+    /** Restricción de la base de datos (clave duplicada, referencia rota…): el SQL no sale en la respuesta. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "La operación choca con datos ya guardados; vuelve a intentarlo");
+        problem.setProperty(CODE, "CONFLICTO_DATOS");
         return problem;
     }
 

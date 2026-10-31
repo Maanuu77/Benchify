@@ -193,7 +193,20 @@ class BancoPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
         assertThat(bancos.countByEstado(EstadoBanco.PENDIENTE)).isEqualTo(antes + 2);
         assertThat(bancos.findByEstado(EstadoBanco.PENDIENTE, PageQuery.first(1)).content())
                 .extracting(Banco::id).containsExactly(viejo.id());
-        assertThat(bancos.existsPublicado(viejo.id())).isFalse();
+    }
+
+    @Test
+    void countsOnlyThePendingBenchesOfTheAuthor() {
+        long antes = bancos.countPendientesByAutorForUpdate("autor-it");
+        bancos.save(Banco.proponer(UUID.randomUUID(), datos("Pendiente", GIRALDA, Set.of(), false), AUTOR, AHORA));
+        publicado("Publicado", GIRALDA, 0, false);
+        Banco oculto = Banco.proponer(UUID.randomUUID(), datos("Oculto", GIRALDA, Set.of(), false), AUTOR, AHORA);
+        oculto.rechazar();
+        bancos.save(oculto);
+        bancos.save(Banco.proponer(UUID.randomUUID(), datos("Ajeno", GIRALDA, Set.of(), false), Actor.user("otro-it"),
+                AHORA));
+
+        assertThat(bancos.countPendientesByAutorForUpdate("autor-it")).isEqualTo(antes + 1);
     }
 
     private Banco publicado(String titulo, Ubicacion ubicacion, double media, boolean accesible) {
