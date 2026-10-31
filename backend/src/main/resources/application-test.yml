@@ -6,6 +6,9 @@ benchify:
   firebase:
     # Tests use StubIdTokenVerifier instead of the Admin SDK
     enabled: false
+  rate-limit:
+    # Flows make many writes in a row; the rate limiter has its own tests
+    enabled: false
 
 logging:
   level:

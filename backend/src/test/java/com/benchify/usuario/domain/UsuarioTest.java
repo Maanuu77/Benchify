@@ -4,6 +4,7 @@ import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.Rol;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +41,7 @@ class UsuarioTest {
     }
 
     @Test
-    void syncUpdatesRoleAndEmailButKeepsTheChosenName() {
+    void syncUpdatesEmailButKeepsTheChosenNameAndTheStoredRole() {
         Usuario usuario = Usuario.registrar(new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER), AHORA)
                 .actualizarPerfil("Anita", "Sevilla");
         IdentidadUsuario identidad = new IdentidadUsuario("uid", "b@x.com", "Ana", null, Rol.ADMIN);
@@ -51,7 +52,8 @@ class UsuarioTest {
         assertThat(sincronizado.nombre()).isEqualTo("Anita");
         assertThat(sincronizado.ciudad()).isEqualTo("Sevilla");
         assertThat(sincronizado.email()).isEqualTo("b@x.com");
-        assertThat(sincronizado.rol()).isEqualTo(Rol.ADMIN);
+        // Un token antiguo no puede cambiar el rol: la fuente de verdad es la base de datos
+        assertThat(sincronizado.rol()).isEqualTo(Rol.USER);
         assertThat(sincronizado.ultimoAcceso()).isEqualTo(AHORA.plusSeconds(60));
         assertThat(sincronizado.fechaRegistro()).isEqualTo(AHORA);
     }
@@ -63,6 +65,22 @@ class UsuarioTest {
 
         assertThat(usuario.difiereDe(identidad)).isFalse();
         assertThat(usuario.difiereDe(new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER))).isFalse();
+        // El rol del token no cuenta como cambio
+        assertThat(usuario.difiereDe(new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.ADMIN))).isFalse();
+    }
+
+    @Test
+    void lastAccessIsPersistedOnlyWhenOlderThanFifteenMinutes() {
+        IdentidadUsuario identidad = new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER);
+        Usuario usuario = Usuario.registrar(identidad, AHORA);
+
+        assertThat(usuario.debeSincronizarse(identidad, AHORA.plus(Duration.ofMinutes(14)))).isFalse();
+        assertThat(usuario.debeSincronizarse(identidad, AHORA.plus(Usuario.REFRESCO_ULTIMO_ACCESO))).isFalse();
+        assertThat(usuario.debeSincronizarse(identidad, AHORA.plus(Usuario.REFRESCO_ULTIMO_ACCESO).plusSeconds(1)))
+                .isTrue();
+        // Un cambio en la identidad se guarda aunque el último acceso sea reciente
+        assertThat(usuario.debeSincronizarse(new IdentidadUsuario("uid", "b@x.com", "Ana", null, Rol.USER), AHORA))
+                .isTrue();
     }
 
     @Test

@@ -11,6 +11,7 @@ import jakarta.persistence.PessimisticLockException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -79,6 +80,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "El recurso se ha modificado a la vez desde otra petición; vuelve a intentarlo");
         problem.setProperty(CODE, "CONFLICTO_CONCURRENTE");
+        return problem;
+    }
+
+    /** Restricción de la base de datos (clave duplicada, referencia rota…): el SQL no sale en la respuesta. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "La operación choca con datos ya guardados; vuelve a intentarlo");
+        problem.setProperty(CODE, "CONFLICTO_DATOS");
         return problem;
     }
 
