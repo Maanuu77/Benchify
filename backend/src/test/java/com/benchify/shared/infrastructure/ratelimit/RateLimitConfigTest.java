@@ -57,7 +57,7 @@ class RateLimitConfigTest {
                 .header("Origin", "http://localhost:4200"))
                 .hasStatus(429)
                 .hasHeader("Access-Control-Allow-Origin", "http://localhost:4200")
-                .headers().hasValue("Access-Control-Expose-Headers", "Location, Retry-After");
+                .headers().hasValue("Access-Control-Expose-Headers", "Location, ETag, Retry-After");
     }
 
     @Test
