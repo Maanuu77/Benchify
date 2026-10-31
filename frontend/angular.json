@@ -33,10 +33,11 @@
               }
             ],
             "styles": [
-              "node_modules/leaflet/dist/leaflet.css",
-              "node_modules/leaflet.markercluster/dist/MarkerCluster.css",
-              "node_modules/leaflet.markercluster/dist/MarkerCluster.Default.css",
-              "src/styles.scss"
+              "node_modules/@fontsource-variable/inter/index.css",
+              "node_modules/@fontsource/material-icons/index.css",
+              "src/styles.scss",
+              { "input": "node_modules/leaflet/dist/leaflet.css", "bundleName": "leaflet", "inject": false },
+              { "input": "node_modules/leaflet.markercluster/dist/MarkerCluster.css", "bundleName": "leaflet", "inject": false }
             ],
             "allowedCommonJsDependencies": [
               "leaflet",

@@ -7,7 +7,7 @@ import { MatIcon } from '@angular/material/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="state">
-      <mat-icon aria-hidden="true">{{ icon() }}</mat-icon>
+      <span class="icono" aria-hidden="true"><mat-icon>{{ icon() }}</mat-icon></span>
       <p>{{ message() }}</p>
       <ng-content />
     </div>
@@ -17,13 +17,29 @@ import { MatIcon } from '@angular/material/icon';
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       padding: 32px 16px;
       text-align: center;
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bf-ink-2);
+    }
+    .icono {
+      display: grid;
+      place-items: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--bf-accent-soft);
+      color: var(--bf-accent-ink);
+
+      mat-icon {
+        width: 30px;
+        height: 30px;
+        font-size: 30px;
+      }
     }
     p {
       margin: 0;
+      max-width: 34ch;
     }
   `,
 })

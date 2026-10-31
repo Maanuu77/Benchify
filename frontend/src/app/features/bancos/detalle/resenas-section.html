@@ -37,12 +37,15 @@
       @for (resena of resenas(); track resena.id) {
         <li class="resena" [class.propia]="resena.autorId === miUid()">
           <header>
-            <a [routerLink]="['/usuarios', resena.autorId]" class="autor">{{ resena.autorNombre ?? 'Usuario' }}</a>
+            <span class="avatar" aria-hidden="true">{{ (resena.autorNombre ?? 'U').charAt(0).toUpperCase() }}</span>
+            <div class="quien">
+              <a [routerLink]="['/usuarios', resena.autorId]" class="autor">{{ resena.autorNombre ?? 'Usuario' }}</a>
+              <span class="cuando">
+                <time [attr.datetime]="resena.fecha">{{ resena.fecha | date: 'mediumDate' }}</time>
+                @if (resena.fechaEdicion) { · editada }
+              </span>
+            </div>
             <bf-star-rating [value]="resena.puntuacion" />
-            <time [attr.datetime]="resena.fecha">{{ resena.fecha | date: 'mediumDate' }}</time>
-            @if (resena.fechaEdicion) {
-              <span class="editada">(editada)</span>
-            }
           </header>
           @if (resena.comentario) {
             <p>{{ resena.comentario }}</p>

@@ -7,9 +7,9 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
-import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
-import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatError, MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 import { mensajeDeErrorAuth } from '../../core/auth/auth-errors';
@@ -22,8 +22,7 @@ export const passwordsMatch: ValidatorFn = (group: AbstractControl): ValidationE
   selector: 'bf-registro-page',
   imports: [
     ReactiveFormsModule, RouterLink,
-    MatCard, MatCardHeader, MatCardTitle, MatCardContent,
-    MatFormField, MatLabel, MatInput, MatError, MatHint, MatButton,
+    MatFormField, MatLabel, MatInput, MatError, MatHint, MatSuffix, MatButton, MatIconButton, MatIcon,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './registro-page.html',
@@ -37,6 +36,7 @@ export class RegistroPage {
 
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly verPassword = signal(false);
 
   protected readonly form = inject(NonNullableFormBuilder).group(
     {

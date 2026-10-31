@@ -75,13 +75,6 @@ import { Cola } from './cola';
       color: var(--mat-sys-on-surface-variant);
       font: var(--mat-sys-body-small);
     }
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-    }
   `,
 })
 export class AdminUsuarios implements OnInit {

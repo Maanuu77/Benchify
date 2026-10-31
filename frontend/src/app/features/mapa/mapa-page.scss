@@ -1,22 +1,140 @@
+// El mapa ocupa todo el espacio de la página y el resto flota encima
 :host {
+  --bf-hoja-plegada: 168px;
+  position: relative;
   display: block;
-  height: calc(100dvh - 64px);
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: 380px 1fr;
   height: 100%;
+  min-height: 420px;
+  overflow: hidden;
 }
 
-.panel {
+.mapa {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+// ── Controles flotantes ──────────────────────────────────────────────────────
+.controles {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 500;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  overflow-y: auto;
-  border-right: 1px solid var(--mat-sys-outline-variant);
-  background: var(--mat-sys-surface-container-low);
+  gap: 8px;
+
+  :host-context(.app--movil) & {
+    top: auto;
+    right: 12px;
+    // Encima de la hoja plegada
+    bottom: calc(var(--bf-hoja-plegada) + 12px);
+  }
+}
+
+.zoom {
+  display: flex;
+  flex-direction: column;
+  width: 46px;
+  border-radius: 14px;
+  overflow: hidden;
+
+  button + button {
+    border-top: 1px solid var(--bf-line);
+  }
+}
+
+.zoom button,
+.localizar {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  background: none;
+  color: var(--bf-ink);
+  cursor: pointer;
+}
+
+.localizar {
+  border-radius: 14px;
+
+  &.activo {
+    color: var(--bf-accent-ink);
+  }
+}
+
+.filtros-flotantes {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  z-index: 500;
+  padding: 0 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  --bf-filtros-wrap: nowrap;
+  --bf-pildora-fondo: var(--bf-glass);
+  --bf-pildora-sombra: var(--bf-sh-1);
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// ── Panel lateral (escritorio) y hoja inferior (móvil) ──────────────────────
+.panel {
+  position: absolute;
+  box-sizing: border-box;
+  left: 16px;
+  top: 16px;
+  bottom: 16px;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 380px;
+  padding: 18px 16px 8px;
+  border-radius: var(--bf-r-lg);
+}
+
+.hoja {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: auto;
+  height: var(--bf-hoja-plegada);
+  padding: 0 16px;
+  gap: 8px;
+  border-radius: 26px 26px 0 0;
+  background: var(--bf-surface);
+  box-shadow: var(--bf-sh-2);
+  transition: height 350ms var(--bf-ease);
+
+  &--abierta {
+    height: min(70%, 640px);
+  }
+}
+
+.asa {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 24px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+
+  &::before {
+    content: '';
+    width: 40px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--bf-ink-2);
+    opacity: 0.55;
+  }
 }
 
 .panel-header,
@@ -28,60 +146,177 @@
 }
 
 h1 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
-  font: var(--mat-sys-title-large);
+  font: 700 20px/1.2 var(--bf-font);
+  letter-spacing: -0.02em;
+}
+
+.cerca {
+  flex: none;
+  white-space: nowrap;
 }
 
 h2 {
   margin: 0 0 8px;
-  font: var(--mat-sys-title-medium);
+  font: 600 17px/1.3 var(--bf-font);
 }
 
-.seleccionado {
-  padding: 16px;
-  border-radius: 12px;
-  background: var(--mat-sys-secondary-container);
-  color: var(--mat-sys-on-secondary-container);
-
-  .valoracion {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .ciudad {
-    margin: 4px 0 12px;
-  }
-}
-
-.mapa {
-  height: 100%;
-}
-
-// Móvil: el mapa arriba y el panel debajo
-@media (max-width: 840px) {
-  :host {
-    height: auto;
-  }
-
-  .layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: 55dvh auto;
-  }
-
-  .mapa {
-    grid-row: 1;
-  }
-
-  .panel {
-    grid-row: 2;
-    border-right: 0;
-    overflow: visible;
-  }
+.contenido {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -8px;
+  padding: 0 8px 8px;
 }
 
 .aviso-limite {
-  margin: 0 0 8px;
-  font: var(--mat-sys-body-small);
-  color: var(--mat-sys-on-surface-variant);
+  margin: -4px 0 8px;
+  font-size: 13px;
+  color: var(--bf-ink-2);
+}
+
+// ── Tarjeta del banco seleccionado ───────────────────────────────────────────
+.seleccionado {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: var(--bf-r);
+  background: var(--bf-accent-soft);
+
+  h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .acciones {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+}
+
+.seleccionado-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cerrar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bf-surface);
+  color: var(--bf-ink-2);
+  cursor: pointer;
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
+// ── Lista de bancos ──────────────────────────────────────────────────────────
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li + li .item {
+    border-top-color: var(--bf-line);
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-top: 1px solid transparent;
+  color: var(--bf-ink);
+  text-decoration: none;
+  transition: background var(--bf-dur) var(--bf-ease);
+
+  &:hover,
+  &:focus-visible,
+  &--seleccionado {
+    border-radius: 14px;
+    border-top-color: transparent;
+    background: var(--bf-accent-soft);
+  }
+}
+
+.miniatura {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--bf-r-sm);
+  background: var(--bf-surface-2);
+  color: var(--bf-accent-ink);
+}
+
+.texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.titulo {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 600 15px/20px var(--bf-font);
+}
+
+.meta {
+  display: block;
+  margin: 2px 0 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--bf-ink-2);
+
+  b {
+    color: var(--bf-ink);
+  }
+}
+
+.estrella {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+  vertical-align: -2px;
+  color: var(--bf-ink);
+}
+
+.caracteristicas {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+  color: var(--bf-ink-2);
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.distancia {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 2px;
+  font: 600 13px var(--bf-font);
 }

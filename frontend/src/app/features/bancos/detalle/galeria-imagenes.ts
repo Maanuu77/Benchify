@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { catchError, combineLatest, firstValueFrom, map, of, switchMap } from 'rxjs';
@@ -34,23 +34,19 @@ export function validarTamanoImagen(file: File): string | null {
 
 @Component({
   selector: 'bf-galeria-imagenes',
-  imports: [MatButton, MatIconButton, MatIcon, MatProgressBar, ImagenSrc],
+  imports: [MatIconButton, MatIcon, MatProgressBar, ImagenSrc],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section aria-labelledby="titulo-fotos">
       <div class="cabecera">
-        <h2 id="titulo-fotos">Fotos</h2>
-        @if (puedeSubir()) {
-          <input #selector type="file" class="oculto" [accept]="tipos" (change)="subir(selector)" aria-label="Elegir foto" />
-          <button mat-stroked-button type="button" [disabled]="subiendo()" (click)="selector.click()">
-            <mat-icon aria-hidden="true">add_a_photo</mat-icon> Añadir foto
-          </button>
-        }
+        <h2 id="titulo-fotos">Fotos <span class="cuenta">{{ imagenes().length || '' }}</span></h2>
       </div>
       @if (subiendo()) {
         <mat-progress-bar mode="indeterminate" aria-label="Subiendo foto" />
       }
-      @if (imagenes().length === 0) {
+      <input #selector type="file" class="oculto" [accept]="tipos" (change)="subir(selector)" aria-label="Elegir foto"
+             [disabled]="!puedeSubir()" />
+      @if (imagenes().length === 0 && !puedeSubir()) {
         <p class="vacio">{{ error() ?? 'Este banco aún no tiene fotos.' }}</p>
       } @else {
         <ul class="galeria">
@@ -62,9 +58,12 @@ export function validarTamanoImagen(file: File): string | null {
                   <span>Foto no disponible</span>
                 </div>
               } @else {
-                <img [bfImagenSrc]="imagen.thumbUrl" [autenticada]="imagen.requiereAutenticacion"
-                     [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy"
-                     (error)="marcarRota(imagen.id)" (fallo)="marcarRota(imagen.id)" />
+                <button type="button" class="miniatura" (click)="ampliar(imagen, visor)"
+                        [attr.aria-label]="'Ampliar la foto ' + (i + 1)">
+                  <img [bfImagenSrc]="imagen.thumbUrl" [autenticada]="imagen.requiereAutenticacion"
+                       [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy"
+                       (error)="marcarRota(imagen.id)" (fallo)="marcarRota(imagen.id)" />
+                </button>
               }
               @if (imagen.estado === 'PENDIENTE') {
                 <span class="pendiente">Pendiente de revisión</span>
@@ -76,42 +75,86 @@ export function validarTamanoImagen(file: File): string | null {
               }
             </li>
           }
+          @if (puedeSubir()) {
+            <li>
+              <button type="button" class="anadir" [disabled]="subiendo()" (click)="selector.click()">
+                <mat-icon aria-hidden="true">add_a_photo</mat-icon>
+                Añadir foto
+              </button>
+            </li>
+          }
         </ul>
       }
     </section>
+
+    <dialog #visor class="visor" aria-label="Foto ampliada" (close)="ampliada.set(null)">
+      @if (ampliada(); as imagen) {
+        <img [bfImagenSrc]="imagen.url" [autenticada]="imagen.requiereAutenticacion" [alt]="'Foto de ' + tituloBanco()" />
+      }
+      <button mat-icon-button type="button" class="cerrar-visor" aria-label="Cerrar" (click)="visor.close()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </dialog>
   `,
   styles: `
-    .cabecera {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
     h2 {
-      font: var(--mat-sys-title-large);
+      margin: 0 0 12px;
+      font: 600 18px var(--bf-font);
+    }
+    .cuenta {
+      color: var(--bf-ink-2);
+      font-weight: 500;
     }
     .oculto {
       display: none;
     }
     .vacio {
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bf-ink-2);
     }
     .galeria {
       list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      display: flex;
       gap: 8px;
+      margin: 0 -16px;
+      padding: 0 16px 4px;
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      scrollbar-width: thin;
     }
     li {
       position: relative;
+      flex: none;
+      scroll-snap-align: start;
+    }
+    .miniatura,
+    .anadir,
+    .rota {
+      display: block;
+      width: 160px;
+      height: 120px;
+      padding: 0;
+      border: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--bf-surface-2);
+      cursor: zoom-in;
     }
     img {
       width: 100%;
-      aspect-ratio: 4 / 3;
+      height: 100%;
       object-fit: cover;
-      border-radius: 8px;
       display: block;
+    }
+    .anadir {
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 4px;
+      border: 1.5px dashed var(--bf-ink-2);
+      background: transparent;
+      color: var(--bf-ink-2);
+      font: 600 13px var(--bf-font);
+      cursor: pointer;
     }
     .rota {
       display: flex;
@@ -119,19 +162,17 @@ export function validarTamanoImagen(file: File): string | null {
       align-items: center;
       justify-content: center;
       gap: 4px;
-      aspect-ratio: 4 / 3;
-      border-radius: 8px;
-      background: var(--mat-sys-surface-container-high);
-      color: var(--mat-sys-on-surface-variant);
-      font: var(--mat-sys-label-medium);
+      color: var(--bf-ink-2);
+      font: 500 12px var(--bf-font);
+      cursor: default;
     }
     .pendiente {
       position: absolute;
       left: 8px;
       bottom: 8px;
       padding: 2px 8px;
-      border-radius: 4px;
-      font: var(--mat-sys-label-small);
+      border-radius: var(--bf-r-pill);
+      font: 600 11px var(--bf-font);
       background: var(--mat-sys-tertiary-container);
       color: var(--mat-sys-on-tertiary-container);
     }
@@ -139,7 +180,31 @@ export function validarTamanoImagen(file: File): string | null {
       position: absolute;
       top: 4px;
       right: 4px;
-      background: var(--mat-sys-surface);
+      background: var(--bf-glass);
+    }
+    .visor {
+      max-width: min(96vw, 1200px);
+      max-height: 92vh;
+      padding: 0;
+      border: 0;
+      border-radius: var(--bf-r);
+      background: #000;
+      overflow: hidden;
+
+      &::backdrop {
+        background: rgb(0 0 0 / 80%);
+      }
+      img {
+        max-height: 92vh;
+        object-fit: contain;
+      }
+    }
+    .cerrar-visor {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgb(0 0 0 / 55%);
+      color: #fff;
     }
   `,
 })
@@ -157,6 +222,8 @@ export class GaleriaImagenes {
   protected readonly subiendo = signal(false);
   /** Imágenes cuyo fichero no se ha podido descargar (borrado o sin conexión con Storage). */
   protected readonly rotas = signal(new Set<string>());
+  /** Foto abierta en el visor a pantalla completa. */
+  protected readonly ampliada = signal<Imagen | null>(null);
   protected readonly miUid = computed(() => this.auth.session()?.uid ?? null);
   private readonly recarga = signal(0);
 
@@ -207,6 +274,11 @@ export class GaleriaImagenes {
     } finally {
       this.subiendo.set(false);
     }
+  }
+
+  protected ampliar(imagen: Imagen, visor: HTMLDialogElement): void {
+    this.ampliada.set(imagen);
+    visor.showModal?.();
   }
 
   protected marcarRota(id: string): void {

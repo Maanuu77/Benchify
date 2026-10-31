@@ -10,6 +10,20 @@ Todos los cambios relevantes de Benchify. Formato basado en
 Desde la 1.0.1 los números `#n` son issues de GitHub
 ([tablero](https://github.com/users/Maanuu77/projects/1)); los de versiones anteriores son del roadmap antiguo.
 
+### Rediseño de la interfaz
+
+- Nuevo estilo "minimal moderno": tokens de color con modo claro y oscuro automático, verde de
+  marca #22C55E, paneles translúcidos, Inter y Material Icons autoalojados y logo nuevo (#43).
+- Cabecera ligera en escritorio y barra de navegación inferior en móvil (#44).
+- Mapa a pantalla completa con panel lateral (escritorio) u hoja inferior (móvil), filtros en
+  píldoras, controles flotantes, marcadores y clústeres propios y teselas de OpenStreetMap
+  atenuadas; la vista y los filtros se guardan en la URL (#45, #46). Los marcadores se actualizan
+  por diferencias en lugar de recrearse en cada movimiento (#47).
+- Ficha con el mapa como cabecera, tarjeta de resumen, acciones grandes (incluida "Compartir"),
+  fila de fotos con visor y reseñas en tarjetas (#48).
+- Formulario de banco, acceso, perfil y moderación con el nuevo estilo; skeletons de carga y
+  estados de vacío y error rediseñados (#49–#53).
+
 ### Seguridad
 
 - Las fotos pendientes de moderación ya no son públicas: se guardan en `pendientes/` y solo las
