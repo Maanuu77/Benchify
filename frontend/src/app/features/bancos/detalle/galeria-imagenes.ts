@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { catchError, combineLatest, firstValueFrom, map, of, switchMap } from 'rxjs';
@@ -34,7 +34,7 @@ export function validarTamanoImagen(file: File): string | null {
 
 @Component({
   selector: 'bf-galeria-imagenes',
-  imports: [MatButton, MatIconButton, MatIcon, MatProgressBar, ImagenSrc],
+  imports: [MatIconButton, MatIcon, MatProgressBar, ImagenSrc],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section aria-labelledby="titulo-fotos">
@@ -87,7 +87,7 @@ export function validarTamanoImagen(file: File): string | null {
       }
     </section>
 
-    <dialog #visor class="visor" aria-label="Foto ampliada" (click)="visor.close()" (close)="ampliada.set(null)">
+    <dialog #visor class="visor" aria-label="Foto ampliada" (close)="ampliada.set(null)">
       @if (ampliada(); as imagen) {
         <img [bfImagenSrc]="imagen.url" [autenticada]="imagen.requiereAutenticacion" [alt]="'Foto de ' + tituloBanco()" />
       }
