@@ -85,7 +85,7 @@
         </div>
         @switch (estado.status) {
           @case ('loading') {
-            <bf-loading-state message="Buscando bancos cercanos…" />
+            <bf-loading-state message="Buscando bancos cercanos…" [esqueleto]="3" />
           }
           @case ('error') {
             <bf-error-state [message]="estado.error.message" [retryable]="!!usuario()" (retry)="cargarCercanos(usuario()!)" />
@@ -123,7 +123,7 @@
           }
           @default {
             @if (estado().status === 'loading' && bancos().length === 0) {
-              <bf-loading-state message="Cargando bancos…" />
+              <bf-loading-state message="Cargando bancos…" [esqueleto]="4" />
             } @else if (bancos().length === 0) {
               <bf-empty-state icon="search_off" message="No hay bancos aquí con estos filtros. Mueve el mapa o quita filtros." />
             } @else {
