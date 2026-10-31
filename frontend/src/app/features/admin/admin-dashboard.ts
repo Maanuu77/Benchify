@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
+import { switchMap } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
 import { Loadable, loadable } from '../../core/api/api-error';
 import { EstadisticasModeracion } from '../../core/api/models';
@@ -15,7 +16,7 @@ import { LoadingState } from '../../shared/ui/loading-state';
   template: `
     @switch (estado().status) {
       @case ('loading') { <bf-loading-state message="Cargando resumen…" /> }
-      @case ('error') { <bf-error-state message="No hemos podido cargar el resumen." [retryable]="false" /> }
+      @case ('error') { <bf-error-state message="No hemos podido cargar el resumen." (retry)="recargar()" /> }
       @case ('success') {
         @let e = estadisticas()!;
         <h2 class="sr-only">Pendiente de revisar</h2>
@@ -56,41 +57,57 @@ import { LoadingState } from '../../shared/ui/loading-state';
       flex-direction: column;
       gap: 4px;
       padding: 16px;
-      border-radius: 12px;
+      border-radius: var(--bf-r);
       text-decoration: none;
-      color: var(--mat-sys-on-tertiary-container);
-      background: var(--mat-sys-tertiary-container);
+      color: var(--bf-ink);
+      background: var(--bf-accent-soft);
+      transition: transform 120ms var(--bf-ease), box-shadow var(--bf-dur) var(--bf-ease);
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--bf-sh-2);
+      }
+      mat-icon {
+        color: var(--bf-accent-ink);
+      }
     }
     .tarjeta strong {
-      font: var(--mat-sys-display-small);
+      font: 700 40px/1 var(--bf-font);
+      letter-spacing: -0.03em;
+    }
+    .tarjeta span {
+      color: var(--bf-ink-2);
     }
     .totales div {
-      padding: 12px 16px;
-      border-radius: 12px;
-      background: var(--mat-sys-surface-container);
+      padding: 14px 16px;
+      border-radius: var(--bf-r);
+      background: var(--bf-surface-2);
     }
     dt {
-      color: var(--mat-sys-on-surface-variant);
+      font-size: 13px;
+      color: var(--bf-ink-2);
     }
     dd {
       margin: 4px 0 0;
-      font: var(--mat-sys-headline-small);
+      font: 700 24px var(--bf-font);
     }
     h2 {
-      font: var(--mat-sys-title-medium);
-    }
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
+      font: 600 17px var(--bf-font);
     }
   `,
 })
 export class AdminDashboard {
-  protected readonly estado = toSignal(loadable(inject(AdminApi).estadisticas()),
-    { initialValue: { status: 'loading' } as Loadable<EstadisticasModeracion> });
+  private readonly api = inject(AdminApi);
+  private readonly recarga = signal(0);
+
+  protected readonly estado = toSignal(
+    toObservable(this.recarga).pipe(switchMap(() => loadable(this.api.estadisticas()))),
+    { initialValue: { status: 'loading' } as Loadable<EstadisticasModeracion> },
+  );
+
+  protected recargar(): void {
+    this.recarga.update((n) => n + 1);
+  }
 
   protected estadisticas(): EstadisticasModeracion | null {
     const estado = this.estado();
