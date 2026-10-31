@@ -60,7 +60,7 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
         Optional<Usuario> guardado = usuarios.findById(identidad.id());
         Usuario usuario;
         if (guardado.isEmpty()) {
-            // Alta: el único momento en que se toma el rol del token
+            // Alta: se toma el rol del token, así entra el primer administrador
             usuario = usuarios.registrarSiNoExiste(Usuario.registrar(identidad, ahora));
         } else if (guardado.get().debeSincronizarse(identidad, ahora)) {
             usuario = guardado.get().sincronizar(identidad, ahora);

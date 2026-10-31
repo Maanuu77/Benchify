@@ -76,6 +76,8 @@ public class OpenApiConfig {
             if (!handlerMethod.hasMethodAnnotation(GetMapping.class)) {
                 responses.putIfAbsent("409", problem("Conflicto con el estado actual"));
                 responses.putIfAbsent("422", problem("Regla de negocio incumplida"));
+                responses.putIfAbsent("429", problem("Demasiadas escrituras seguidas; la cabecera Retry-After "
+                        + "indica cuántos segundos esperar"));
             }
             return operation;
         };

@@ -36,8 +36,8 @@ public record Usuario(
     }
 
     /**
-     * Alta de un usuario que inicia sesión por primera vez. Es el único momento en que se toma el
-     * rol del token: así se da de alta el primer administrador.
+     * Alta de un usuario que inicia sesión por primera vez, con el rol del token: así se da de alta
+     * el primer administrador. Después el rol ya no se toma del token (véase {@link #sincronizar}).
      */
     public static Usuario registrar(IdentidadUsuario identidad, Instant ahora) {
         return new Usuario(identidad.id(), identidad.email(), nombreVisible(identidad), identidad.avatarUrl(),
