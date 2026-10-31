@@ -63,6 +63,13 @@ class ImagenPersistenceAdapter implements ImagenRepository {
     }
 
     @Override
+    public List<Imagen> deleteByBanco(UUID bancoId) {
+        List<ImagenEntity> borradas = repository.findByBancoIdForUpdate(bancoId);
+        repository.deleteAll(borradas);
+        return borradas.stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
     public PageResult<Imagen> findByEstado(EstadoImagen estado, PageQuery page) {
         return SpringDataPages.result(repository.findByEstado(estado, SpringDataPages.pageable(page, MAS_ANTIGUAS)),
                 mapper::toDomain);

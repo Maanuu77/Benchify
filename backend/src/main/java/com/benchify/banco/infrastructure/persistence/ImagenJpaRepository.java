@@ -23,6 +23,11 @@ interface ImagenJpaRepository extends JpaRepository<ImagenEntity, UUID> {
 
     long countByBancoIdAndEstadoNot(UUID bancoId, EstadoImagen estado);
 
+    /** Bloquea las imágenes del banco: así se leen las rutas vigentes aunque se esté aprobando alguna. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from ImagenEntity i where i.bancoId = :bancoId")
+    List<ImagenEntity> findByBancoIdForUpdate(@Param("bancoId") UUID bancoId);
+
     Page<ImagenEntity> findByEstado(EstadoImagen estado, Pageable pageable);
 
     long countByEstado(EstadoImagen estado);

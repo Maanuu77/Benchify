@@ -34,6 +34,9 @@ public interface ImagenRepository {
 
     long countActivasByBanco(UUID bancoId);
 
+    /** Borra todas las imágenes de un banco, también las rechazadas, y devuelve las borradas. */
+    List<Imagen> deleteByBanco(UUID bancoId);
+
     /** Imágenes en un estado, de la más antigua a la más reciente (cola de moderación). */
     PageResult<Imagen> findByEstado(EstadoImagen estado, PageQuery page);
 

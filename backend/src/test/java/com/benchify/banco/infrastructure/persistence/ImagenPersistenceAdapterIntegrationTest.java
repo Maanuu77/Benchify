@@ -85,6 +85,17 @@ class ImagenPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
         assertThat(imagenes.findById(pendiente.id())).isEmpty();
     }
 
+    @Test
+    void deletesEveryImageOfABenchIncludingRejectedOnes() {
+        Imagen aprobada = imagenes.save(imagen(EstadoImagen.APROBADA, AHORA));
+        Imagen rechazada = imagenes.save(imagen(EstadoImagen.RECHAZADA, AHORA.plusSeconds(1)));
+
+        assertThat(imagenes.deleteByBanco(bancoId)).containsExactlyInAnyOrder(aprobada, rechazada);
+        assertThat(imagenes.findById(aprobada.id())).isEmpty();
+        assertThat(imagenes.findById(rechazada.id())).isEmpty();
+        assertThat(imagenes.deleteByBanco(bancoId)).isEmpty();
+    }
+
     private Imagen imagen(EstadoImagen estado, Instant fecha) {
         UUID id = UUID.randomUUID();
         return new Imagen(id, bancoId, "bancos/" + bancoId + "/" + id + ".jpg", "https://storage.test/" + id,
