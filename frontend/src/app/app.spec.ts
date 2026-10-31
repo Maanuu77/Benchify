@@ -17,7 +17,7 @@ describe('App', () => {
     await fixture.whenStable();
     const element: HTMLElement = fixture.nativeElement;
 
-    expect(element.querySelector('.brand')?.textContent).toContain('Benchify');
+    expect(element.querySelector('.marca')?.textContent).toContain('Benchify');
     expect(element.querySelector('a.skip-link')?.getAttribute('href')).toBe('#contenido');
     expect(element.querySelector('main#contenido')).not.toBeNull();
   });
