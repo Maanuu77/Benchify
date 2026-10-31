@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
-import { BancoModeracion, Page, Usuario } from '../../core/api/models';
+import { BancoModeracion, Page, PageRequest, Usuario } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { FakeAuthService } from '../../core/auth/testing/fake-auth.service';
 import { Notifier } from '../../core/ui/notifier';
@@ -38,6 +38,28 @@ describe('Cola', () => {
     cola.quitar('b');
     expect(cola.items().map((b) => b.id)).toEqual(['a', 'c']);
     expect(cola.total()).toBe(2);
+  });
+
+  it('does not skip items when resolved ones leave the server queue', async () => {
+    // Cola del servidor: lo que se resuelve desaparece y el resto se desplaza
+    const servidor = ['a', 'b', 'c', 'd', 'e'].map(banco);
+    const fuente = vi.fn(({ page = 0, size = 20 }: PageRequest) =>
+      of(pagina(servidor.slice(page * size, page * size + size), servidor.length)));
+    const cola = new Cola<BancoModeracion>(fuente, 2);
+    const resolver = (id: string) => {
+      servidor.splice(servidor.findIndex((b) => b.id === id), 1);
+      cola.quitar(id);
+    };
+
+    await cola.cargar();
+    resolver('a');
+    await cola.cargarMas();
+    expect(cola.items().map((b) => b.id)).toEqual(['b', 'c']);
+
+    resolver('b');
+    resolver('c');
+    await vi.waitFor(() => expect(cola.items().map((b) => b.id)).toEqual(['d', 'e']));
+    expect(cola.hayMas()).toBe(false);
   });
 
   it('keeps an error message when the API fails', async () => {
