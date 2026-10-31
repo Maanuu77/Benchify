@@ -6,7 +6,8 @@ import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { catchError, combineLatest, firstValueFrom, of, switchMap } from 'rxjs';
 import { toApiError } from '../../../core/api/api-error';
 import { Resena } from '../../../core/api/models';
 import { ResenasApi } from '../../../core/api/resenas-api';
@@ -54,7 +55,21 @@ export class ResenasSection {
   protected readonly enviando = signal(false);
 
   protected readonly miUid = computed(() => this.auth.session()?.uid ?? null);
-  protected readonly miResena = computed(() => this.resenas().find((r) => r.autorId === this.miUid()) ?? null);
+  private readonly recargaMia = signal(0);
+  /**
+   * La reseña propia se pide aparte: puede estar en una página que no se ha cargado. Si falla la
+   * petición se busca en las cargadas, que es mejor que ofrecer un formulario que dará duplicado.
+   */
+  protected readonly miResena = toSignal(
+    combineLatest([toObservable(this.bancoId), toObservable(this.miUid), toObservable(this.recargaMia)]).pipe(
+      switchMap(([bancoId, uid]) =>
+        uid
+          ? this.api.mia(bancoId).pipe(catchError(() => of(this.resenas().find((r) => r.autorId === uid) ?? null)))
+          : of(null),
+      ),
+    ),
+    { initialValue: null },
+  );
   protected readonly puedeEscribir = computed(() =>
     this.auth.isAuthenticated() && this.publicado() && this.miUid() !== this.autorBancoId()
     && (!this.miResena() || this.editando() !== null));
@@ -106,6 +121,7 @@ export class ResenasSection {
       }
       this.editando.set(null);
       this.limpiarFormulario();
+      this.recargaMia.update((n) => n + 1);
       await this.recargar();
       this.valoracionCambiada.emit();
     } catch (error) {
@@ -123,6 +139,7 @@ export class ResenasSection {
     try {
       await firstValueFrom(this.api.eliminar(resena.id));
       this.notifier.success('Reseña borrada');
+      this.recargaMia.update((n) => n + 1);
       await this.recargar();
       this.valoracionCambiada.emit();
     } catch (error) {

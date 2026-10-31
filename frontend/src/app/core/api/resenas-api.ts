@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { catchError, Observable, of, throwError } from 'rxjs';
 import { API_URL } from '../config/api-url';
 import { params } from './http-params';
 import { Page, PageRequest, Resena, ResenaRequest } from './models';
@@ -12,6 +12,15 @@ export class ResenasApi {
 
   deBanco(bancoId: string, page: PageRequest = {}): Observable<Page<Resena>> {
     return this.http.get<Page<Resena>>(`${this.url}/bancos/${bancoId}/resenas`, { params: params({ ...page }) });
+  }
+
+  /** Reseña del usuario actual para este banco, esté en la página que esté; null si no tiene. */
+  mia(bancoId: string): Observable<Resena | null> {
+    return this.http.get<Resena>(`${this.url}/bancos/${bancoId}/resenas/mia`).pipe(
+      catchError((error: unknown) =>
+        error instanceof HttpErrorResponse && error.error?.code === 'RESENA_NO_ENCONTRADA' ? of(null) : throwError(() => error),
+      ),
+    );
   }
 
   deUsuario(usuarioId: string, page: PageRequest = {}): Observable<Page<Resena>> {

@@ -90,6 +90,31 @@ describe('BancoDetallePage', () => {
     expect(element.textContent).not.toContain('Eliminar');
   });
 
+  it('refreshes the bench without unmounting the page', async () => {
+    await crear();
+    const cabecera = element.querySelector('h1');
+    bancos.obtener.mockReturnValue(of({ ...BANCO, numResenas: 4 }));
+
+    fixture.componentInstance['recargar']();
+    await fixture.whenStable();
+
+    expect(element.querySelector('h1')).toBe(cabecera);
+    expect(element.textContent).toContain('4 reseñas');
+  });
+
+  it('reloads the bench and the favourite when the user signs in', async () => {
+    usuarios['esFavorito'].mockReturnValue(of(true));
+    await crear();
+    expect(usuarios['esFavorito']).not.toHaveBeenCalled();
+
+    auth.signIn();
+    await fixture.whenStable();
+
+    expect(bancos.obtener).toHaveBeenCalledTimes(2);
+    expect(usuarios['esFavorito']).toHaveBeenCalledWith('b1');
+    expect(element.querySelector('[aria-pressed]')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('shows a not found page for a 404', async () => {
     bancos.obtener.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 404 })));
     await crear();

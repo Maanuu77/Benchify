@@ -1,12 +1,12 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { MatButton } from '@angular/material/button';
 import { MatChip, MatChipSet } from '@angular/material/chips';
 import { MatIcon } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
-import { combineLatest, firstValueFrom, switchMap } from 'rxjs';
+import { catchError, combineLatest, firstValueFrom, of, startWith, switchMap } from 'rxjs';
 import { Loadable, loadable } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
 import { Banco, BancoResumen } from '../../../core/api/models';
@@ -60,11 +60,26 @@ export class BancoDetallePage {
   protected readonly estados = ESTADOS;
   protected readonly materiales = MATERIALES;
 
-  protected readonly estado = toSignal(
-    combineLatest([toObservable(this.id), toObservable(this.recarga)])
+  /** Cambia al iniciar o cerrar sesión: el autor ve su banco pendiente y el resto no. */
+  private readonly uid = computed(() => this.auth.session()?.uid ?? null);
+
+  private readonly carga = toSignal(
+    combineLatest([toObservable(this.id), toObservable(this.uid), toObservable(this.recarga)])
       .pipe(switchMap(([id]) => loadable(this.bancosApi.obtener(id)))),
     { initialValue: { status: 'loading' } as Loadable<Banco> },
   );
+
+  /**
+   * Al recargar el mismo banco (p. ej. tras publicar una reseña) se sigue mostrando el anterior:
+   * volver a "cargando" desmontaría la página entera, con su mapa, galería y reseñas.
+   */
+  protected readonly estado = linkedSignal<Loadable<Banco>, Loadable<Banco>>({
+    source: this.carga,
+    computation: (nuevo, anterior) =>
+      nuevo.status === 'loading' && anterior?.value.status === 'success' && anterior.value.value.id === this.id()
+        ? anterior.value
+        : nuevo,
+  });
   protected readonly banco = computed(() => {
     const estado = this.estado();
     return estado.status === 'success' ? estado.value : null;
@@ -90,8 +105,25 @@ export class BancoDetallePage {
     return !!b && (this.auth.isAdmin() || this.auth.session()?.uid === b.autor.id);
   });
 
-  protected readonly favorito = signal(false);
-  protected readonly totalCheckIns = signal<number | null>(null);
+  /** Lo que dice la API para el banco y el usuario actuales; al cambiar cualquiera se descarta la respuesta anterior. */
+  private readonly favoritoRemoto = toSignal(
+    combineLatest([toObservable(this.id), toObservable(this.uid)]).pipe(
+      switchMap(([id, uid]) => (uid ? this.usuariosApi.esFavorito(id).pipe(catchError(() => of(false))) : of(false))),
+    ),
+    { initialValue: false },
+  );
+  private readonly totalRemoto = toSignal(
+    combineLatest([toObservable(this.id), toObservable(this.uid)]).pipe(
+      switchMap(([id]) =>
+        this.usuariosApi.totalCheckIns(id).pipe(startWith(null), catchError(() => of(null))),
+      ),
+    ),
+    { initialValue: null },
+  );
+
+  /** Se pueden cambiar en local (favorito optimista, check-in recién hecho) hasta la siguiente respuesta. */
+  protected readonly favorito = linkedSignal(() => this.favoritoRemoto());
+  protected readonly totalCheckIns = linkedSignal(() => this.totalRemoto());
   protected readonly haciendoCheckIn = signal(false);
 
   constructor() {
@@ -100,17 +132,6 @@ export class BancoDetallePage {
       if (banco) {
         this.title.setTitle(`${banco.titulo} · Benchify`);
       }
-    });
-    effect(() => {
-      const id = this.id();
-      if (this.auth.isAuthenticated()) {
-        firstValueFrom(this.usuariosApi.esFavorito(id)).then((f) => this.favorito.set(f), () => undefined);
-      } else {
-        this.favorito.set(false);
-      }
-    });
-    effect(() => {
-      firstValueFrom(this.usuariosApi.totalCheckIns(this.id())).then((t) => this.totalCheckIns.set(t), () => undefined);
     });
   }
 
@@ -155,7 +176,7 @@ export class BancoDetallePage {
   protected async eliminar(): Promise<void> {
     const ok = await this.confirmation.ask({
       titulo: 'Eliminar banco',
-      mensaje: 'Dejará de aparecer en el mapa. Las reseñas y fotos se conservan para moderación.',
+      mensaje: 'Dejará de aparecer en el mapa y sus fotos se borrarán. Esta acción no se puede deshacer.',
       confirmar: 'Eliminar',
       peligroso: true,
     });
