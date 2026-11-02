@@ -3,6 +3,7 @@ package com.benchify.banco.application.port.out;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BoundingBox;
+import com.benchify.banco.domain.EntradaSitemap;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.FiltroBancos;
 import com.benchify.shared.domain.PageQuery;
@@ -43,6 +44,9 @@ public interface BancoRepository {
     PageResult<Banco> findByEstado(EstadoBanco estado, PageQuery page);
 
     long countByEstado(EstadoBanco estado);
+
+    /** Bancos publicados para sitemap.xml, los más recientes primero. */
+    List<EntradaSitemap> findPublicadosParaSitemap(int limite);
 
     /**
      * Bancos pendientes de moderación de un autor. Antes bloquea sus propuestas hasta el final de

@@ -14,6 +14,7 @@ import com.benchify.banco.domain.BoundingBox;
 import com.benchify.banco.domain.Caracteristicas;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.DireccionPostal;
+import com.benchify.banco.domain.EntradaSitemap;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
 import com.benchify.banco.domain.Imagen;
@@ -159,6 +160,12 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
     @Transactional(readOnly = true)
     public List<Etiqueta> etiquetas() {
         return etiquetas.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EntradaSitemap> sitemap() {
+        return bancos.findPublicadosParaSitemap(MAX_SITEMAP);
     }
 
     /** Un banco que el actor no puede ver se trata como inexistente para no revelar su existencia. */

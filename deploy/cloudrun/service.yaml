@@ -48,6 +48,8 @@ spec:
               value: ${STORAGE_BUCKET}
             - name: CORS_ALLOWED_ORIGINS
               value: ${CORS_ALLOWED_ORIGINS}
+            - name: WEB_URL
+              value: ${WEB_URL}
             - name: API_DOCS_ENABLED
               value: "false"
           startupProbe:

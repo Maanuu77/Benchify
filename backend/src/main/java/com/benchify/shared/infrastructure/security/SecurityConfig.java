@@ -59,6 +59,8 @@ public class SecurityConfig {
                                 "/api/v1/etiquetas", "/api/v1/lugares",
                                 "/api/v1/usuarios/*", "/api/v1/usuarios/*/bancos",
                                 "/api/v1/usuarios/*/resenas", "/api/v1/usuarios/*/estadisticas").permitAll()
+                        // Páginas para buscadores y redes sociales (Firebase Hosting las reenvía aquí)
+                        .requestMatchers(HttpMethod.GET, "/s/*", "/sitemap.xml", "/robots.txt").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(problemHandler)
