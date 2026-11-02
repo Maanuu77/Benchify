@@ -83,12 +83,16 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
   con Google por redirección si el navegador bloquea la ventana (#54); baja de cuenta desde el
   perfil (#57); campana de notificaciones en la cabecera (#60); motivo al moderar con sugerencias
   e historial de moderación (#59).
+- Avisos de bancos rotos, sucios o desaparecidos: un aviso abierto por usuario y banco
+  (409 `INCIDENCIA_DUPLICADA`), resumen público de avisos abiertos en la ficha y cola "Avisos" en
+  moderación para marcarlos como resueltos o descartados; quien avisó recibe una notificación (#75).
 
 ### Cambiado
 
 - Publicar bancos, reseñas o fotos exige haber verificado el email (403 `EMAIL_NO_VERIFICADO`);
   los administradores quedan exentos (#54).
-- Migraciones V11 (baja de cuentas e índices de claves foráneas) y V12 (historial y notificaciones).
+- Migraciones V11 (baja de cuentas e índices de claves foráneas), V12 (historial y notificaciones)
+  y V13 (avisos de la comunidad).
 
 - Límite de subida de fotos unificado en 10 MB (#27) y máximo de 10000 en el número de página (#41).
 - Migraciones V8 (miniaturas de las imágenes) y V10 (versión de las reseñas para el bloqueo optimista).

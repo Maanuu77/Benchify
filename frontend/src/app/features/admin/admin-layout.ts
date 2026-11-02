@@ -44,6 +44,7 @@ export class AdminLayout {
     { path: 'bancos', label: 'Bancos' },
     { path: 'resenas', label: 'Reseñas' },
     { path: 'imagenes', label: 'Fotos' },
+    { path: 'incidencias', label: 'Avisos' },
     { path: 'usuarios', label: 'Usuarios' },
     { path: 'historial', label: 'Historial' },
   ];
