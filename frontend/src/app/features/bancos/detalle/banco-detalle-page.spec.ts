@@ -95,6 +95,22 @@ describe('BancoDetallePage', () => {
     expect(element.textContent).not.toContain('Eliminar');
   });
 
+  it('shares the link that carries the preview and describes the page for search engines', async () => {
+    const share = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    try {
+      await crear();
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(BANCO.descripcion);
+
+      Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Compartir'))!.click();
+      await fixture.whenStable();
+
+      expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: `${location.origin}/s/${BANCO.id}` }));
+    } finally {
+      delete (navigator as { share?: unknown }).share;
+    }
+  });
+
   it('refreshes the bench without unmounting the page', async () => {
     await crear();
     const cabecera = element.querySelector('h1');

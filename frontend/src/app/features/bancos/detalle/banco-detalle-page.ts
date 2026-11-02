@@ -1,5 +1,7 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, linkedSignal, signal,
+} from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { MatButton } from '@angular/material/button';
@@ -12,6 +14,7 @@ import { Banco, BancoResumen } from '../../../core/api/models';
 import { UsuariosApi } from '../../../core/api/usuarios-api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { Seo } from '../../../core/seo/seo';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
 import { Confirmation } from '../../../shared/ui/confirm-dialog';
@@ -51,6 +54,7 @@ export class BancoDetallePage {
   private readonly confirmation = inject(Confirmation);
   private readonly router = inject(Router);
   private readonly title = inject(Title);
+  private readonly seo = inject(Seo);
   protected readonly auth = inject(AuthService);
 
   /** Parámetro de ruta :id. */
@@ -145,8 +149,15 @@ export class BancoDetallePage {
       const banco = this.banco();
       if (banco) {
         this.title.setTitle(`${banco.titulo} · Benchify`);
+        this.seo.describir({
+          titulo: `${banco.titulo} · Benchify`,
+          descripcion: banco.descripcion ?? (banco.ciudad ? `Banco en ${banco.ciudad}` : 'Banco público en Benchify'),
+          url: location.origin + this.router.serializeUrl(this.router.createUrlTree(['/bancos', banco.id])),
+          imagen: `${location.origin}/og.png`,
+        });
       }
     });
+    inject(DestroyRef).onDestroy(() => this.seo.restablecer());
   }
 
   protected recargar(): void {
@@ -162,7 +173,8 @@ export class BancoDetallePage {
   protected async compartir(): Promise<void> {
     const b = this.banco();
     if (!b) return;
-    const url = location.origin + this.router.serializeUrl(this.router.createUrlTree(['/bancos', b.id]));
+    // /s/{id} lo sirve el backend con las etiquetas Open Graph para que el enlace se vea bien al compartirlo
+    const url = location.origin + this.router.serializeUrl(this.router.createUrlTree(['/s', b.id]));
     try {
       if (navigator.share) {
         await navigator.share({ title: b.titulo, text: `${b.titulo} en Benchify`, url });

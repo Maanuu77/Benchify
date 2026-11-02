@@ -96,6 +96,11 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
   (dHash de 64 bits) y la cola de fotos pendientes muestra hasta 3 fotos ya subidas que se le
   parecen (6 bits de diferencia como mucho), de ese u otros bancos y en cualquier estado. Las fotos
   anteriores a este cambio no tienen huella (#61).
+- Compartir un banco genera un enlace `/s/{id}` que sirve el backend con las etiquetas Open Graph
+  (título, descripción o resumen, primera foto o imagen genérica) y lleva a la ficha al instante, así
+  que el enlace se ve con vista previa en WhatsApp, Telegram o X. El backend sirve también
+  `sitemap.xml` con los bancos publicados y `robots.txt`; Firebase Hosting reenvía esas rutas a Cloud
+  Run. La ficha actualiza la descripción, las etiquetas Open Graph y el enlace canónico (#56).
 
 ### Cambiado
 

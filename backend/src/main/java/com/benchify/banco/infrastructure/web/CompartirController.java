@@ -114,7 +114,11 @@ class CompartirController {
                 .body(xml.toString());
     }
 
-    /** Las zonas privadas no aportan nada a un buscador. */
+    /**
+     * Las zonas privadas no aportan nada a un buscador. {@code /s/} sí se permite: algunos bots de
+     * redes sociales respetan robots.txt y sin acceso no mostrarían la vista previa; su enlace
+     * canónico apunta a la ficha, así que no cuenta como contenido duplicado.
+     */
     @GetMapping(value = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
     ResponseEntity<String> robots() {
         String robots = """
@@ -124,7 +128,6 @@ class CompartirController {
                 Disallow: /login
                 Disallow: /registro
                 Disallow: /bancos/nuevo
-                Disallow: /s/
 
                 Sitemap: %s/sitemap.xml
                 """.formatted(web);

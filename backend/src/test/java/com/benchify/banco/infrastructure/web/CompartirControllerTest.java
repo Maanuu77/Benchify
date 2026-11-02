@@ -106,6 +106,7 @@ class CompartirControllerTest {
                 .hasStatusOk()
                 .bodyText()
                 .contains("Disallow: /admin")
+                .doesNotContain("Disallow: /s/")
                 .contains("Sitemap: https://benchify.web.app/sitemap.xml");
     }
 

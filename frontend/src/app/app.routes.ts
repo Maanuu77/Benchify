@@ -26,6 +26,9 @@ export const routes: Routes = [
     canDeactivate: [cambiosSinGuardarGuard],
     loadComponent: () => import('./features/bancos/formulario/banco-form-page').then((m) => m.BancoFormPage),
   },
+  // Enlace para compartir: en producción lo sirve el backend con las etiquetas Open Graph; si llega aquí
+  // (desarrollo, o la app ya cargada), lleva directamente a la ficha
+  { path: 's/:id', redirectTo: ({ params }) => `/bancos/${params['id']}` },
   {
     path: 'bancos/:id',
     title: 'Banco · Benchify',
