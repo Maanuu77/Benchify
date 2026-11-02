@@ -219,3 +219,16 @@ export interface ImagenModeracion {
   tamanoBytes: number;
   fechaSubida: string;
 }
+
+export type TipoNotificacion = 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'FOTO_APROBADA' | 'FOTO_RECHAZADA' | 'RESENA_RETIRADA';
+
+export interface Notificacion {
+  id: string;
+  tipo: TipoNotificacion;
+  titulo: string;
+  mensaje: string | null;
+  /** Ruta de la aplicación a la que lleva, p. ej. /bancos/{id}. */
+  enlace: string | null;
+  leida: boolean;
+  fecha: string;
+}

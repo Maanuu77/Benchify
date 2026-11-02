@@ -1,15 +1,23 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { AuthService } from './core/auth/auth.service';
 import { FakeAuthService } from './core/auth/testing/fake-auth.service';
+import { NotificacionesService } from './core/notificaciones/notificaciones.service';
 
 describe('App', () => {
   let auth: FakeAuthService;
 
   beforeEach(() => {
     auth = new FakeAuthService();
-    TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: AuthService, useValue: auth }] });
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: auth },
+        { provide: NotificacionesService, useValue: { noLeidas: signal(0) } },
+      ],
+    });
   });
 
   it('renders the shell with brand, skip link and main landmark', async () => {
@@ -35,5 +43,22 @@ describe('App', () => {
     expect(element.textContent).toContain('Añadir banco');
     expect(element.textContent).toContain('Moderación');
     expect(element.querySelector('[aria-label="Menú de Ana"]')).not.toBeNull();
+  });
+
+  it('asks unverified users to confirm their email', async () => {
+    auth.signIn({ emailVerificado: false });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element: HTMLElement = fixture.nativeElement;
+
+    expect(element.querySelector('.aviso-verificacion')?.textContent).toContain('Confirma tu email');
+    (Array.from(element.querySelectorAll<HTMLButtonElement>('.aviso-verificacion button'))
+      .find((b) => b.textContent?.includes('Reenviar')))!.click();
+    await fixture.whenStable();
+    expect(auth.enviarVerificacion).toHaveBeenCalled();
+
+    auth.signIn({ emailVerificado: true });
+    await fixture.whenStable();
+    expect(element.querySelector('.aviso-verificacion')).toBeNull();
   });
 });
