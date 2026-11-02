@@ -67,4 +67,16 @@ describe('LoginPage', () => {
     expect(element.querySelector('[role=alert]')?.textContent).toContain('Email o contraseña incorrectos');
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
+
+  it('shows and hides the password', async () => {
+    const password = element.querySelector<HTMLInputElement>('[formcontrolname=password]')!;
+    const boton = element.querySelector<HTMLButtonElement>('button[aria-label="Mostrar contraseña"]')!;
+    expect(password.type).toBe('password');
+
+    boton.click();
+    await fixture.whenStable();
+
+    expect(password.type).toBe('text');
+    expect(boton.getAttribute('aria-label')).toBe('Ocultar contraseña');
+  });
 });

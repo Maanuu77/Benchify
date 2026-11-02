@@ -1,52 +1,34 @@
 <a class="skip-link" href="#contenido">Saltar al contenido</a>
 
-<mat-sidenav-container class="container">
-  <mat-sidenav
-    #drawer
-    class="drawer"
-    [mode]="isHandset() ? 'over' : 'side'"
-    [opened]="false"
-    [attr.role]="isHandset() ? 'dialog' : 'navigation'"
-    aria-label="Menú principal"
-  >
-    <mat-nav-list>
-      @for (link of links(); track link.path) {
-        <a mat-list-item [routerLink]="link.path" routerLinkActive #rla="routerLinkActive"
-           [activated]="rla.isActive" (click)="drawer.close()">
-          <mat-icon matListItemIcon aria-hidden="true">{{ link.icon }}</mat-icon>
-          <span matListItemTitle>{{ link.label }}</span>
-        </a>
-      }
-    </mat-nav-list>
-  </mat-sidenav>
-
-  <mat-sidenav-content class="content">
-    <mat-toolbar class="toolbar" role="banner">
-      @if (isHandset()) {
-        <button mat-icon-button type="button" aria-label="Abrir menú" (click)="drawer.toggle()">
-          <mat-icon>menu</mat-icon>
-        </button>
-      }
-      <a class="brand" routerLink="/mapa" aria-label="Benchify, ir al mapa">
-        <mat-icon aria-hidden="true">park</mat-icon>
+<div class="app" [class.app--mapa]="esMapa()" [class.app--movil]="isHandset()">
+  @if (!isHandset() || !esMapa()) {
+    <header class="cabecera bf-glass" role="banner">
+      <a class="marca" routerLink="/mapa" aria-label="Benchify, ir al mapa">
+        <img src="logo-mark.svg" alt="" width="28" height="28" />
         <span>Benchify</span>
       </a>
-      <span class="spacer"></span>
+
       @if (!isHandset()) {
-        <nav class="links" aria-label="Principal">
+        <nav class="enlaces" aria-label="Principal">
           @for (link of links(); track link.path) {
-            <a mat-button [routerLink]="link.path" routerLinkActive="active" ariaCurrentWhenActive="page">
+            <a [routerLink]="link.path" routerLinkActive="activo" ariaCurrentWhenActive="page">
               <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
               {{ link.label }}
             </a>
           }
         </nav>
       }
+
+      <span class="espacio"></span>
+
       @if (auth.isAuthenticated()) {
-        <button mat-icon-button type="button" [matMenuTriggerFor]="userMenu" [attr.aria-label]="'Menú de ' + nombre()">
-          <mat-icon>account_circle</mat-icon>
+        <button type="button" class="avatar-boton" [matMenuTriggerFor]="userMenu" [attr.aria-label]="'Menú de ' + nombre()">
+          <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
+          @if (!isHandset()) {
+            <span class="avatar-nombre">{{ nombre() }}</span>
+          }
         </button>
-        <mat-menu #userMenu="matMenu" xPosition="before">
+        <mat-menu #userMenu="matMenu" xPosition="before" class="menu-usuario">
           <p class="menu-name" aria-hidden="true">{{ nombre() }}</p>
           <a mat-menu-item routerLink="/perfil">
             <mat-icon aria-hidden="true">person</mat-icon>
@@ -58,15 +40,24 @@
           </button>
         </mat-menu>
       } @else if (!auth.isLoading()) {
-        <a mat-button routerLink="/login">
-          <mat-icon aria-hidden="true">login</mat-icon>
-          Entrar
+        <a mat-flat-button routerLink="/login">Entrar</a>
+      }
+    </header>
+  }
+
+  <main id="contenido" class="main" tabindex="-1">
+    <router-outlet />
+  </main>
+
+  @if (isHandset()) {
+    <nav class="barra-inferior bf-glass" aria-label="Principal">
+      @for (link of linksMovil(); track link.path) {
+        <a [routerLink]="link.path" routerLinkActive="activo" ariaCurrentWhenActive="page"
+           [class.destacado]="link.destacado">
+          <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+          <span>{{ link.label }}</span>
         </a>
       }
-    </mat-toolbar>
-
-    <main id="contenido" class="main" tabindex="-1">
-      <router-outlet />
-    </main>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+    </nav>
+  }
+</div>

@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, li
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { MatButton } from '@angular/material/button';
-import { MatChip, MatChipSet } from '@angular/material/chips';
 import { MatIcon } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, combineLatest, filter, firstValueFrom, of, startWith, switchMap } from 'rxjs';
@@ -36,7 +35,7 @@ export const MATERIALES: Record<string, string> = {
 @Component({
   selector: 'bf-banco-detalle-page',
   imports: [
-    RouterLink, DatePipe, DecimalPipe, MatButton, MatIcon, MatChipSet, MatChip,
+    RouterLink, DatePipe, DecimalPipe, MatButton, MatIcon,
     StarRating, LoadingState, ErrorState, BenchMap, GaleriaImagenes, ResenasSection,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -141,6 +140,31 @@ export class BancoDetallePage {
 
   protected recargar(): void {
     this.recarga.update((n) => n + 1);
+  }
+
+  protected comoLlegar(): string {
+    const b = this.banco();
+    return b ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}` : '';
+  }
+
+  /** Comparte la ficha con el menú nativo del sistema o, si no lo hay, copia el enlace. */
+  protected async compartir(): Promise<void> {
+    const b = this.banco();
+    if (!b) return;
+    const url = location.origin + this.router.serializeUrl(this.router.createUrlTree(['/bancos', b.id]));
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: b.titulo, text: `${b.titulo} en Benchify`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        this.notifier.success('Enlace copiado');
+      }
+    } catch (error) {
+      // Cerrar el menú de compartir no es un error
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        this.notifier.error('No hemos podido compartir el enlace.');
+      }
+    }
   }
 
   protected async alternarFavorito(): Promise<void> {

@@ -5,25 +5,31 @@
 }
 
 h1 {
-  font: var(--mat-sys-headline-medium);
-  margin: 0 0 16px;
+  margin: 0 0 20px;
+  font: 700 28px/1.2 var(--bf-font);
+  letter-spacing: -0.025em;
 }
 
 h2 {
   margin: 0;
-  font: var(--mat-sys-title-medium);
+  font: 600 18px var(--bf-font);
 }
 
 .formulario {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 20px;
 }
 
+// Cada columna es una tarjeta
 .columna {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--bf-line);
+  border-radius: var(--bf-r-lg);
+  background: var(--bf-surface);
 }
 
 fieldset {
@@ -31,25 +37,29 @@ fieldset {
   flex-direction: column;
   gap: 4px;
   margin: 0 0 8px;
-  padding: 8px 12px 12px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 8px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--bf-line);
+  border-radius: var(--bf-r);
 }
 
 legend {
-  padding: 0 4px;
-  font: var(--mat-sys-label-large);
+  padding: 0 6px;
+  font: 600 14px var(--bf-font);
 }
 
 .ubicacion-cabecera {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
 .picker {
-  height: 320px;
+  height: 360px;
+  overflow: hidden;
+  border-radius: var(--bf-r);
+  box-shadow: inset 0 0 0 1px var(--bf-line);
 }
 
 .coordenadas {
@@ -60,7 +70,11 @@ legend {
 
 .error {
   margin: 0;
-  color: var(--mat-sys-error);
+  padding: 10px 12px;
+  border-radius: var(--bf-r-sm);
+  background: color-mix(in srgb, var(--bf-danger) 12%, transparent);
+  color: var(--bf-danger);
+  font-size: 14px;
 }
 
 .acciones {
@@ -84,5 +98,35 @@ legend {
 @media (max-width: 840px) {
   .formulario {
     grid-template-columns: 1fr;
+  }
+
+  // En móvil, primero dónde está el banco: es lo que más cuesta y lo que da sentido al resto
+  .columna:has(.picker) {
+    order: -1;
+  }
+
+  .columna {
+    padding: 16px;
+  }
+
+  .picker {
+    height: 52vh;
+  }
+
+  // Botones siempre a mano, encima de la barra de navegación
+  .acciones {
+    position: sticky;
+    bottom: calc(var(--bf-barra-inferior, 0px) + 8px);
+    z-index: 10;
+    padding: 10px;
+    border-radius: var(--bf-r);
+    background: var(--bf-glass);
+    -webkit-backdrop-filter: var(--bf-blur);
+    backdrop-filter: var(--bf-blur);
+    box-shadow: var(--bf-sh-2);
+
+    button[type='submit'] {
+      flex: 1;
+    }
   }
 }

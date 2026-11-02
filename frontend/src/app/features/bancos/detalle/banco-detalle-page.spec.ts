@@ -21,6 +21,8 @@ class Stub {
   readonly centro = input<unknown>();
   readonly zoom = input<unknown>();
   readonly ariaLabel = input<unknown>();
+  readonly seleccionado = input<unknown>();
+  readonly interactivo = input<unknown>();
   readonly bancoId = input<unknown>();
   readonly tituloBanco = input<unknown>();
   readonly puedeSubir = input<unknown>();

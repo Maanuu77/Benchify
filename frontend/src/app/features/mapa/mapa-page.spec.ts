@@ -15,9 +15,13 @@ class BenchMapStub {
   readonly centro = input<Punto>();
   readonly zoom = input(14);
   readonly usuario = input<Punto | null>(null);
+  readonly seleccionado = input<string | null>(null);
   readonly areaChange = output<BoundingBox>();
+  readonly vistaChange = output<unknown>();
   readonly bancoSelect = output<BancoResumen>();
   volarA = vi.fn();
+  acercar = vi.fn();
+  alejar = vi.fn();
 }
 
 const banco = (id: string, puntuacionMedia: number, extra: Partial<BancoResumen> = {}): BancoResumen => ({
@@ -71,7 +75,7 @@ describe('MapaPage', () => {
 
     expect(api.enArea).toHaveBeenCalledWith(AREA, {});
     expect(element.textContent).toContain('2 bancos en esta zona');
-    const titulos = Array.from(element.querySelectorAll('[matListItemTitle]')).map((e) => e.textContent?.trim());
+    const titulos = Array.from(element.querySelectorAll('.titulo')).map((e) => e.textContent?.trim());
     expect(titulos).toEqual(['Banco b', 'Banco a']);
   });
 
@@ -142,7 +146,7 @@ describe('MapaPage', () => {
     await moverMapa();
     const mapa = fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub).componentInstance;
 
-    (element.querySelector('[matListItemTitle]')!.closest('a') as HTMLElement).dispatchEvent(new Event('focus'));
+    (element.querySelector('.titulo')!.closest('a') as HTMLElement).dispatchEvent(new Event('focus'));
     fixture.detectChanges();
 
     expect(element.querySelector('.seleccionado h2')?.textContent).toBe('Banco b');

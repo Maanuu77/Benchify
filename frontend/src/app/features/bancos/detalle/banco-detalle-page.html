@@ -5,7 +5,8 @@
   @case ('error') {
     @let fallo = error()!;
     @if (fallo.status === 404) {
-      <section class="pagina">
+      <section class="no-encontrado">
+        <mat-icon aria-hidden="true">wrong_location</mat-icon>
         <h1>Banco no encontrado</h1>
         <p>Puede que se haya eliminado o que todavía esté pendiente de revisión.</p>
         <a mat-flat-button routerLink="/mapa">Volver al mapa</a>
@@ -16,16 +17,21 @@
   }
   @case ('success') {
     @let b = banco()!;
-    <article class="pagina">
-      <header class="cabecera">
-        <div>
+    <article class="ficha">
+      <div class="hero">
+        <bf-bench-map class="hero-mapa" [bancos]="comoResumen()" [centro]="{ lat: b.lat, lng: b.lng }" [zoom]="17"
+                      [seleccionado]="b.id" [interactivo]="false" [ariaLabel]="'Ubicación de ' + b.titulo" />
+      </div>
+
+      <div class="contenido">
+        <header class="cabecera bf-glass">
           @if (estados[b.estado]; as aviso) {
-            <p class="estado" role="status">{{ aviso }}</p>
+            <p class="estado" role="status"><mat-icon aria-hidden="true">schedule</mat-icon>{{ aviso }}</p>
           }
           <h1>{{ b.titulo }}</h1>
           <div class="valoracion">
             <bf-star-rating [value]="b.puntuacionMedia" />
-            <span>{{ b.puntuacionMedia | number: '1.1-1' }} · {{ b.numResenas }} {{ b.numResenas === 1 ? 'reseña' : 'reseñas' }}</span>
+            <span><b>{{ b.puntuacionMedia | number: '1.1-1' }}</b> · {{ b.numResenas }} {{ b.numResenas === 1 ? 'reseña' : 'reseñas' }}</span>
             @if (totalCheckIns() !== null) {
               <span>· {{ totalCheckIns() }} check-ins</span>
             }
@@ -34,60 +40,66 @@
             <mat-icon aria-hidden="true">place</mat-icon>
             {{ direccion() || 'Sin dirección' }}
           </p>
-        </div>
-        <div class="acciones">
-          <button mat-flat-button type="button" [disabled]="haciendoCheckIn() || b.estado !== 'PUBLICADO'" (click)="checkIn()">
-            <mat-icon aria-hidden="true">where_to_vote</mat-icon>
-            {{ haciendoCheckIn() ? 'Comprobando…' : 'Estoy aquí' }}
-          </button>
-          <button mat-stroked-button type="button" [attr.aria-pressed]="favorito()" (click)="alternarFavorito()">
-            <mat-icon aria-hidden="true">{{ favorito() ? 'favorite' : 'favorite_border' }}</mat-icon>
-            {{ favorito() ? 'En favoritos' : 'Guardar' }}
-          </button>
-          @if (esGestor()) {
-            <a mat-button [routerLink]="['/bancos', b.id, 'editar']"><mat-icon aria-hidden="true">edit</mat-icon> Editar</a>
-            <button mat-button type="button" (click)="eliminar()"><mat-icon aria-hidden="true">delete</mat-icon> Eliminar</button>
-          }
-        </div>
-      </header>
 
-      <div class="cuerpo">
-        <div class="principal">
+          <div class="acciones">
+            <button type="button" class="accion accion--principal" [disabled]="haciendoCheckIn() || b.estado !== 'PUBLICADO'"
+                    (click)="checkIn()">
+              <mat-icon aria-hidden="true">where_to_vote</mat-icon>
+              {{ haciendoCheckIn() ? 'Comprobando…' : 'Estoy aquí' }}
+            </button>
+            <button type="button" class="accion" [attr.aria-pressed]="favorito()" (click)="alternarFavorito()">
+              <mat-icon aria-hidden="true">{{ favorito() ? 'favorite' : 'favorite_border' }}</mat-icon>
+              {{ favorito() ? 'Guardado' : 'Guardar' }}
+            </button>
+            <a class="accion" [href]="comoLlegar()" target="_blank" rel="noopener">
+              <mat-icon aria-hidden="true">directions</mat-icon>
+              Cómo llegar
+            </a>
+            <button type="button" class="accion" (click)="compartir()">
+              <mat-icon aria-hidden="true">ios_share</mat-icon>
+              Compartir
+            </button>
+          </div>
+        </header>
+
+        <section class="bloque" aria-labelledby="titulo-caracteristicas">
+          <h2 id="titulo-caracteristicas" class="sr-only">Características</h2>
+          <ul class="chips">
+            @if (b.accesible) { <li><mat-icon aria-hidden="true">accessible</mat-icon>Accesible</li> }
+            @if (b.conSombra) { <li><mat-icon aria-hidden="true">park</mat-icon>Con sombra</li> }
+            @if (b.conRespaldo) { <li><mat-icon aria-hidden="true">chair</mat-icon>Con respaldo</li> }
+            @if (b.material) { <li><mat-icon aria-hidden="true">category</mat-icon>{{ materiales[b.material] }}</li> }
+            @for (etiqueta of b.etiquetas; track etiqueta.id) {
+              <li class="etiqueta" [style.--bf-etiqueta]="etiqueta.color">#{{ etiqueta.nombre }}</li>
+            }
+          </ul>
           @if (b.descripcion) {
             <p class="descripcion">{{ b.descripcion }}</p>
           }
+        </section>
 
-          <mat-chip-set aria-label="Características">
-            @if (b.accesible) { <mat-chip><mat-icon matChipAvatar aria-hidden="true">accessible</mat-icon>Accesible</mat-chip> }
-            @if (b.conSombra) { <mat-chip><mat-icon matChipAvatar aria-hidden="true">park</mat-icon>Con sombra</mat-chip> }
-            @if (b.conRespaldo) { <mat-chip><mat-icon matChipAvatar aria-hidden="true">chair</mat-icon>Con respaldo</mat-chip> }
-            @if (b.material) { <mat-chip>{{ materiales[b.material] }}</mat-chip> }
-            @for (etiqueta of b.etiquetas; track etiqueta.id) {
-              <mat-chip [style.--mat-chip-elevated-container-color]="etiqueta.color + '33'">#{{ etiqueta.nombre }}</mat-chip>
-            }
-          </mat-chip-set>
+        <bf-galeria-imagenes class="bloque" [bancoId]="b.id" [tituloBanco]="b.titulo" [puedeSubir]="auth.isAuthenticated()" />
 
-          <bf-galeria-imagenes [bancoId]="b.id" [tituloBanco]="b.titulo" [puedeSubir]="auth.isAuthenticated()" />
+        <bf-resenas-section
+          class="bloque"
+          [bancoId]="b.id"
+          [autorBancoId]="b.autor.id"
+          [publicado]="b.estado === 'PUBLICADO'"
+          (valoracionCambiada)="recargar()"
+        />
 
-          <bf-resenas-section
-            [bancoId]="b.id"
-            [autorBancoId]="b.autor.id"
-            [publicado]="b.estado === 'PUBLICADO'"
-            (valoracionCambiada)="recargar()"
-          />
-        </div>
-
-        <aside class="lateral">
-          <bf-bench-map class="mini-mapa" [bancos]="comoResumen()" [centro]="{ lat: b.lat, lng: b.lng }" [zoom]="17"
-                        [ariaLabel]="'Ubicación de ' + b.titulo" />
-          <p class="meta">
-            Subido por <a [routerLink]="['/usuarios', b.autor.id]">{{ b.autor.nombre ?? 'un usuario' }}</a>
+        <footer class="pie">
+          <p>
+            Añadido por <a [routerLink]="['/usuarios', b.autor.id]">{{ b.autor.nombre ?? 'un usuario' }}</a>
             el {{ b.fechaSubida | date: 'longDate' }}
           </p>
-          <a mat-button [href]="'https://www.openstreetmap.org/directions?to=' + b.lat + ',' + b.lng" target="_blank" rel="noopener">
-            <mat-icon aria-hidden="true">directions</mat-icon> Cómo llegar
-          </a>
-        </aside>
+          @if (esGestor()) {
+            <div class="gestion">
+              <a matButton="tonal" [routerLink]="['/bancos', b.id, 'editar']"><mat-icon aria-hidden="true">edit</mat-icon> Editar</a>
+              <button matButton type="button" class="peligro" (click)="eliminar()"><mat-icon aria-hidden="true">delete</mat-icon> Eliminar</button>
+            </div>
+          }
+        </footer>
       </div>
     </article>
   }

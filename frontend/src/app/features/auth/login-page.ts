@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButton } from '@angular/material/button';
-import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
-import { MatDivider } from '@angular/material/divider';
-import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
@@ -14,8 +12,7 @@ import { AuthService } from '../../core/auth/auth.service';
   selector: 'bf-login-page',
   imports: [
     ReactiveFormsModule, RouterLink,
-    MatCard, MatCardHeader, MatCardTitle, MatCardContent,
-    MatFormField, MatLabel, MatInput, MatError, MatButton, MatIcon, MatDivider,
+    MatFormField, MatLabel, MatInput, MatError, MatSuffix, MatButton, MatIconButton, MatIcon,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './login-page.html',
@@ -30,6 +27,7 @@ export class LoginPage {
 
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly verPassword = signal(false);
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     email: ['', [Validators.required, Validators.email]],
