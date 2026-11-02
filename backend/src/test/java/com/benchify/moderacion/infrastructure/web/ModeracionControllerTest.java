@@ -87,11 +87,11 @@ class ModeracionControllerTest {
     @Test
     void approvesAndRejectsBenches() {
         when(moderacion.aprobarBanco(ADMIN, BANCO.id())).thenReturn(BANCO);
-        when(moderacion.rechazarBanco(ADMIN, BANCO.id())).thenReturn(BANCO);
+        when(moderacion.rechazarBanco(ADMIN, BANCO.id(), "Duplicado")).thenReturn(BANCO);
 
         assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/aprobacion", BANCO.id())
                 .header("Authorization", bearerAdmin("root"))).hasStatusOk();
-        assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/rechazo", BANCO.id())
+        assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/rechazo", BANCO.id()).queryParam("motivo", "Duplicado")
                 .header("Authorization", bearerAdmin("root"))).hasStatusOk();
     }
 
@@ -112,7 +112,7 @@ class ModeracionControllerTest {
                 .bodyJson().extractingPath("$.numReportes").isEqualTo(0);
         assertThat(mvc.delete().uri("/api/v1/admin/resenas/{id}", reportada.id())
                 .header("Authorization", bearerAdmin("root"))).hasStatus(204);
-        verify(moderacion).eliminarResena(ADMIN, reportada.id());
+        verify(moderacion).eliminarResena(ADMIN, reportada.id(), null);
     }
 
     @Test
@@ -144,6 +144,6 @@ class ModeracionControllerTest {
                 });
         assertThat(mvc.post().uri("/api/v1/admin/imagenes/{id}/rechazo", imagen.id())
                 .header("Authorization", bearerAdmin("root"))).hasStatus(204);
-        verify(moderacion).rechazarImagen(ADMIN, imagen.id());
+        verify(moderacion).rechazarImagen(ADMIN, imagen.id(), null);
     }
 }

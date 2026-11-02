@@ -4,6 +4,7 @@ import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.Imagen;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
+import com.benchify.moderacion.domain.EventoModeracion;
 import com.benchify.resena.domain.Resena;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.PageQuery;
@@ -21,12 +22,13 @@ public interface ModeracionUseCase {
 
     Banco aprobarBanco(Actor actor, UUID bancoId);
 
-    Banco rechazarBanco(Actor actor, UUID bancoId);
+    /** @param motivo explicación opcional que se guarda en el historial y se envía al autor */
+    Banco rechazarBanco(Actor actor, UUID bancoId, String motivo);
 
     PageResult<Resena> resenasReportadas(Actor actor, PageQuery page);
 
     /** La reseña reportada es inapropiada: se borra y se recalcula la valoración del banco. */
-    void eliminarResena(Actor actor, UUID resenaId);
+    void eliminarResena(Actor actor, UUID resenaId, String motivo);
 
     /** La reseña reportada es correcta: se mantiene y se limpian sus reportes. */
     Resena mantenerResena(Actor actor, UUID resenaId);
@@ -36,5 +38,8 @@ public interface ModeracionUseCase {
     Imagen aprobarImagen(Actor actor, UUID imagenId);
 
     /** Marca la imagen como rechazada y, tras confirmarlo, borra sus ficheros del almacenamiento. */
-    void rechazarImagen(Actor actor, UUID imagenId);
+    void rechazarImagen(Actor actor, UUID imagenId, String motivo);
+
+    /** Historial de decisiones de moderación, de la más reciente a la más antigua. */
+    PageResult<EventoModeracion> eventos(Actor actor, PageQuery page);
 }

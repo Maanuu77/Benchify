@@ -9,9 +9,16 @@ import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.moderacion.application.port.out.EventoModeracionRepository;
+import com.benchify.moderacion.domain.AccionModeracion;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
+import com.benchify.moderacion.domain.EventoModeracion;
+import com.benchify.notificacion.application.port.in.NotificacionesUseCase;
+import com.benchify.notificacion.application.port.in.NotificacionesUseCase.NuevaNotificacion;
+import com.benchify.notificacion.domain.TipoNotificacion;
 import com.benchify.resena.application.port.in.ResenasUseCase;
 import com.benchify.resena.application.port.out.ResenaRepository;
+import com.benchify.resena.domain.Resena;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.PageQuery;
@@ -24,8 +31,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -36,7 +45,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -59,13 +70,19 @@ class ModeracionServiceTest {
     private ResenasUseCase resenas;
     @Mock
     private UsuarioRepository usuarios;
+    @Mock
+    private EventoModeracionRepository eventos;
+    @Mock
+    private NotificacionesUseCase notificaciones;
+    @Mock
+    private PlatformTransactionManager transacciones;
 
     private ModeracionService service;
 
     @BeforeEach
     void setUp() {
         service = new ModeracionService(bancos, imagenes, imagenesBanco, resenaRepository, resenas, usuarios,
-                Clock.fixed(AHORA, ZoneOffset.UTC));
+                eventos, notificaciones, transacciones, Clock.fixed(AHORA, ZoneOffset.UTC));
         lenient().when(bancos.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -78,9 +95,9 @@ class ModeracionServiceTest {
 
         assertThatThrownBy(() -> service.estadisticas(noAdmin)).isInstanceOf(ForbiddenException.class);
         assertThatThrownBy(() -> service.aprobarBanco(noAdmin, id)).isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> service.eliminarResena(noAdmin, id)).isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> service.rechazarImagen(noAdmin, id)).isInstanceOf(ForbiddenException.class);
-        verifyNoInteractions(bancos, imagenes, resenas, imagenesBanco);
+        assertThatThrownBy(() -> service.eliminarResena(noAdmin, id, null)).isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> service.rechazarImagen(noAdmin, id, null)).isInstanceOf(ForbiddenException.class);
+        verifyNoInteractions(bancos, imagenes, resenas, imagenesBanco, eventos, notificaciones);
     }
 
     @Test
@@ -91,7 +108,31 @@ class ModeracionServiceTest {
 
         assertThat(service.aprobarBanco(ADMIN, banco.id()).estado()).isEqualTo(EstadoBanco.PUBLICADO);
         assertThat(banco.fechaVerificacion()).isEqualTo(AHORA);
-        assertThat(service.rechazarBanco(ADMIN, banco.id()).estado()).isEqualTo(EstadoBanco.OCULTO);
+        assertThat(service.rechazarBanco(ADMIN, banco.id(), "  Está repetido  ").estado()).isEqualTo(EstadoBanco.OCULTO);
+
+        ArgumentCaptor<EventoModeracion> registrados = ArgumentCaptor.forClass(EventoModeracion.class);
+        verify(eventos, times(2)).guardar(registrados.capture());
+        assertThat(registrados.getAllValues()).extracting(EventoModeracion::accion)
+                .containsExactly(AccionModeracion.BANCO_APROBADO, AccionModeracion.BANCO_RECHAZADO);
+        assertThat(registrados.getAllValues().get(1).motivo()).isEqualTo("Está repetido");
+        ArgumentCaptor<NuevaNotificacion> avisos = ArgumentCaptor.forClass(NuevaNotificacion.class);
+        verify(notificaciones, times(2)).notificar(eq("ana"), avisos.capture());
+        assertThat(avisos.getAllValues().get(0).titulo()).isEqualTo("Tu banco «Nuevo» ya está publicado");
+        assertThat(avisos.getAllValues().get(1).tipo()).isEqualTo(TipoNotificacion.BANCO_RECHAZADO);
+        assertThat(avisos.getAllValues().get(1).mensaje()).isEqualTo("Está repetido");
+        assertThat(avisos.getAllValues().get(1).enlace()).isEqualTo("/bancos/" + banco.id());
+    }
+
+    @Test
+    void moderatorsAreNotNotifiedAboutTheirOwnContent() {
+        Banco banco = Banco.proponer(UUID.randomUUID(),
+                new DatosBanco("Mío", null, new Ubicacion(37, -6), null, null, null), Actor.user("root"), AHORA);
+        when(bancos.findById(banco.id())).thenReturn(Optional.of(banco));
+
+        service.aprobarBanco(ADMIN, banco.id());
+
+        verify(eventos).guardar(any());
+        verifyNoInteractions(notificaciones);
     }
 
     @Test
@@ -104,13 +145,20 @@ class ModeracionServiceTest {
 
     @Test
     void reviewDecisionsDelegateToTheReviewFeature() {
-        UUID resena = UUID.randomUUID();
+        Resena resena = Resena.publicar(UUID.randomUUID(), UUID.randomUUID(), Actor.user("luis"), 1, "spam", AHORA);
+        when(resenaRepository.findById(resena.id())).thenReturn(Optional.of(resena));
 
-        service.eliminarResena(ADMIN, resena);
-        service.mantenerResena(ADMIN, resena);
+        service.eliminarResena(ADMIN, resena.id(), "Spam");
+        service.mantenerResena(ADMIN, resena.id());
 
-        verify(resenas).eliminar(ADMIN, resena);
-        verify(resenas).descartarReportes(ADMIN, resena);
+        verify(resenas).eliminar(ADMIN, resena.id());
+        verify(resenas).descartarReportes(ADMIN, resena.id());
+        ArgumentCaptor<NuevaNotificacion> aviso = ArgumentCaptor.forClass(NuevaNotificacion.class);
+        verify(notificaciones).notificar(eq("luis"), aviso.capture());
+        assertThat(aviso.getValue().tipo()).isEqualTo(TipoNotificacion.RESENA_RETIRADA);
+        assertThat(aviso.getValue().titulo()).isEqualTo("Hemos retirado tu reseña de «un banco»");
+        assertThat(aviso.getValue().mensaje()).isEqualTo("Spam");
+        verify(eventos, times(2)).guardar(any());
     }
 
     @Test
@@ -118,10 +166,16 @@ class ModeracionServiceTest {
         Imagen aprobada = imagen().aprobar();
         when(imagenesBanco.aprobar(ADMIN, aprobada.id())).thenReturn(aprobada);
 
+        when(imagenes.findById(aprobada.id())).thenReturn(Optional.of(aprobada));
+
         assertThat(service.aprobarImagen(ADMIN, aprobada.id())).isEqualTo(aprobada);
-        service.rechazarImagen(ADMIN, aprobada.id());
+        service.rechazarImagen(ADMIN, aprobada.id(), null);
 
         verify(imagenesBanco).rechazar(ADMIN, aprobada.id());
+        ArgumentCaptor<NuevaNotificacion> avisos = ArgumentCaptor.forClass(NuevaNotificacion.class);
+        verify(notificaciones, times(2)).notificar(eq("ana"), avisos.capture());
+        assertThat(avisos.getAllValues()).extracting(NuevaNotificacion::tipo)
+                .containsExactly(TipoNotificacion.FOTO_APROBADA, TipoNotificacion.FOTO_RECHAZADA);
     }
 
     @Test
