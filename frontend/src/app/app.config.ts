@@ -1,5 +1,6 @@
 import { registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import localeEnGb from '@angular/common/locales/en-GB';
 import localeEs from '@angular/common/locales/es';
 import {
   ApplicationConfig, inject, isDevMode, LOCALE_ID, provideAppInitializer, provideBrowserGlobalErrorListeners,
@@ -13,10 +14,13 @@ import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { revalidarRutaAlPerderAcceso } from './core/auth/guards';
+import { IDIOMA, LOCALES } from './core/i18n/idioma';
+import { idiomaInterceptor } from './core/i18n/idioma.interceptor';
 import { recargarTrasDespliegue } from './core/layout/recargar-tras-despliegue';
 import { Actualizaciones } from './core/pwa/actualizaciones';
 
 registerLocaleData(localeEs);
+registerLocaleData(localeEnGb);
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -28,7 +32,7 @@ export const appConfig: ApplicationConfig = {
       withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
       withNavigationErrorHandler(recargarTrasDespliegue),
     ),
-    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([idiomaInterceptor, authInterceptor])),
     provideFirebaseApp(() => initializeApp(environment.firebase)),
     provideAuth(() => {
       const auth = getAuth();
@@ -37,7 +41,12 @@ export const appConfig: ApplicationConfig = {
       }
       return auth;
     }),
-    { provide: LOCALE_ID, useValue: 'es-ES' },
+    // Fechas y números en el idioma de la visita; el atributo lang permite a lectores de pantalla y
+    // traductores saber en qué idioma está la página
+    { provide: LOCALE_ID, useFactory: () => LOCALES[inject(IDIOMA)] },
+    provideAppInitializer(() => {
+      document.documentElement.lang = inject(IDIOMA);
+    }),
     // Solo en producción: con ng serve el service worker serviría versiones antiguas al recargar
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

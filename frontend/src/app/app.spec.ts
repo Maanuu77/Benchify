@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { AuthService } from './core/auth/auth.service';
 import { FakeAuthService } from './core/auth/testing/fake-auth.service';
+import { IDIOMA } from './core/i18n/idioma';
 import { NotificacionesService } from './core/notificaciones/notificaciones.service';
 
 describe('App', () => {
@@ -60,5 +61,18 @@ describe('App', () => {
     auth.signIn({ emailVerificado: true });
     await fixture.whenStable();
     expect(element.querySelector('.aviso-verificacion')).toBeNull();
+  });
+
+  it('speaks English when that is the chosen language, and offers to switch back', async () => {
+    TestBed.overrideProvider(IDIOMA, { useValue: 'en' });
+    auth.signIn({ rol: 'ADMIN' });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element: HTMLElement = fixture.nativeElement;
+
+    expect(element.textContent).toContain('Add a bench');
+    expect(element.textContent).toContain('Moderation');
+    expect(element.querySelector('[aria-label="Ana\'s menu"]')).not.toBeNull();
+    expect(element.querySelector('bf-selector-idioma button')?.getAttribute('aria-label')).toBe('Cambiar a español');
   });
 });

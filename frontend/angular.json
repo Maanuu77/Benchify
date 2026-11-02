@@ -98,7 +98,8 @@
               "text-summary",
               "html",
               "lcov"
-            ]
+            ],
+            "setupFiles": ["src/test-setup.ts"]
           }
         },
         "lint": {
