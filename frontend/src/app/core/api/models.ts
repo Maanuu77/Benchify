@@ -180,6 +180,7 @@ export interface EstadisticasModeracion {
   imagenesPendientes: number;
   totalResenas: number;
   totalUsuarios: number;
+  edicionesPendientes: number;
 }
 
 export interface BancoModeracion {
@@ -233,7 +234,8 @@ export interface ImagenParecida {
 }
 
 export type TipoNotificacion =
-  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'FOTO_APROBADA' | 'FOTO_RECHAZADA' | 'RESENA_RETIRADA' | 'INCIDENCIA_REVISADA';
+  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'FOTO_APROBADA' | 'FOTO_RECHAZADA' | 'RESENA_RETIRADA' | 'INCIDENCIA_REVISADA'
+  | 'EDICION_APROBADA' | 'EDICION_RECHAZADA';
 
 export interface Notificacion {
   id: string;
@@ -247,7 +249,8 @@ export interface Notificacion {
 }
 
 export type AccionModeracion =
-  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'RESENA_ELIMINADA' | 'RESENA_MANTENIDA' | 'IMAGEN_APROBADA' | 'IMAGEN_RECHAZADA';
+  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'RESENA_ELIMINADA' | 'RESENA_MANTENIDA' | 'IMAGEN_APROBADA' | 'IMAGEN_RECHAZADA'
+  | 'EDICION_APROBADA' | 'EDICION_RECHAZADA';
 
 export interface EventoModeracion {
   id: string;
@@ -287,4 +290,37 @@ export interface Lugar {
   oeste: number | null;
   norte: number | null;
   este: number | null;
+}
+
+/** Hay una edición del banco esperando moderación (solo la ven su autor y los administradores). */
+export interface EdicionPendiente {
+  id: string;
+  fecha: string;
+}
+
+/** Campos editables de un banco, para comparar lo publicado con lo propuesto. */
+export interface DatosBancoModeracion {
+  titulo: string;
+  descripcion: string | null;
+  lat: number;
+  lng: number;
+  direccion: string | null;
+  ciudad: string | null;
+  provincia: string | null;
+  pais: string | null;
+  conSombra: boolean;
+  accesible: boolean;
+  conRespaldo: boolean;
+  material: MaterialBanco | null;
+  etiquetas: string[];
+}
+
+export interface EdicionModeracion {
+  id: string;
+  bancoId: string;
+  autorId: string;
+  autorNombre: string | null;
+  fecha: string;
+  actual: DatosBancoModeracion;
+  propuesta: DatosBancoModeracion;
 }

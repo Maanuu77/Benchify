@@ -15,6 +15,23 @@ h2 {
   font: 600 18px var(--bf-font);
 }
 
+.aviso-revision {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: -8px 0 20px;
+  padding: 12px 14px;
+  border-radius: var(--bf-r);
+  background: var(--bf-accent-soft);
+  font-size: 14px;
+  line-height: 1.45;
+
+  mat-icon {
+    flex: none;
+    color: var(--bf-accent-ink);
+  }
+}
+
 .formulario {
   display: grid;
   grid-template-columns: 1fr 1fr;

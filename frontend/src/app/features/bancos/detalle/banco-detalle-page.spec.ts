@@ -43,7 +43,7 @@ describe('BancoDetallePage', () => {
   let fixture: ComponentFixture<BancoDetallePage>;
   let element: HTMLElement;
   let auth: FakeAuthService;
-  let bancos: { obtener: ReturnType<typeof vi.fn>; eliminar: ReturnType<typeof vi.fn> };
+  let bancos: Record<'obtener' | 'eliminar' | 'edicionPendiente', ReturnType<typeof vi.fn>>;
   let usuarios: Record<string, ReturnType<typeof vi.fn>>;
   let notifier: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let geo: { posicionActual: ReturnType<typeof vi.fn> };
@@ -57,7 +57,9 @@ describe('BancoDetallePage', () => {
 
   beforeEach(() => {
     auth = new FakeAuthService();
-    bancos = { obtener: vi.fn(() => of(BANCO)), eliminar: vi.fn(() => of(undefined)) };
+    bancos = {
+      obtener: vi.fn(() => of(BANCO)), eliminar: vi.fn(() => of(undefined)), edicionPendiente: vi.fn(() => of(null)),
+    };
     usuarios = {
       esFavorito: vi.fn(() => of(false)), totalCheckIns: vi.fn(() => of(2)),
       marcarFavorito: vi.fn(() => of(undefined)), desmarcarFavorito: vi.fn(() => of(undefined)),
@@ -165,6 +167,19 @@ describe('BancoDetallePage', () => {
 
     expect(element.textContent).toContain('Editar');
     expect(element.textContent).toContain('Eliminar');
+  });
+
+  it('tells the author their edit is waiting for moderation, and only them', async () => {
+    bancos['edicionPendiente'].mockReturnValue(of({ id: 'r1', fecha: '2026-11-01T09:30:00Z' }));
+    await crear();
+    expect(element.textContent).not.toContain('pendientes de revisión');
+    expect(bancos['edicionPendiente']).not.toHaveBeenCalled();
+
+    auth.signIn({ uid: 'autor' });
+    await fixture.whenStable();
+
+    expect(element.textContent).toContain('pendientes de revisión');
+    expect(bancos['edicionPendiente']).toHaveBeenCalledWith(BANCO.id);
   });
 });
 

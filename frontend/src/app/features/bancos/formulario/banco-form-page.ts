@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -16,11 +17,11 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { toApiError } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
-import { Banco, BancoRequest, MaterialBanco } from '../../../core/api/models';
+import { Banco, BancoRequest, EdicionPendiente, MaterialBanco } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
 import { Notifier } from '../../../core/ui/notifier';
@@ -43,7 +44,7 @@ export const maxEtiquetasValidator: ValidatorFn = (control: AbstractControl<numb
   imports: [
     ReactiveFormsModule, RouterLink, LocationPicker, GaleriaImagenes, LoadingState, ErrorState,
     MatFormField, MatLabel, MatInput, MatError, MatHint, MatSelect, MatOption, MatCheckbox,
-    MatChipListbox, MatChipOption, MatButton, MatIcon,
+    MatChipListbox, MatChipOption, MatButton, MatIcon, DatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './banco-form-page.html',
@@ -57,6 +58,7 @@ export class BancoFormPage implements ConCambiosSinGuardar {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly confirmation = inject(Confirmation);
+  private readonly destroyRef = inject(DestroyRef);
 
   /** Presente al editar (/bancos/:id/editar). */
   readonly id = input<string>();
@@ -74,6 +76,10 @@ export class BancoFormPage implements ConCambiosSinGuardar {
   /** Tras crear el banco se ofrece subir fotos antes de ir a la ficha. */
   protected readonly creado = signal<Banco | null>(null);
   protected readonly editando = computed(() => !!this.id());
+  /** El autor edita un banco publicado: los cambios esperan moderación y el banco sigue igual mientras. */
+  protected readonly conRevision = signal(false);
+  /** Edición anterior aún sin revisar; la que se guarde ahora la sustituye. */
+  protected readonly edicionPendiente = signal<EdicionPendiente | null>(null);
   /** Versión del banco al cargarlo (ETag): si otra persona lo cambia antes de guardar, el backend avisa. */
   private etag: string | null = null;
 
@@ -142,9 +148,11 @@ export class BancoFormPage implements ConCambiosSinGuardar {
     try {
       const id = this.id();
       if (id) {
-        await firstValueFrom(this.api.editar(id, request, this.etag));
+        const { pendienteDeRevision } = await firstValueFrom(this.api.editar(id, request, this.etag));
         this.form.markAsPristine();
-        this.notifier.success(this.auth.isAdmin() ? 'Cambios guardados' : 'Cambios enviados: el banco vuelve a revisión');
+        this.notifier.success(pendienteDeRevision
+          ? 'Cambios enviados: se verán en cuanto los revise un moderador'
+          : 'Cambios guardados');
         await this.router.navigate(['/bancos', id]);
       } else {
         const banco = await firstValueFrom(this.api.proponer(request));
@@ -191,6 +199,12 @@ export class BancoFormPage implements ConCambiosSinGuardar {
         return;
       }
       this.etag = etag;
+      if (!this.auth.isAdmin() && banco.estado === 'PUBLICADO') {
+        this.conRevision.set(true);
+        // Sin esperar: el aviso de una edición anterior no debe retrasar el formulario
+        this.api.edicionPendiente(id).pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+          .subscribe((pendiente) => this.edicionPendiente.set(pendiente));
+      }
       this.form.patchValue({
         titulo: banco.titulo,
         descripcion: banco.descripcion ?? '',

@@ -28,6 +28,12 @@
           @if (estados[b.estado]; as aviso) {
             <p class="estado" role="status"><mat-icon aria-hidden="true">schedule</mat-icon>{{ aviso }}</p>
           }
+          @if (edicionPendiente(); as pendiente) {
+            <p class="estado" role="status">
+              <mat-icon aria-hidden="true">rate_review</mat-icon>
+              Cambios del {{ pendiente.fecha | date: 'd MMM' }} pendientes de revisión
+            </p>
+          }
           <h1>{{ b.titulo }}</h1>
           <div class="valoracion">
             <bf-star-rating [value]="b.puntuacionMedia" />

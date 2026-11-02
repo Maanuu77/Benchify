@@ -83,7 +83,7 @@ describe('admin screens', () => {
     auth.signIn({ uid: 'root', rol: 'ADMIN' });
     api = {
       estadisticas: vi.fn(() => of({ bancosPendientes: 3, bancosPublicados: 40, bancosOcultos: 1, resenasReportadas: 2,
-        imagenesPendientes: 5, totalResenas: 120, totalUsuarios: 33 })),
+        imagenesPendientes: 5, totalResenas: 120, totalUsuarios: 33, edicionesPendientes: 4 })),
       bancos: vi.fn(() => of(pagina([banco('a'), banco('b')]))),
       aprobarBanco: vi.fn(() => of(banco('a'))),
       rechazarBanco: vi.fn(() => of(banco('b'))),
@@ -121,6 +121,7 @@ describe('admin screens', () => {
     const element: HTMLElement = (await render(AdminDashboard)).nativeElement;
 
     expect(element.querySelector('a[href="/bancos"]')?.textContent).toContain('3');
+    expect(element.querySelector('a[href="/ediciones"]')?.textContent).toContain('4ediciones pendientes');
     expect(element.textContent).toContain('fotos pendientes');
     expect(element.textContent).toContain('33');
   });

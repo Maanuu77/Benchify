@@ -21,6 +21,19 @@
     <bf-error-state [message]="mensaje" [retryable]="false" />
   } @else {
     <h1>{{ editando() ? 'Editar banco' : 'Añadir un banco' }}</h1>
+    @if (conRevision()) {
+      <p class="aviso-revision" role="note">
+        <mat-icon aria-hidden="true">rate_review</mat-icon>
+        <span>
+          Este banco ya está en el mapa: tus cambios se verán en cuanto los revise un moderador. Mientras tanto
+          sigue como está.
+          @if (edicionPendiente(); as pendiente) {
+            <b>Ya tienes cambios del {{ pendiente.fecha | date: 'd MMM, HH:mm' }} esperando revisión</b>; si guardas
+            ahora, sustituirán a esos.
+          }
+        </span>
+      </p>
+    }
     <form [formGroup]="form" (ngSubmit)="guardar()" novalidate class="formulario">
       <div class="columna">
         <mat-form-field appearance="outline">
