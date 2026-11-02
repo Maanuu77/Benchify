@@ -45,5 +45,6 @@ export class AdminLayout {
     { path: 'resenas', label: 'Reseñas' },
     { path: 'imagenes', label: 'Fotos' },
     { path: 'usuarios', label: 'Usuarios' },
+    { path: 'historial', label: 'Historial' },
   ];
 }

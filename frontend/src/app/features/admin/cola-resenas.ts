@@ -74,11 +74,14 @@ export class ColaResenas implements OnInit {
   }
 
   protected async eliminar(resena: ResenaModeracion): Promise<void> {
-    const ok = await this.confirmation.ask({
-      titulo: 'Borrar reseña', mensaje: 'Se borrará y se recalculará la valoración del banco.', confirmar: 'Borrar', peligroso: true,
+    const motivo = await this.confirmation.pedirMotivo({
+      titulo: 'Borrar reseña',
+      mensaje: 'Se borrará y se recalculará la valoración del banco. Su autor recibirá un aviso.',
+      confirmar: 'Borrar',
+      sugerencias: ['Lenguaje ofensivo', 'Spam o publicidad', 'No habla del banco'],
     });
-    if (ok) {
-      await this.ejecutar(resena, () => firstValueFrom(this.api.eliminarResena(resena.id)), 'Reseña borrada');
+    if (motivo !== undefined) {
+      await this.ejecutar(resena, () => firstValueFrom(this.api.eliminarResena(resena.id, motivo)), 'Reseña borrada');
     }
   }
 

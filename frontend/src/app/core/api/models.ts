@@ -232,3 +232,16 @@ export interface Notificacion {
   leida: boolean;
   fecha: string;
 }
+
+export type AccionModeracion =
+  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'RESENA_ELIMINADA' | 'RESENA_MANTENIDA' | 'IMAGEN_APROBADA' | 'IMAGEN_RECHAZADA';
+
+export interface EventoModeracion {
+  id: string;
+  moderadorId: string;
+  accion: AccionModeracion;
+  recursoTipo: 'BANCO' | 'IMAGEN' | 'RESENA';
+  recursoId: string;
+  motivo: string | null;
+  fecha: string;
+}

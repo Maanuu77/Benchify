@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
-import { BancoModeracion, Page, PageRequest, Usuario } from '../../core/api/models';
+import { BancoModeracion, EventoModeracion, Page, PageRequest, Usuario } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { FakeAuthService } from '../../core/auth/testing/fake-auth.service';
 import { Notifier } from '../../core/ui/notifier';
@@ -13,6 +13,7 @@ import { AdminDashboard } from './admin-dashboard';
 import { AdminUsuarios } from './admin-usuarios';
 import { Cola } from './cola';
 import { ColaBancos } from './cola-bancos';
+import { HistorialModeracion } from './historial-moderacion';
 
 const pagina = <T>(content: T[], total = content.length): Page<T> =>
   ({ content, page: 0, size: 20, totalElements: total, totalPages: 1 });
@@ -75,7 +76,7 @@ describe('Cola', () => {
 describe('admin screens', () => {
   let api: Record<string, ReturnType<typeof vi.fn>>;
   let auth: FakeAuthService;
-  let confirmation: { ask: ReturnType<typeof vi.fn> };
+  let confirmation: { ask: ReturnType<typeof vi.fn>; pedirMotivo: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     auth = new FakeAuthService();
@@ -91,8 +92,14 @@ describe('admin screens', () => {
         { id: 'ana', email: 'ana@x', nombre: 'Ana', avatarUrl: null, ciudad: null, rol: 'USER', fechaRegistro: '2026-02-01' },
       ]))),
       cambiarRol: vi.fn(),
+      eventos: vi.fn(() => of(pagina<EventoModeracion>([
+        { id: 'e1', moderadorId: 'root', accion: 'IMAGEN_RECHAZADA', recursoTipo: 'IMAGEN', recursoId: 'i1',
+          motivo: 'Foto borrosa u oscura', fecha: '2026-11-01T10:00:00Z' },
+        { id: 'e2', moderadorId: 'root', accion: 'BANCO_APROBADO', recursoTipo: 'BANCO', recursoId: 'b1',
+          motivo: null, fecha: '2026-11-01T09:00:00Z' },
+      ]))),
     };
-    confirmation = { ask: vi.fn(async () => true) };
+    confirmation = { ask: vi.fn(async () => true), pedirMotivo: vi.fn(async () => 'Ya existe en el mapa') };
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -129,6 +136,30 @@ describe('admin screens', () => {
     expect(api['aprobarBanco']).toHaveBeenCalledWith('a');
     expect(element.textContent).toContain('Bancos pendientes (1)');
     expect(element.textContent).not.toContain('Banco a');
+  });
+
+  it('history lists decisions with their reasons', async () => {
+    const element: HTMLElement = (await render(HistorialModeracion)).nativeElement;
+
+    expect(element.textContent).toContain('Historial (2)');
+    expect(element.textContent).toContain('Foto rechazada');
+    expect(element.textContent).toContain('«Foto borrosa u oscura»');
+    expect(element.querySelector('a[href="/bancos/b1"]')).not.toBeNull();
+  });
+
+  it('rejecting a bench sends the reason, and cancelling keeps it', async () => {
+    const fixture = await render(ColaBancos);
+    const element: HTMLElement = fixture.nativeElement;
+    const rechazar = () => Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Rechazar'))!;
+
+    confirmation.pedirMotivo.mockResolvedValueOnce(undefined);
+    rechazar().click();
+    await fixture.whenStable();
+    expect(api['rechazarBanco']).not.toHaveBeenCalled();
+
+    rechazar().click();
+    await fixture.whenStable();
+    expect(api['rechazarBanco']).toHaveBeenCalledWith('a', 'Ya existe en el mapa');
   });
 
   it('admins cannot change their own role from the table', async () => {

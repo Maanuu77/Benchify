@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
 import { BancoModeracion } from '../../core/api/models';
 import { Notifier } from '../../core/ui/notifier';
+import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
@@ -60,6 +61,7 @@ import { Cola } from './cola';
 export class ColaBancos implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly notifier = inject(Notifier);
+  private readonly confirmation = inject(Confirmation);
 
   protected readonly cola = new Cola<BancoModeracion>((page) => this.api.bancos('PENDIENTE', page));
   protected readonly ocupado = signal<string | null>(null);
@@ -72,8 +74,15 @@ export class ColaBancos implements OnInit {
     return this.decidir(banco, () => this.api.aprobarBanco(banco.id), `«${banco.titulo}» publicado`);
   }
 
-  protected rechazar(banco: BancoModeracion): Promise<void> {
-    return this.decidir(banco, () => this.api.rechazarBanco(banco.id), `«${banco.titulo}» rechazado`);
+  protected async rechazar(banco: BancoModeracion): Promise<void> {
+    const motivo = await this.confirmation.pedirMotivo({
+      titulo: 'Rechazar banco',
+      mensaje: `«${banco.titulo}» dejará de estar visible. Puedes explicar el motivo al autor.`,
+      confirmar: 'Rechazar',
+      sugerencias: ['Ya existe en el mapa', 'La ubicación no es correcta', 'No es un banco público', 'Faltan datos'],
+    });
+    if (motivo === undefined) return;
+    await this.decidir(banco, () => this.api.rechazarBanco(banco.id, motivo), `«${banco.titulo}» rechazado`);
   }
 
   private async decidir(banco: BancoModeracion, accion: () => ReturnType<AdminApi['aprobarBanco']>,
