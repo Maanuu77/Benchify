@@ -17,6 +17,8 @@ export const ACCIONES: Record<AccionModeracion, { texto: string; icono: string }
   RESENA_MANTENIDA: { texto: 'Reseña mantenida', icono: 'rate_review' },
   IMAGEN_APROBADA: { texto: 'Foto aprobada', icono: 'photo_library' },
   IMAGEN_RECHAZADA: { texto: 'Foto rechazada', icono: 'hide_image' },
+  EDICION_APROBADA: { texto: 'Edición aplicada', icono: 'published_with_changes' },
+  EDICION_RECHAZADA: { texto: 'Edición descartada', icono: 'edit_off' },
 };
 
 /** Historial de decisiones de moderación: quién hizo qué, cuándo y por qué. */

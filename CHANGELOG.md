@@ -101,8 +101,13 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 
 - Publicar bancos, reseñas o fotos exige haber verificado el email (403 `EMAIL_NO_VERIFICADO`);
   los administradores quedan exentos (#54).
+- Editar un banco publicado ya no lo retira del mapa: si lo edita su autor, el cambio queda como
+  edición pendiente (`PUT` responde 202) y el banco sigue como estaba hasta que un moderador la
+  aplica o la descarta desde la nueva cola "Ediciones", que muestra solo los campos que cambian. Una
+  edición nueva sustituye a la pendiente; el autor ve el aviso en la ficha y en el formulario
+  (`GET /api/v1/bancos/{id}/edicion-pendiente`) y recibe una notificación con el resultado (#58).
 - Migraciones V11 (baja de cuentas e índices de claves foráneas), V12 (historial y notificaciones)
-  V13 (avisos de la comunidad) y V14 (huella de las fotos).
+  V13 (avisos de la comunidad), V14 (huella de las fotos) y V15 (ediciones pendientes).
 
 - Límite de subida de fotos unificado en 10 MB (#27) y máximo de 10000 en el número de página (#41).
 - Migraciones V8 (miniaturas de las imágenes) y V10 (versión de las reseñas para el bloqueo optimista).

@@ -5,6 +5,7 @@ import { API_URL } from '../config/api-url';
 import { params } from './http-params';
 import {
   BancoModeracion,
+  EdicionModeracion,
   EstadisticasModeracion,
   EstadoBanco,
   EventoModeracion,
@@ -37,6 +38,19 @@ export class AdminApi {
   /** @param motivo se guarda en el historial y le llega al autor en su notificación */
   rechazarBanco(id: string, motivo?: string): Observable<BancoModeracion> {
     return this.http.post<BancoModeracion>(`${this.url}/admin/bancos/${id}/rechazo`, null, { params: conMotivo(motivo) });
+  }
+
+  /** Ediciones de bancos publicados que esperan moderación, con lo publicado y lo propuesto. */
+  ediciones(page: PageRequest = {}): Observable<Page<EdicionModeracion>> {
+    return this.http.get<Page<EdicionModeracion>>(`${this.url}/admin/ediciones`, { params: params({ ...page }) });
+  }
+
+  aprobarEdicion(id: string): Observable<BancoModeracion> {
+    return this.http.post<BancoModeracion>(`${this.url}/admin/ediciones/${id}/aprobacion`, null);
+  }
+
+  rechazarEdicion(id: string, motivo?: string): Observable<void> {
+    return this.http.post<void>(`${this.url}/admin/ediciones/${id}/rechazo`, null, { params: conMotivo(motivo) });
   }
 
   resenasReportadas(page: PageRequest = {}): Observable<Page<ResenaModeracion>> {

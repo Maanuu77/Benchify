@@ -42,6 +42,7 @@ export class AdminLayout {
   protected readonly links = [
     { path: '.', label: 'Resumen' },
     { path: 'bancos', label: 'Bancos' },
+    { path: 'ediciones', label: 'Ediciones' },
     { path: 'resenas', label: 'Reseñas' },
     { path: 'imagenes', label: 'Fotos' },
     { path: 'incidencias', label: 'Avisos' },

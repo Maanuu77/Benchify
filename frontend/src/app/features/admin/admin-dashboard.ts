@@ -25,6 +25,10 @@ import { LoadingState } from '../../shared/ui/loading-state';
             <mat-icon aria-hidden="true">add_location_alt</mat-icon>
             <strong>{{ e.bancosPendientes }}</strong><span>bancos pendientes</span>
           </a>
+          <a class="tarjeta pendiente" routerLink="ediciones">
+            <mat-icon aria-hidden="true">published_with_changes</mat-icon>
+            <strong>{{ e.edicionesPendientes }}</strong><span>ediciones pendientes</span>
+          </a>
           <a class="tarjeta pendiente" routerLink="resenas">
             <mat-icon aria-hidden="true">flag</mat-icon>
             <strong>{{ e.resenasReportadas }}</strong><span>reseñas reportadas</span>

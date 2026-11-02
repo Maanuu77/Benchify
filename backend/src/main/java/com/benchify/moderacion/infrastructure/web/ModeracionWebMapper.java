@@ -7,8 +7,12 @@ import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.RevisionBanco;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.EdicionPendiente;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.infrastructure.web.dto.BancoModeracionResponse;
+import com.benchify.moderacion.infrastructure.web.dto.DatosBancoResponse;
+import com.benchify.moderacion.infrastructure.web.dto.EdicionModeracionResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ImagenModeracionResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ImagenParecidaResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ResenaModeracionResponse;
@@ -81,6 +85,22 @@ interface ModeracionWebMapper {
     @Mapping(target = "etiquetas", source = "datos.etiquetas")
     BancoModeracionResponse toResponse(UUID id, DatosBanco datos, EstadoBanco estado, Autor autor,
             Instant fechaSubida);
+
+    default EdicionModeracionResponse toResponse(EdicionPendiente edicion) {
+        RevisionBanco revision = edicion.revision();
+        Banco banco = edicion.banco();
+        String autorNombre = banco.autor().id().equals(revision.autorId()) ? banco.autor().nombre() : null;
+        return new EdicionModeracionResponse(revision.id(), banco.id(), revision.autorId(), autorNombre,
+                revision.fecha(), toDatosResponse(banco.datos()), toDatosResponse(revision.datos()));
+    }
+
+    default DatosBancoResponse toDatosResponse(DatosBanco datos) {
+        return new DatosBancoResponse(datos.titulo(), datos.descripcion(), datos.ubicacion().lat(),
+                datos.ubicacion().lng(), datos.direccion().direccion(), datos.direccion().ciudad(),
+                datos.direccion().provincia(), datos.direccion().pais(), datos.caracteristicas().conSombra(),
+                datos.caracteristicas().accesible(), datos.caracteristicas().conRespaldo(),
+                datos.caracteristicas().material(), nombres(datos.etiquetas()));
+    }
 
     default List<String> nombres(Set<Etiqueta> etiquetas) {
         return etiquetas.stream().map(Etiqueta::nombre).sorted().toList();

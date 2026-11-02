@@ -109,6 +109,16 @@ export class BancoDetallePage {
     return !!b && (this.auth.isAdmin() || this.auth.session()?.uid === b.autor.id);
   });
 
+  /** Edición del autor que espera moderación (solo se pregunta si quien mira puede gestionar el banco). */
+  protected readonly edicionPendiente = toSignal(
+    combineLatest([toObservable(this.id), toObservable(this.esGestor), toObservable(this.recarga)]).pipe(
+      switchMap(([id, gestor]) =>
+        gestor ? this.bancosApi.edicionPendiente(id).pipe(catchError(() => of(null))) : of(null),
+      ),
+    ),
+    { initialValue: null },
+  );
+
   /** Lo que dice la API para el banco y el usuario actuales; al cambiar cualquiera se descarta la respuesta anterior. */
   private readonly favoritoRemoto = toSignal(
     combineLatest([toObservable(this.id), this.uid$]).pipe(

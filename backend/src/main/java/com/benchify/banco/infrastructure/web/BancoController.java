@@ -2,6 +2,7 @@ package com.benchify.banco.infrastructure.web;
 
 import com.benchify.banco.application.port.in.ConsultarBancosUseCase;
 import com.benchify.banco.application.port.in.GestionarBancoUseCase;
+import com.benchify.banco.application.port.in.GestionarBancoUseCase.ResultadoEdicion;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BoundingBox;
 import com.benchify.banco.domain.FiltroBancos;
@@ -9,6 +10,7 @@ import com.benchify.banco.infrastructure.web.dto.BancoCercanoResponse;
 import com.benchify.banco.infrastructure.web.dto.BancoRequest;
 import com.benchify.banco.infrastructure.web.dto.BancoResponse;
 import com.benchify.banco.infrastructure.web.dto.BancoResumenResponse;
+import com.benchify.banco.infrastructure.web.dto.EdicionPendienteResponse;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.Ubicacion;
 import com.benchify.shared.infrastructure.security.CurrentActor;
@@ -108,14 +110,31 @@ class BancoController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Editar un banco propio",
-            description = "Si estaba publicado vuelve a moderación. Con If-Match responde 412 "
-                    + "(BANCO_VERSION_OBSOLETA) si el banco ha cambiado desde que se leyó.")
+            description = "Si el autor edita un banco publicado, el banco sigue igual en el mapa y la edición "
+                    + "queda pendiente de moderación: responde 202 con el banco sin cambios. En otro caso se aplica "
+                    + "y responde 200. Con If-Match responde 412 (BANCO_VERSION_OBSOLETA) si el banco ha cambiado "
+                    + "desde que se leyó.")
     @SecurityRequirement(name = "firebase")
     ResponseEntity<BancoResponse> editar(@CurrentActor Actor actor, @PathVariable UUID id,
             @Parameter(description = "ETag de la ficha leída (opcional)")
             @RequestHeader(name = HttpHeaders.IF_MATCH, required = false) String ifMatch,
             @Valid @RequestBody BancoRequest request) {
-        return conEtag(gestionarBanco.editar(actor, id, mapper.toCommand(request), versionEsperada(ifMatch)));
+        ResultadoEdicion resultado = gestionarBanco.editar(actor, id, mapper.toCommand(request), versionEsperada(ifMatch));
+        if (resultado.aplicada()) {
+            return conEtag(resultado.banco());
+        }
+        return ResponseEntity.accepted().eTag("\"" + resultado.banco().version() + "\"")
+                .body(mapper.toResponse(resultado.banco()));
+    }
+
+    @GetMapping("/{id}/edicion-pendiente")
+    @Operation(summary = "Mi edición de este banco que espera moderación",
+            description = "Solo para el autor y los administradores. 204 si no hay ninguna.")
+    @SecurityRequirement(name = "firebase")
+    ResponseEntity<EdicionPendienteResponse> edicionPendiente(@CurrentActor Actor actor, @PathVariable UUID id) {
+        return gestionarBanco.revisionPendiente(actor, id)
+                .map(r -> ResponseEntity.ok(new EdicionPendienteResponse(r.id(), r.fecha())))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @DeleteMapping("/{id}")

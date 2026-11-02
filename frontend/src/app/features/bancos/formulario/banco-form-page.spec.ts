@@ -30,7 +30,7 @@ const BANCO = { id: 'b1', titulo: 'Nuevo', estado: 'PENDIENTE' } as Banco;
 describe('BancoFormPage', () => {
   let fixture: ComponentFixture<BancoFormPage>;
   let element: HTMLElement;
-  let api: Record<'proponer' | 'editar' | 'obtenerParaEditar' | 'etiquetas', ReturnType<typeof vi.fn>>;
+  let api: Record<'proponer' | 'editar' | 'obtenerParaEditar' | 'edicionPendiente' | 'etiquetas', ReturnType<typeof vi.fn>>;
   let auth: FakeAuthService;
   let confirmation: { ask: ReturnType<typeof vi.fn> };
   let notifier: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
@@ -38,8 +38,9 @@ describe('BancoFormPage', () => {
   beforeEach(() => {
     api = {
       proponer: vi.fn(() => of(BANCO)),
-      editar: vi.fn(() => of(BANCO)),
+      editar: vi.fn(() => of({ banco: BANCO, pendienteDeRevision: false })),
       obtenerParaEditar: vi.fn(),
+      edicionPendiente: vi.fn(() => of(null)),
       etiquetas: vi.fn(() => of([{ id: 1, nombre: 'relax', color: '#3498DB', icono: 'spa' }])),
     };
     notifier = { success: vi.fn(), error: vi.fn() };
@@ -133,6 +134,28 @@ describe('BancoFormPage', () => {
 
     expect(api.editar).toHaveBeenCalledWith('b1', expect.objectContaining({ titulo: 'Existente', etiquetaIds: [1] }), '"3"');
     expect(navigate).toHaveBeenCalledWith(['/bancos', 'b1']);
+    expect(notifier.success).toHaveBeenCalledWith('Cambios guardados');
+    expect(element.querySelector('.aviso-revision')).toBeNull();
+  });
+
+  it('explains that edits to a published bench wait for moderation', async () => {
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    api.obtenerParaEditar.mockReturnValue(of({ etag: '"5"', banco: {
+      ...BANCO, estado: 'PUBLICADO', autor: { id: 'ana', nombre: 'Ana' }, titulo: 'Publicado', descripcion: null, lat: 37.1,
+      lng: -6.1, direccion: null, ciudad: null, provincia: null, conSombra: false, accesible: false, conRespaldo: false,
+      material: null, etiquetas: [],
+    } }));
+    api.edicionPendiente.mockReturnValue(of({ id: 'r1', fecha: '2026-11-01T09:30:00Z' }));
+    api.editar.mockReturnValue(of({ banco: BANCO, pendienteDeRevision: true }));
+    await crear('b1');
+
+    const aviso = element.querySelector('.aviso-revision')!;
+    expect(aviso.textContent).toContain('tus cambios se verán en cuanto los revise un moderador');
+    expect(aviso.textContent).toContain('Ya tienes cambios del');
+    expect(api.edicionPendiente).toHaveBeenCalledWith('b1');
+
+    await enviar();
+    expect(notifier.success).toHaveBeenCalledWith('Cambios enviados: se verán en cuanto los revise un moderador');
   });
 
   it('does not let someone else edit the bench', async () => {

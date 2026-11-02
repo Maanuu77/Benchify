@@ -75,17 +75,32 @@ public class Banco {
     }
 
     /**
-     * Si edita el autor, el banco vuelve a moderación para que no se cuelen cambios sin revisar.
-     * Las ediciones de un administrador mantienen el estado.
+     * Si el autor edita un banco publicado, los cambios no se aplican aquí: se guardan como una
+     * {@link RevisionBanco} y el banco sigue en el mapa con sus datos hasta que se aprueben. Un banco
+     * aún no publicado se puede corregir directamente, y un administrador siempre edita directamente.
      */
-    public void editar(DatosBanco nuevosDatos, Actor actor) {
+    public boolean edicionRequiereRevision(Actor actor) {
+        return !actor.isAdmin() && estado == EstadoBanco.PUBLICADO;
+    }
+
+    /** El autor y los administradores. */
+    public boolean puedeGestionar(Actor actor) {
+        return actor != null && actor.canManage(autor.id());
+    }
+
+    /** Comprueba que el actor puede editar el banco ahora mismo (también antes de proponer una revisión). */
+    public void exigirEditable(Actor actor) {
         exigirGestion(actor);
         exigirNoEliminado();
-        this.datos = Objects.requireNonNull(nuevosDatos, "nuevosDatos");
-        if (!actor.isAdmin() && estado == EstadoBanco.PUBLICADO) {
-            estado = EstadoBanco.PENDIENTE;
-            fechaVerificacion = null;
+    }
+
+    /** Cambia los datos directamente; ver {@link #edicionRequiereRevision}. */
+    public void editar(DatosBanco nuevosDatos, Actor actor) {
+        exigirEditable(actor);
+        if (edicionRequiereRevision(actor)) {
+            throw new IllegalStateException("La edición del autor de un banco publicado pasa por una revisión");
         }
+        this.datos = Objects.requireNonNull(nuevosDatos, "nuevosDatos");
     }
 
     /**

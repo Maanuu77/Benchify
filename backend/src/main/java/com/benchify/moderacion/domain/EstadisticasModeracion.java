@@ -8,9 +8,10 @@ public record EstadisticasModeracion(
         long resenasReportadas,
         long imagenesPendientes,
         long totalResenas,
-        long totalUsuarios) {
+        long totalUsuarios,
+        long edicionesPendientes) {
 
     public long tareasPendientes() {
-        return bancosPendientes + resenasReportadas + imagenesPendientes;
+        return bancosPendientes + resenasReportadas + imagenesPendientes + edicionesPendientes;
     }
 }

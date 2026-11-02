@@ -49,7 +49,8 @@ public class SecurityConfig {
                         // Lecturas personales que conviven con rutas públicas
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/usuarios/me", "/api/v1/usuarios/me/**",
-                                "/api/v1/bancos/*/favorito", "/api/v1/bancos/*/resenas/mia").authenticated()
+                                "/api/v1/bancos/*/favorito", "/api/v1/bancos/*/resenas/mia",
+                                "/api/v1/bancos/*/edicion-pendiente").authenticated()
                         // Lecturas públicas: mapa, fichas, fotos, reseñas, etiquetas y perfiles; las fotos
                         // pendientes solo se sirven a quien las puede ver (lo decide el caso de uso)
                         .requestMatchers(HttpMethod.GET,

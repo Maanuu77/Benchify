@@ -1,12 +1,16 @@
 package com.benchify.moderacion.infrastructure.web;
 
 import com.benchify.banco.domain.Banco;
+import com.benchify.banco.domain.Caracteristicas;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.MaterialBanco;
+import com.benchify.banco.domain.RevisionBanco;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.EdicionPendiente;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
 import com.benchify.resena.domain.Resena;
@@ -58,7 +62,7 @@ class ModeracionControllerTest {
 
     @Test
     void returnsDashboardStatistics() {
-        when(moderacion.estadisticas(ADMIN)).thenReturn(new EstadisticasModeracion(3, 40, 2, 1, 5, 120, 33));
+        when(moderacion.estadisticas(ADMIN)).thenReturn(new EstadisticasModeracion(3, 40, 2, 1, 5, 120, 33, 4));
 
         assertThat(mvc.get().uri("/api/v1/admin/estadisticas").header("Authorization", bearerAdmin("root")))
                 .hasStatusOk()
@@ -114,6 +118,34 @@ class ModeracionControllerTest {
         assertThat(mvc.delete().uri("/api/v1/admin/resenas/{id}", reportada.id())
                 .header("Authorization", bearerAdmin("root"))).hasStatus(204);
         verify(moderacion).eliminarResena(ADMIN, reportada.id(), null);
+    }
+
+    @Test
+    void showsEditsSideBySideAndAppliesOrDiscardsThem() {
+        RevisionBanco revision = RevisionBanco.proponer(BANCO.id(), Actor.user("ana"),
+                new DatosBanco("Renombrado", null, new Ubicacion(37.1, -6), null,
+                        new Caracteristicas(true, false, false, MaterialBanco.PIEDRA), Set.of()), AHORA);
+        when(moderacion.edicionesPendientes(ADMIN, PageQuery.first(20)))
+                .thenReturn(new PageResult<>(List.of(new EdicionPendiente(revision, BANCO)), 0, 20, 1));
+        when(moderacion.aprobarEdicion(ADMIN, revision.id())).thenReturn(BANCO);
+
+        assertThat(mvc.get().uri("/api/v1/admin/ediciones").header("Authorization", bearerAdmin("root")))
+                .hasStatusOk()
+                .bodyJson().satisfies(json -> {
+                    assertThat(json).extractingPath("$.content[0].id").isEqualTo(revision.id().toString());
+                    assertThat(json).extractingPath("$.content[0].autorId").isEqualTo("ana");
+                    assertThat(json).extractingPath("$.content[0].actual.titulo").isEqualTo("Pendiente");
+                    assertThat(json).extractingPath("$.content[0].actual.etiquetas[0]").isEqualTo("relax");
+                    assertThat(json).extractingPath("$.content[0].propuesta.titulo").isEqualTo("Renombrado");
+                    assertThat(json).extractingPath("$.content[0].propuesta.material").isEqualTo("PIEDRA");
+                    assertThat(json).extractingPath("$.content[0].propuesta.conSombra").isEqualTo(true);
+                });
+        assertThat(mvc.post().uri("/api/v1/admin/ediciones/{id}/aprobacion", revision.id())
+                .header("Authorization", bearerAdmin("root"))).hasStatusOk();
+        assertThat(mvc.post().uri("/api/v1/admin/ediciones/{id}/rechazo", revision.id()).param("motivo", "Spam")
+                .header("Authorization", bearerAdmin("root"))).hasStatus(204);
+        verify(moderacion).rechazarEdicion(ADMIN, revision.id(), "Spam");
+        assertThat(mvc.get().uri("/api/v1/admin/ediciones").header("Authorization", bearer("ana"))).hasStatus(403);
     }
 
     @Test

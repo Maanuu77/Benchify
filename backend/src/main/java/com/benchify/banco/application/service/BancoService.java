@@ -6,6 +6,7 @@ import com.benchify.banco.application.port.in.GestionarBancoUseCase;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.EtiquetaRepository;
 import com.benchify.banco.application.port.out.ImagenRepository;
+import com.benchify.banco.application.port.out.RevisionBancoRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BancoNotFoundException;
@@ -16,8 +17,10 @@ import com.benchify.banco.domain.DireccionPostal;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.RevisionBanco;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Ubicacion;
@@ -27,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -38,14 +42,16 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
     private final BancoRepository bancos;
     private final EtiquetaRepository etiquetas;
     private final ImagenRepository imagenes;
+    private final RevisionBancoRepository revisiones;
     private final BorradoFicherosImagen ficheros;
     private final Clock clock;
 
     public BancoService(BancoRepository bancos, EtiquetaRepository etiquetas, ImagenRepository imagenes,
-            BorradoFicherosImagen ficheros, Clock clock) {
+            RevisionBancoRepository revisiones, BorradoFicherosImagen ficheros, Clock clock) {
         this.bancos = bancos;
         this.etiquetas = etiquetas;
         this.imagenes = imagenes;
+        this.revisiones = revisiones;
         this.ficheros = ficheros;
         this.clock = clock;
     }
@@ -68,7 +74,7 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
      * un 412 en lugar de pisar a la primera.
      */
     @Override
-    public Banco editar(Actor actor, UUID bancoId, BancoCommand command, Long versionEsperada) {
+    public ResultadoEdicion editar(Actor actor, UUID bancoId, BancoCommand command, Long versionEsperada) {
         Banco banco;
         if (versionEsperada == null) {
             banco = cargarVisible(bancoId, actor);
@@ -78,8 +84,28 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
                     .orElseThrow(() -> new BancoNotFoundException(bancoId));
             banco.exigirVersion(versionEsperada, actor);
         }
-        banco.editar(toDatos(command), actor);
-        return bancos.save(banco);
+        banco.exigirEditable(actor);
+        DatosBanco datos = toDatos(command);
+        if (!banco.edicionRequiereRevision(actor)) {
+            banco.editar(datos, actor);
+            return new ResultadoEdicion(bancos.save(banco), null);
+        }
+        // El banco sigue publicado tal cual; una edición anterior aún sin revisar se sustituye
+        RevisionBanco revision = revisiones.findPendienteByBanco(bancoId)
+                .map(pendiente -> pendiente.sustituir(datos, clock.instant()))
+                .orElseGet(() -> RevisionBanco.proponer(bancoId, actor, datos, clock.instant()));
+        revisiones.guardar(revision);
+        return new ResultadoEdicion(banco, revision);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RevisionBanco> revisionPendiente(Actor actor, UUID bancoId) {
+        Banco banco = cargarVisible(bancoId, actor);
+        if (!banco.puedeGestionar(actor)) {
+            throw new ForbiddenException("BANCO_NO_AUTOR", "Solo el autor o un administrador pueden ver sus ediciones");
+        }
+        return revisiones.findPendienteByBanco(bancoId);
     }
 
     /**

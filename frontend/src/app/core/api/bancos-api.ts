@@ -9,6 +9,7 @@ import {
   BancoRequest,
   BancoResumen,
   BoundingBox,
+  EdicionPendiente,
   Etiqueta,
   FiltroBancos,
   Imagen,
@@ -53,9 +54,24 @@ export class BancosApi {
       .pipe(map((response) => ({ banco: response.body!, etag: response.headers.get('ETag') })));
   }
 
-  /** Con `etag`, el backend rechaza la edición (412 BANCO_VERSION_OBSOLETA) si otra persona lo ha cambiado. */
-  editar(id: string, request: BancoRequest, etag: string | null = null): Observable<Banco> {
-    return this.http.put<Banco>(`${this.url}/bancos/${id}`, request, etag ? { headers: { 'If-Match': etag } } : {});
+  /**
+   * Con `etag`, el backend rechaza la edición (412 BANCO_VERSION_OBSOLETA) si otra persona lo ha cambiado.
+   * Si el autor edita un banco publicado, el backend responde 202: la edición espera moderación y el
+   * banco devuelto sigue como estaba.
+   */
+  editar(id: string, request: BancoRequest, etag: string | null = null):
+      Observable<{ banco: Banco; pendienteDeRevision: boolean }> {
+    return this.http
+      .put<Banco>(`${this.url}/bancos/${id}`, request, {
+        observe: 'response',
+        ...(etag ? { headers: { 'If-Match': etag } } : {}),
+      })
+      .pipe(map((response) => ({ banco: response.body!, pendienteDeRevision: response.status === 202 })));
+  }
+
+  /** La edición del banco que espera moderación, o null si no hay ninguna (204). */
+  edicionPendiente(id: string): Observable<EdicionPendiente | null> {
+    return this.http.get<EdicionPendiente | null>(`${this.url}/bancos/${id}/edicion-pendiente`);
   }
 
   eliminar(id: string): Observable<void> {
