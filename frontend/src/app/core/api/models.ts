@@ -220,7 +220,8 @@ export interface ImagenModeracion {
   fechaSubida: string;
 }
 
-export type TipoNotificacion = 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'FOTO_APROBADA' | 'FOTO_RECHAZADA' | 'RESENA_RETIRADA';
+export type TipoNotificacion =
+  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'FOTO_APROBADA' | 'FOTO_RECHAZADA' | 'RESENA_RETIRADA' | 'INCIDENCIA_REVISADA';
 
 export interface Notificacion {
   id: string;
@@ -244,4 +245,22 @@ export interface EventoModeracion {
   recursoId: string;
   motivo: string | null;
   fecha: string;
+}
+
+export type TipoIncidencia = 'ROTO' | 'SUCIO' | 'DESAPARECIDO' | 'OTRO';
+export type EstadoIncidencia = 'ABIERTA' | 'RESUELTA' | 'DESCARTADA';
+
+export interface Incidencia {
+  id: string;
+  bancoId: string;
+  usuarioId: string;
+  tipo: TipoIncidencia;
+  comentario: string | null;
+  estado: EstadoIncidencia;
+  fecha: string;
+}
+
+export interface ResumenIncidencias {
+  tipo: TipoIncidencia;
+  total: number;
 }

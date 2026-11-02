@@ -12,6 +12,7 @@ const ICONOS: Record<TipoNotificacion, string> = {
   FOTO_APROBADA: 'photo_library',
   FOTO_RECHAZADA: 'hide_image',
   RESENA_RETIRADA: 'comments_disabled',
+  INCIDENCIA_REVISADA: 'build_circle',
 };
 
 /** Campana de la cabecera: contador de avisos sin leer y menú con los más recientes. */

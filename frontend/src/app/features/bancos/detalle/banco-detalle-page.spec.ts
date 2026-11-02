@@ -11,11 +11,12 @@ import { FakeAuthService } from '../../../core/auth/testing/fake-auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
+import { AvisosBanco } from './avisos-banco';
 import { BancoDetallePage } from './banco-detalle-page';
 import { GaleriaImagenes, validarTamanoImagen, validarTipoImagen } from './galeria-imagenes';
 import { ResenasSection } from './resenas-section';
 
-@Component({ selector: 'bf-bench-map, bf-galeria-imagenes, bf-resenas-section', template: '' })
+@Component({ selector: 'bf-bench-map, bf-avisos-banco, bf-galeria-imagenes, bf-resenas-section', template: '' })
 class Stub {
   readonly bancos = input<unknown>();
   readonly centro = input<unknown>();
@@ -75,7 +76,7 @@ describe('BancoDetallePage', () => {
       ],
     });
     TestBed.overrideComponent(BancoDetallePage, {
-      remove: { imports: [BenchMap, GaleriaImagenes, ResenasSection] },
+      remove: { imports: [BenchMap, AvisosBanco, GaleriaImagenes, ResenasSection] },
       add: { imports: [Stub] },
     });
   });

@@ -62,6 +62,8 @@
           </div>
         </header>
 
+        <bf-avisos-banco [bancoId]="b.id" [tituloBanco]="b.titulo" [publicado]="b.estado === 'PUBLICADO'" />
+
         <section class="bloque" aria-labelledby="titulo-caracteristicas">
           <h2 id="titulo-caracteristicas" class="sr-only">Características</h2>
           <ul class="chips">

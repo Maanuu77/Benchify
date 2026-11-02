@@ -19,6 +19,7 @@ import { DistanciaPipe } from '../../../shared/ui/distancia.pipe';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { StarRating } from '../../../shared/ui/star-rating';
+import { AvisosBanco } from './avisos-banco';
 import { GaleriaImagenes } from './galeria-imagenes';
 import { ResenasSection } from './resenas-section';
 
@@ -36,7 +37,7 @@ export const MATERIALES: Record<string, string> = {
   selector: 'bf-banco-detalle-page',
   imports: [
     RouterLink, DatePipe, DecimalPipe, MatButton, MatIcon,
-    StarRating, LoadingState, ErrorState, BenchMap, GaleriaImagenes, ResenasSection,
+    StarRating, LoadingState, ErrorState, BenchMap, AvisosBanco, GaleriaImagenes, ResenasSection,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './banco-detalle-page.html',
