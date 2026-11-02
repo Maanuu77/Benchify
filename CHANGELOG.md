@@ -92,13 +92,17 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
   `GEOCODIFICACION_NO_DISPONIBLE` si se agota). Prioriza lo cercano al centro del mapa y, al
   elegir un resultado, encuadra su zona. Las búsquedas tienen su propio límite de 20 por minuto
   por usuario o IP (#77).
+- Posibles fotos duplicadas en moderación: al subir cada foto se calcula su huella perceptual
+  (dHash de 64 bits) y la cola de fotos pendientes muestra hasta 3 fotos ya subidas que se le
+  parecen (6 bits de diferencia como mucho), de ese u otros bancos y en cualquier estado. Las fotos
+  anteriores a este cambio no tienen huella (#61).
 
 ### Cambiado
 
 - Publicar bancos, reseñas o fotos exige haber verificado el email (403 `EMAIL_NO_VERIFICADO`);
   los administradores quedan exentos (#54).
 - Migraciones V11 (baja de cuentas e índices de claves foráneas), V12 (historial y notificaciones)
-  y V13 (avisos de la comunidad).
+  V13 (avisos de la comunidad) y V14 (huella de las fotos).
 
 - Límite de subida de fotos unificado en 10 MB (#27) y máximo de 10000 en el número de página (#41).
 - Migraciones V8 (miniaturas de las imágenes) y V10 (versión de las reseñas para el bloqueo optimista).

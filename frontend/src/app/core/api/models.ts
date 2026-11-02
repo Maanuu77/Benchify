@@ -218,6 +218,18 @@ export interface ImagenModeracion {
   subidaPor: string;
   tamanoBytes: number;
   fechaSubida: string;
+  /** Fotos ya subidas que se le parecen (posibles duplicados); solo en la cola de pendientes. */
+  parecidas: ImagenParecida[];
+}
+
+/** Las rechazadas ya no tienen fichero: thumbUrl es null. */
+export interface ImagenParecida {
+  id: string;
+  bancoId: string;
+  thumbUrl: string | null;
+  requiereAutenticacion: boolean;
+  estado: EstadoImagen;
+  mismoBanco: boolean;
 }
 
 export type TipoNotificacion =
