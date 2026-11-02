@@ -9,6 +9,8 @@ set -euo pipefail
 : "${PROJECT_ID:?Define PROJECT_ID}"
 : "${CLOUD_SQL_INSTANCE:?Define CLOUD_SQL_INSTANCE (proyecto:región:instancia)}"
 : "${CORS_ALLOWED_ORIGINS:?Define CORS_ALLOWED_ORIGINS (URL de Firebase Hosting)}"
+# Dirección pública de la web (enlaces compartidos y sitemap): por defecto, el primer origen permitido
+WEB_URL="${WEB_URL:-${CORS_ALLOWED_ORIGINS%%,*}}"
 REGION="${REGION:-europe-southwest1}"
 REPOSITORY="${REPOSITORY:-benchify}"
 STORAGE_BUCKET="${STORAGE_BUCKET:-${PROJECT_ID}.appspot.com}"
@@ -21,7 +23,7 @@ echo "→ Building ${IMAGE}"
 gcloud builds submit "${ROOT}/backend" --project "${PROJECT_ID}" --tag "${IMAGE}"
 
 echo "→ Deploying benchify-api to Cloud Run (${REGION})"
-export PROJECT_ID IMAGE CLOUD_SQL_INSTANCE STORAGE_BUCKET CORS_ALLOWED_ORIGINS
+export PROJECT_ID IMAGE CLOUD_SQL_INSTANCE STORAGE_BUCKET CORS_ALLOWED_ORIGINS WEB_URL
 envsubst < "${ROOT}/deploy/cloudrun/service.yaml" > /tmp/benchify-service.yaml
 gcloud run services replace /tmp/benchify-service.yaml --project "${PROJECT_ID}" --region "${REGION}"
 

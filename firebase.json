@@ -7,6 +7,18 @@
     "trailingSlash": false,
     "rewrites": [
       {
+        "source": "/s/**",
+        "run": { "serviceId": "benchify-api", "region": "europe-southwest1" }
+      },
+      {
+        "source": "/sitemap.xml",
+        "run": { "serviceId": "benchify-api", "region": "europe-southwest1" }
+      },
+      {
+        "source": "/robots.txt",
+        "run": { "serviceId": "benchify-api", "region": "europe-southwest1" }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

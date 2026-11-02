@@ -3,6 +3,7 @@ package com.benchify.banco.application.port.in;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BoundingBox;
+import com.benchify.banco.domain.EntradaSitemap;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
 import com.benchify.shared.domain.Actor;
@@ -19,6 +20,9 @@ public interface ConsultarBancosUseCase {
     int MAX_RESULTADOS_MAPA = 500;
     int RADIO_MAXIMO_METROS = 50_000;
 
+    /** Límite de URLs de un sitemap.xml según el protocolo. */
+    int MAX_SITEMAP = 50_000;
+
     /** @param actor quien consulta, o {@code null} si es anónimo */
     Banco obtener(UUID bancoId, Actor actor);
 
@@ -30,4 +34,7 @@ public interface ConsultarBancosUseCase {
     PageResult<Banco> deUsuario(String usuarioId, Actor actor, PageQuery page);
 
     List<Etiqueta> etiquetas();
+
+    /** Como mucho {@link #MAX_SITEMAP} bancos publicados, los cambiados más recientemente primero. */
+    List<EntradaSitemap> sitemap();
 }

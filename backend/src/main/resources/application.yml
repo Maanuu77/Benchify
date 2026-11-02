@@ -42,6 +42,9 @@ server:
 benchify:
   cors:
     allowed-origins: []
+  # Public address of the web app: shared links, sitemap.xml and Open Graph tags
+  web:
+    url: ${WEB_URL:http://localhost:4200}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:demo-benchify}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}

@@ -5,6 +5,7 @@ import com.benchify.banco.application.port.out.EtiquetaRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BoundingBox;
+import com.benchify.banco.domain.EntradaSitemap;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
@@ -14,10 +15,12 @@ import com.benchify.shared.domain.Ubicacion;
 import com.benchify.shared.infrastructure.persistence.BloqueosTransaccionales;
 import com.benchify.shared.infrastructure.persistence.SpringDataPages;
 import jakarta.persistence.EntityManager;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -123,6 +126,13 @@ class BancoPersistenceAdapter implements BancoRepository, EtiquetaRepository {
     @Override
     public long countByEstado(EstadoBanco estado) {
         return bancos.countByEstado(estado);
+    }
+
+    @Override
+    public List<EntradaSitemap> findPublicadosParaSitemap(int limite) {
+        return bancos.findIdsYFechas(EstadoBanco.PUBLICADO, PageRequest.of(0, limite)).stream()
+                .map(fila -> new EntradaSitemap((UUID) fila[0], (Instant) fila[1]))
+                .toList();
     }
 
     @Override
