@@ -124,7 +124,13 @@
         @if (enLimite()) {
           <p class="aviso-limite" role="status">Acerca el mapa para ver todos los bancos de la zona.</p>
         }
-        @switch (estado().status) {
+        @if (sinConexion() && !mostrarError()) {
+          <p class="aviso-limite" role="status">
+            Sin conexión: se muestran los últimos bancos que cargaste.
+            <button type="button" class="enlace" (click)="reintentarArea()">Reintentar</button>
+          </p>
+        }
+        @switch (mostrarError() ? 'error' : 'ok') {
           @case ('error') {
             <bf-error-state message="No hemos podido cargar los bancos de esta zona." (retry)="reintentarArea()" />
           }

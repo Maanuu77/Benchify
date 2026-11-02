@@ -5,7 +5,7 @@ import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-i
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { combineLatest, debounceTime, filter, map, of, skip, switchMap } from 'rxjs';
+import { combineLatest, debounceTime, filter, map, of, skip, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Loadable, loadable } from '../../core/api/api-error';
 import { BancosApi, MAX_RESULTADOS_MAPA } from '../../core/api/bancos-api';
@@ -21,6 +21,7 @@ import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { BuscadorLugares } from './buscador-lugares';
 import { aQueryParams, leerEstadoMapa } from './estado-mapa';
+import { guardarUltimaZona, leerUltimaZona } from './ultima-zona';
 import { FiltrosBancos } from './filtros-bancos';
 
 /** Radio de la búsqueda "cerca de mí", en metros. */
@@ -75,15 +76,38 @@ export class MapaPage {
     combineLatest([
       toObservable(this.area).pipe(filter((a): a is BoundingBox => a !== null), debounceTime(250)),
       toObservable(this.filtro),
-    ]).pipe(switchMap(([area, filtro]) => loadable(this.api.enArea(area, filtro)))),
+    ]).pipe(switchMap(([area, filtro]) =>
+      loadable(this.api.enArea(area, filtro).pipe(tap((bancos) => guardarUltimaZona(bancos)))),
+    )),
     { initialValue: { status: 'loading' } as Loadable<BancoResumen[]> },
   );
 
-  /** Conserva los últimos marcadores mientras carga la siguiente área para que no parpadeen. */
-  protected readonly bancos = linkedSignal<Loadable<BancoResumen[]>, BancoResumen[]>({
-    source: this.estado,
-    computation: (estado, anterior) => (estado.status === 'success' ? estado.value : (anterior?.value ?? [])),
+  /** Sin conexión con la API: se siguen mostrando los últimos bancos cargados. */
+  protected readonly sinConexion = computed(() => {
+    const estado = this.estado();
+    return estado.status === 'error' && estado.error.code === 'NETWORK';
   });
+  /** Última zona guardada en el navegador; solo se lee al perder la conexión. */
+  private readonly copiaSinConexion = computed(() => (this.sinConexion() ? leerUltimaZona() : null));
+
+  /**
+   * Conserva los últimos marcadores mientras carga la siguiente área para que no parpadeen. Si no hay
+   * conexión y aún no se ha cargado nada, recurre a la última zona guardada.
+   */
+  protected readonly bancos = linkedSignal({
+    source: () => ({ estado: this.estado(), copia: this.copiaSinConexion() }),
+    computation: ({ estado, copia }, anterior?: { value: BancoResumen[] }): BancoResumen[] => {
+      if (estado.status === 'success') {
+        return estado.value;
+      }
+      const actuales = anterior?.value ?? [];
+      return actuales.length === 0 && copia ? copia.bancos : actuales;
+    },
+  });
+
+  /** El error solo se enseña si no hay nada que mostrar en su lugar. */
+  protected readonly mostrarError = computed(() =>
+    this.estado().status === 'error' && !(this.sinConexion() && this.bancos().length > 0));
 
   /** Bancos cercanos: se vuelven a pedir al cambiar los filtros y solo cuenta la última respuesta. */
   protected readonly cercanos = toSignal(

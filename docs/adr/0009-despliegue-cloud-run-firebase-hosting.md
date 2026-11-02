@@ -32,3 +32,5 @@ para el frontend.
 - Toda la configuración de producción son variables de entorno documentadas en `.env.example`.
 - La configuración web de Firebase del frontend se fija en `environment.prod.ts` en el build:
   cambiar de proyecto exige recompilar.
+- La API se sirve por el dominio de Hosting (`/api/**` → Cloud Run): sin CORS ni URL de Cloud Run
+  en el build, y el service worker de la PWA puede guardar sus respuestas.

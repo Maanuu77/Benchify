@@ -186,6 +186,17 @@ h2 {
   margin: -4px 0 8px;
   font-size: 13px;
   color: var(--bf-ink-2);
+
+  .enlace {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--bf-accent-ink);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }
 
 // ── Tarjeta del banco seleccionado ───────────────────────────────────────────

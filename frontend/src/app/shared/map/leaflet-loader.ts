@@ -45,6 +45,8 @@ export function anadirCapaBase(L: LeafletLib, map: Leaflet.Map): () => void {
     attribution: TILE_ATTRIBUTION,
     maxZoom: 19,
     className: 'bf-teselas',
+    // Petición CORS (OSM la permite): así el service worker puede guardar las teselas para usarlas sin conexión
+    crossOrigin: true,
   }).addTo(map);
   return () => capa.remove();
 }

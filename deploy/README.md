@@ -70,7 +70,9 @@ Cloud Run (Application Default Credentials).
 ## 3. Frontend en Firebase Hosting
 
 1. En `frontend/src/environments/environment.prod.ts` pon la configuración web de Firebase
-   (Consola → Configuración del proyecto → Tus apps) y la URL de Cloud Run que imprimió el paso 2.
+   (Consola → Configuración del proyecto → Tus apps). La URL de la API no hace falta: Hosting reenvía
+   `/api/**`, `/s/**`, `/sitemap.xml` y `/robots.txt` al servicio `benchify-api` de Cloud Run, así
+   que la aplicación y la API comparten dominio.
 2. Despliega Hosting y las reglas de Storage:
 
 ```bash
