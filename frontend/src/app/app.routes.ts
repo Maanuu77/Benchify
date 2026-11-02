@@ -55,6 +55,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login-page').then((m) => m.LoginPage),
   },
   {
+    path: 'recuperar',
+    title: 'Recuperar la contraseña · Benchify',
+    canActivate: [anonymousGuard],
+    loadComponent: () => import('./features/auth/recuperar-page').then((m) => m.RecuperarPage),
+  },
+  {
     path: 'registro',
     title: 'Crear cuenta · Benchify',
     canActivate: [anonymousGuard],

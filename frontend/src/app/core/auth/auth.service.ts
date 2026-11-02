@@ -4,8 +4,11 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onIdTokenChanged,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   User,
@@ -47,8 +50,21 @@ export class AuthService {
     await signInWithEmailAndPassword(this.auth, email, password);
   }
 
+  /**
+   * Con ventana emergente; si el navegador la bloquea (frecuente en móviles), con redirección: la
+   * página se recarga al volver de Google y la sesión llega por onIdTokenChanged.
+   */
   async loginWithGoogle(): Promise<void> {
-    await signInWithPopup(this.auth, new GoogleAuthProvider());
+    const proveedor = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(this.auth, proveedor);
+    } catch (error) {
+      if ((error as { code?: string }).code === 'auth/popup-blocked') {
+        await signInWithRedirect(this.auth, proveedor);
+        return;
+      }
+      throw error;
+    }
   }
 
   async register(nombre: string, email: string, password: string): Promise<void> {
@@ -56,6 +72,34 @@ export class AuthService {
     await updateProfile(user, { displayName: nombre });
     // El backend toma el nombre del token: se fuerza uno nuevo que ya lo incluya
     await user.getIdToken(true);
+    // Sin email verificado no puede publicar: se envía el enlace nada más registrarse
+    await sendEmailVerification(user).catch(() => undefined);
+  }
+
+  /** Envía el enlace para elegir una contraseña nueva. */
+  async recuperarPassword(email: string): Promise<void> {
+    await sendPasswordResetEmail(this.auth, email);
+  }
+
+  async enviarVerificacion(): Promise<void> {
+    const user = this.auth.currentUser;
+    if (user) {
+      await sendEmailVerification(user);
+    }
+  }
+
+  /**
+   * Vuelve a leer el usuario de Firebase tras verificar el email en otra pestaña y pide un token
+   * nuevo, que es el que lleva email_verified al backend. Devuelve si ya está verificado.
+   */
+  async comprobarVerificacion(): Promise<boolean> {
+    const user = this.auth.currentUser;
+    if (!user) {
+      return false;
+    }
+    await user.reload();
+    await user.getIdToken(true);
+    return user.emailVerified;
   }
 
   async logout(): Promise<void> {

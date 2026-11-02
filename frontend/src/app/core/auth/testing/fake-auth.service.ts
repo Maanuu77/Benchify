@@ -17,9 +17,15 @@ export class FakeAuthService {
   readonly register = vi.fn(async () => undefined);
   readonly logout = vi.fn(async () => this.signOut());
   readonly refreshClaims = vi.fn(async () => undefined);
+  readonly recuperarPassword = vi.fn(async () => undefined);
+  readonly enviarVerificacion = vi.fn(async () => undefined);
+  readonly comprobarVerificacion = vi.fn(async () => true);
 
   signIn(partial: Partial<Session> = {}): void {
-    this.current.set({ uid: 'ana', email: 'ana@benchify.dev', displayName: 'Ana', photoURL: null, rol: 'USER', ...partial });
+    this.current.set({
+      uid: 'ana', email: 'ana@benchify.dev', displayName: 'Ana', photoURL: null, rol: 'USER', emailVerificado: true,
+      ...partial,
+    });
     this.token = 'token-' + (partial.uid ?? 'ana');
   }
 
