@@ -12,6 +12,7 @@ export const ADMIN_ROUTES: Routes = [
       { path: 'resenas', title: 'Reseñas reportadas · Benchify', loadComponent: () => import('./cola-resenas').then((m) => m.ColaResenas) },
       { path: 'imagenes', title: 'Fotos pendientes · Benchify', loadComponent: () => import('./cola-imagenes').then((m) => m.ColaImagenes) },
       { path: 'usuarios', title: 'Usuarios · Benchify', loadComponent: () => import('./admin-usuarios').then((m) => m.AdminUsuarios) },
+      { path: 'historial', title: 'Historial de moderación · Benchify', loadComponent: () => import('./historial-moderacion').then((m) => m.HistorialModeracion) },
     ],
   },
 ];

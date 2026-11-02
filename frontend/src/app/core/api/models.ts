@@ -219,3 +219,29 @@ export interface ImagenModeracion {
   tamanoBytes: number;
   fechaSubida: string;
 }
+
+export type TipoNotificacion = 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'FOTO_APROBADA' | 'FOTO_RECHAZADA' | 'RESENA_RETIRADA';
+
+export interface Notificacion {
+  id: string;
+  tipo: TipoNotificacion;
+  titulo: string;
+  mensaje: string | null;
+  /** Ruta de la aplicación a la que lleva, p. ej. /bancos/{id}. */
+  enlace: string | null;
+  leida: boolean;
+  fecha: string;
+}
+
+export type AccionModeracion =
+  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'RESENA_ELIMINADA' | 'RESENA_MANTENIDA' | 'IMAGEN_APROBADA' | 'IMAGEN_RECHAZADA';
+
+export interface EventoModeracion {
+  id: string;
+  moderadorId: string;
+  accion: AccionModeracion;
+  recursoTipo: 'BANCO' | 'IMAGEN' | 'RESENA';
+  recursoId: string;
+  motivo: string | null;
+  fecha: string;
+}

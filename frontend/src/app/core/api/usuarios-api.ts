@@ -19,6 +19,11 @@ export class UsuariosApi {
     return this.http.patch<Usuario>(`${this.url}/usuarios/me`, { nombre, ciudad });
   }
 
+  /** Baja definitiva: anonimiza el perfil y borra la cuenta de Firebase. */
+  eliminarCuenta(): Observable<void> {
+    return this.http.delete<void>(`${this.url}/usuarios/me`);
+  }
+
   perfil(id: string): Observable<PerfilPublico> {
     return this.http.get<PerfilPublico>(`${this.url}/usuarios/${id}`);
   }

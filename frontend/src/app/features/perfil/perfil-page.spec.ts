@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { BancosApi } from '../../core/api/bancos-api';
 import { Page } from '../../core/api/models';
@@ -8,6 +8,7 @@ import { UsuariosApi } from '../../core/api/usuarios-api';
 import { AuthService } from '../../core/auth/auth.service';
 import { FakeAuthService } from '../../core/auth/testing/fake-auth.service';
 import { Notifier } from '../../core/ui/notifier';
+import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { PerfilPage } from './perfil-page';
 
 const vacia = <T>(): Page<T> => ({ content: [], page: 0, size: 50, totalElements: 0, totalPages: 0 });
@@ -17,6 +18,7 @@ describe('PerfilPage', () => {
   let element: HTMLElement;
   let auth: FakeAuthService;
   let usuarios: Record<string, ReturnType<typeof vi.fn>>;
+  let confirmation: { ask: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     auth = new FakeAuthService();
@@ -26,7 +28,9 @@ describe('PerfilPage', () => {
       misFavoritos: vi.fn(() => of(vacia())),
       misCheckIns: vi.fn(() => of(vacia())),
       actualizarPerfil: vi.fn(() => of({})),
+      eliminarCuenta: vi.fn(() => of(undefined)),
     };
+    confirmation = { ask: vi.fn(async () => true) };
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -35,6 +39,7 @@ describe('PerfilPage', () => {
         { provide: BancosApi, useValue: { deUsuario: vi.fn(() => of(vacia())) } },
         { provide: ResenasApi, useValue: { deUsuario: vi.fn(() => of(vacia())) } },
         { provide: Notifier, useValue: { success: vi.fn(), error: vi.fn() } },
+        { provide: Confirmation, useValue: confirmation },
       ],
     });
   });
@@ -87,5 +92,26 @@ describe('PerfilPage', () => {
     expect(auth.actualizarNombre).toHaveBeenCalledWith('Ana María');
     // Se refresca sin volver a 'cargando': el formulario de edición se cierra sobre la misma página
     expect(element.querySelector('h1')).not.toBeNull();
+  });
+
+  it('lets users delete their own account after confirmation', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    auth.signIn({ uid: 'ana' });
+    await crear();
+
+    (element.querySelector('.boton-peligro') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(confirmation.ask).toHaveBeenCalledWith(expect.objectContaining({ peligroso: true }));
+    expect(usuarios['eliminarCuenta']).toHaveBeenCalled();
+    expect(auth.logout).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/mapa');
+  });
+
+  it('does not offer account deletion on other profiles', async () => {
+    auth.signIn({ uid: 'ana' });
+    await crear('luis');
+
+    expect(element.querySelector('.boton-peligro')).toBeNull();
   });
 });

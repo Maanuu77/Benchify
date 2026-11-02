@@ -22,6 +22,7 @@
       <span class="espacio"></span>
 
       @if (auth.isAuthenticated()) {
+        <bf-campana-notificaciones />
         <button type="button" class="avatar-boton" [matMenuTriggerFor]="userMenu" [attr.aria-label]="'Menú de ' + nombre()">
           <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
           @if (!isHandset()) {
@@ -45,6 +46,17 @@
     </header>
   }
 
+  @if (auth.session(); as sesion) {
+    @if (!sesion.emailVerificado) {
+      <div class="aviso-verificacion" role="status">
+        <mat-icon aria-hidden="true">mark_email_unread</mat-icon>
+        <p>Confirma tu email con el enlace que te hemos enviado para poder añadir bancos, fotos y reseñas.</p>
+        <button mat-button type="button" [disabled]="verificando()" (click)="reenviarVerificacion()">Reenviar</button>
+        <button mat-flat-button type="button" [disabled]="verificando()" (click)="comprobarVerificacion()">Ya lo he confirmado</button>
+      </div>
+    }
+  }
+
   <main id="contenido" class="main" tabindex="-1">
     <router-outlet />
   </main>
@@ -56,6 +68,9 @@
            [class.destacado]="link.destacado">
           <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
           <span>{{ link.label }}</span>
+          @if (link.path === '/perfil' && notificaciones.noLeidas()) {
+            <span class="punto"><span class="sr-only">, {{ notificaciones.noLeidas() }} notificaciones sin leer</span></span>
+          }
         </a>
       }
     </nav>

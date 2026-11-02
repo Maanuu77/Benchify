@@ -79,6 +79,10 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
   rechazar bancos o fotos y al retirar reseñas (#59).
 - Notificaciones al autor cuando se aprueba o rechaza su banco o su foto, o se retira su reseña,
   con contador de no leídas (`/api/v1/usuarios/me/notificaciones`) (#60).
+- Frontend: recuperar la contraseña, aviso para confirmar el email (con reenvío), inicio de sesión
+  con Google por redirección si el navegador bloquea la ventana (#54); baja de cuenta desde el
+  perfil (#57); campana de notificaciones en la cabecera (#60); motivo al moderar con sugerencias
+  e historial de moderación (#59).
 
 ### Cambiado
 

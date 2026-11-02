@@ -13,7 +13,7 @@ const pagina = <T>(content: T[]): Page<T> => ({ content, page: 0, size: 20, tota
 
 describe('review and photo queues', () => {
   let api: Record<string, ReturnType<typeof vi.fn>>;
-  let confirmation: { ask: ReturnType<typeof vi.fn> };
+  let confirmation: { ask: ReturnType<typeof vi.fn>; pedirMotivo: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     api = {
@@ -30,7 +30,7 @@ describe('review and photo queues', () => {
       aprobarImagen: vi.fn(() => of({})),
       rechazarImagen: vi.fn(() => of(undefined)),
     };
-    confirmation = { ask: vi.fn(async () => true) };
+    confirmation = { ask: vi.fn(async () => true), pedirMotivo: vi.fn(async () => 'Spam o publicidad') };
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -59,13 +59,13 @@ describe('review and photo queues', () => {
 
     boton(fixture, 'Borrar').click();
     await fixture.whenStable();
-    expect(confirmation.ask).toHaveBeenCalled();
-    expect(api['eliminarResena']).toHaveBeenCalledWith('r2');
+    expect(confirmation.pedirMotivo).toHaveBeenCalledWith(expect.objectContaining({ titulo: 'Borrar reseña' }));
+    expect(api['eliminarResena']).toHaveBeenCalledWith('r2', 'Spam o publicidad');
     expect(fixture.nativeElement.textContent).toContain('No hay reseñas reportadas.');
   });
 
   it('does not delete a review when the admin cancels', async () => {
-    confirmation.ask.mockResolvedValue(false);
+    confirmation.pedirMotivo.mockResolvedValue(undefined);
     const fixture = TestBed.createComponent(ColaResenas);
     await fixture.whenStable();
 
@@ -87,7 +87,7 @@ describe('review and photo queues', () => {
     await fixture.whenStable();
 
     expect(api['aprobarImagen']).toHaveBeenCalledWith('i1');
-    expect(api['rechazarImagen']).toHaveBeenCalledWith('i2');
+    expect(api['rechazarImagen']).toHaveBeenCalledWith('i2', 'Spam o publicidad');
     expect(fixture.nativeElement.textContent).toContain('No hay fotos pendientes.');
   });
 });

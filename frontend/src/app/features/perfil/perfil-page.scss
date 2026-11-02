@@ -132,3 +132,24 @@
 mat-nav-list {
   padding-top: 8px;
 }
+
+.peligro {
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--bf-danger) 35%, transparent);
+  border-radius: var(--bf-r);
+
+  h2 {
+    margin: 0 0 8px;
+    font: 600 17px var(--bf-font);
+  }
+
+  p {
+    margin: 0 0 14px;
+    color: var(--bf-ink-2);
+  }
+}
+
+.boton-peligro {
+  color: var(--bf-danger);
+}

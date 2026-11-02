@@ -7,6 +7,7 @@ import { AdminApi } from '../../core/api/admin-api';
 import { ImagenModeracion } from '../../core/api/models';
 import { Notifier } from '../../core/ui/notifier';
 import { ImagenSrc } from '../../shared/imagenes/imagen-src';
+import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
@@ -51,6 +52,7 @@ import { Cola } from './cola';
 export class ColaImagenes implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly notifier = inject(Notifier);
+  private readonly confirmation = inject(Confirmation);
 
   protected readonly cola = new Cola<ImagenModeracion>((page) => this.api.imagenesPendientes(page), 24);
   protected readonly ocupado = signal<string | null>(null);
@@ -69,8 +71,15 @@ export class ColaImagenes implements OnInit {
     return this.ejecutar(imagen, () => firstValueFrom(this.api.aprobarImagen(imagen.id)), 'Foto aprobada');
   }
 
-  protected rechazar(imagen: ImagenModeracion): Promise<void> {
-    return this.ejecutar(imagen, () => firstValueFrom(this.api.rechazarImagen(imagen.id)), 'Foto rechazada y borrada');
+  protected async rechazar(imagen: ImagenModeracion): Promise<void> {
+    const motivo = await this.confirmation.pedirMotivo({
+      titulo: 'Rechazar foto',
+      mensaje: 'La foto se borrará. Puedes explicar el motivo a quien la subió.',
+      confirmar: 'Rechazar',
+      sugerencias: ['No se ve el banco', 'Foto borrosa u oscura', 'Aparecen personas', 'Contenido inapropiado'],
+    });
+    if (motivo === undefined) return;
+    await this.ejecutar(imagen, () => firstValueFrom(this.api.rechazarImagen(imagen.id, motivo)), 'Foto rechazada y borrada');
   }
 
   private async ejecutar(imagen: ImagenModeracion, accion: () => Promise<unknown>, mensaje: string): Promise<void> {
