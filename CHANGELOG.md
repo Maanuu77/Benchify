@@ -101,9 +101,16 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
   que el enlace se ve con vista previa en WhatsApp, Telegram o X. El backend sirve también
   `sitemap.xml` con los bancos publicados y `robots.txt`; Firebase Hosting reenvía esas rutas a Cloud
   Run. La ficha actualiza la descripción, las etiquetas Open Graph y el enlace canónico (#56).
+- Benchify se puede instalar como aplicación (PWA): manifest con iconos y atajo para añadir un banco,
+  y service worker que guarda la aplicación y las teselas del mapa visitadas para abrirla sin
+  conexión. Sin conexión el mapa enseña los últimos bancos cargados (guardados en el navegador, nunca
+  respuestas personales de la API) y, cuando hay una versión nueva, se ofrece actualizar (#55).
 
 ### Cambiado
 
+- En producción la API va por el dominio de Firebase Hosting (`/api/**` → Cloud Run): sin CORS ni
+  URL de Cloud Run en el build. Solo los ficheros con hash se cachean como inmutables (antes también
+  `leaflet.css`, que no lo lleva) (#55).
 - Publicar bancos, reseñas o fotos exige haber verificado el email (403 `EMAIL_NO_VERIFICADO`);
   los administradores quedan exentos (#54).
 - Editar un banco publicado ya no lo retira del mapa: si lo edita su autor, el cambio queda como

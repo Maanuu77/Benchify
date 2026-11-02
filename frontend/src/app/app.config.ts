@@ -1,16 +1,20 @@
 import { registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import localeEs from '@angular/common/locales/es';
-import { ApplicationConfig, LOCALE_ID, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig, inject, isDevMode, LOCALE_ID, provideAppInitializer, provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import { initializeApp, provideFirebaseApp } from '@angular/fire/app';
 import { connectAuthEmulator, getAuth, provideAuth } from '@angular/fire/auth';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withNavigationErrorHandler } from '@angular/router';
+import { provideServiceWorker } from '@angular/service-worker';
 
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { revalidarRutaAlPerderAcceso } from './core/auth/guards';
 import { recargarTrasDespliegue } from './core/layout/recargar-tras-despliegue';
+import { Actualizaciones } from './core/pwa/actualizaciones';
 
 registerLocaleData(localeEs);
 
@@ -34,5 +38,11 @@ export const appConfig: ApplicationConfig = {
       return auth;
     }),
     { provide: LOCALE_ID, useValue: 'es-ES' },
+    // Solo en producción: con ng serve el service worker serviría versiones antiguas al recargar
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
+    provideAppInitializer(() => inject(Actualizaciones).iniciar()),
   ],
 };

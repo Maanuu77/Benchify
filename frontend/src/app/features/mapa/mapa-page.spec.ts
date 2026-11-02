@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, forwardRef, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -8,6 +9,7 @@ import { GeolocationService } from '../../core/geo/geolocation.service';
 import { Notifier } from '../../core/ui/notifier';
 import { BenchMap, Punto } from '../../shared/map/bench-map';
 import { MapaPage, RADIO_CERCANIA } from './mapa-page';
+import { leerUltimaZona } from './ultima-zona';
 import { BuscadorLugares } from './buscador-lugares';
 
 // Se registra como BenchMap para que viewChild(BenchMap) de la página lo encuentre
@@ -77,7 +79,10 @@ describe('MapaPage', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+  });
 
   async function moverMapa(area = AREA): Promise<void> {
     fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub)
@@ -104,6 +109,31 @@ describe('MapaPage', () => {
 
   it('shows an error state when the API fails', async () => {
     api.enArea.mockReturnValue(throwError(() => new Error('down')));
+    await moverMapa();
+
+    expect(element.querySelector('[role=alert]')?.textContent).toContain('No hemos podido cargar');
+  });
+
+  it('keeps the last loaded area to show it without connection', async () => {
+    await moverMapa();
+    expect(leerUltimaZona()?.bancos.map((b) => b.id)).toEqual(['a', 'b']);
+
+    // Otra visita, ya sin conexión
+    fixture.destroy();
+    fixture = TestBed.createComponent(MapaPage);
+    element = fixture.nativeElement;
+    fixture.detectChanges();
+    api.enArea.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
+    await moverMapa();
+
+    expect(element.textContent).toContain('Sin conexión: se muestran los últimos bancos que cargaste.');
+    expect(element.textContent).toContain('2 bancos en esta zona');
+    expect(element.querySelector('[role=alert]')).toBeNull();
+  });
+
+  it('shows the error when offline with nothing saved', async () => {
+    localStorage.clear();
+    api.enArea.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
     await moverMapa();
 
     expect(element.querySelector('[role=alert]')?.textContent).toContain('No hemos podido cargar');
