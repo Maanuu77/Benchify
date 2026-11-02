@@ -44,4 +44,7 @@ public class UsuarioEntity {
 
     @Column(name = "ultimo_acceso", nullable = false)
     private Instant ultimoAcceso;
+
+    @Column(name = "eliminado_en")
+    private Instant eliminadoEn;
 }

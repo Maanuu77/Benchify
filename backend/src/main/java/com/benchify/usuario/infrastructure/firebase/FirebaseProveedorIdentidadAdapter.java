@@ -5,6 +5,7 @@ import com.benchify.shared.infrastructure.firebase.FirebaseIdTokenVerifier;
 import com.benchify.usuario.application.port.out.ProveedorIdentidadPort;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.firebase.auth.AuthErrorCode;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
@@ -61,6 +62,18 @@ class FirebaseProveedorIdentidadAdapter implements ProveedorIdentidadPort {
             firebaseAuth.revokeRefreshTokens(usuarioId);
         } catch (FirebaseAuthException e) {
             throw new IllegalStateException("Could not revoke Firebase sessions of user " + usuarioId, e);
+        }
+    }
+
+    @Override
+    public void eliminarUsuario(String usuarioId) {
+        try {
+            firebaseAuth.deleteUser(usuarioId);
+            publicados.invalidate(usuarioId);
+        } catch (FirebaseAuthException e) {
+            if (e.getAuthErrorCode() != AuthErrorCode.USER_NOT_FOUND) {
+                throw new IllegalStateException("Could not delete Firebase user " + usuarioId, e);
+            }
         }
     }
 }

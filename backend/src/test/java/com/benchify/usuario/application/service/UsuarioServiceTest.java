@@ -7,6 +7,7 @@ import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Rol;
 import com.benchify.usuario.application.port.in.PerfilUsuarioUseCase.ActualizarPerfilCommand;
+import com.benchify.usuario.application.port.out.ActividadPersonalPort;
 import com.benchify.usuario.application.port.out.CacheRolesPort;
 import com.benchify.usuario.application.port.out.EstadisticasUsuarioPort;
 import com.benchify.usuario.application.port.out.ProveedorIdentidadPort;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -58,12 +60,14 @@ class UsuarioServiceTest {
     private CacheRolesPort cacheRoles;
     @Mock
     private EstadisticasUsuarioPort estadisticas;
+    @Mock
+    private ActividadPersonalPort actividadPersonal;
 
     private UsuarioService service;
 
     @BeforeEach
     void setUp() {
-        service = new UsuarioService(usuarios, proveedorIdentidad, cacheRoles, estadisticas,
+        service = new UsuarioService(usuarios, proveedorIdentidad, cacheRoles, estadisticas, actividadPersonal,
                 Clock.fixed(AHORA, ZoneOffset.UTC));
         lenient().when(usuarios.registrarSiNoExiste(any())).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -167,6 +171,35 @@ class UsuarioServiceTest {
 
         assertThat(service.sincronizar(new IdentidadUsuario("ana", "ana@x.com", "x", null, Rol.ADMIN)).rol())
                 .isEqualTo(Rol.USER);
+    }
+
+    @Test
+    void deletingTheAccountAnonymizesItClearsPrivateActivityAndThenTheFirebaseUser() {
+        when(usuarios.findById("uid")).thenReturn(Optional.of(usuario("uid", Rol.ADMIN)));
+
+        service.eliminarCuenta(Actor.user("uid"));
+
+        ArgumentCaptor<Usuario> guardado = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarios).anonimizar(guardado.capture());
+        assertThat(guardado.getValue().nombre()).isEqualTo(Usuario.NOMBRE_ELIMINADO);
+        assertThat(guardado.getValue().email()).isNull();
+        assertThat(guardado.getValue().rol()).isEqualTo(Rol.USER);
+        assertThat(guardado.getValue().eliminadoEn()).isEqualTo(AHORA);
+        verify(actividadPersonal).borrar("uid");
+        InOrder orden = inOrder(proveedorIdentidad);
+        orden.verify(proveedorIdentidad).revocarSesiones("uid");
+        orden.verify(proveedorIdentidad).eliminarUsuario("uid");
+        verify(cacheRoles).invalidar("uid");
+    }
+
+    @Test
+    void aDeletedAccountCannotBeUsedAgainWithAnOldToken() {
+        IdentidadUsuario identidad = new IdentidadUsuario("uid", "a@x.com", "Ana", null, Rol.USER);
+        when(usuarios.findById("uid")).thenReturn(Optional.of(Usuario.registrar(identidad, AHORA).eliminar(AHORA)));
+
+        assertThatThrownBy(() -> service.sincronizar(identidad))
+                .isInstanceOfSatisfying(ForbiddenException.class, e -> assertThat(e.code()).isEqualTo("CUENTA_ELIMINADA"));
+        verify(usuarios, never()).actualizarSincronizacion(any());
     }
 
     @Test

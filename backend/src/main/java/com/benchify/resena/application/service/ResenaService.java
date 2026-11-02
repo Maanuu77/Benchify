@@ -41,6 +41,7 @@ public class ResenaService implements ResenasUseCase {
 
     @Override
     public Resena publicar(Actor actor, UUID bancoId, ResenaCommand command) {
+        actor.exigirEmailVerificado();
         Banco banco = bancos.findByIdForUpdate(bancoId)
                 .filter(b -> b.esVisiblePara(actor))
                 .orElseThrow(() -> new BancoNotFoundException(bancoId));

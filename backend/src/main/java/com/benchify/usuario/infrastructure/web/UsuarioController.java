@@ -11,11 +11,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -44,6 +47,16 @@ class UsuarioController {
     @SecurityRequirement(name = "firebase")
     UsuarioResponse actualizar(@CurrentActor Actor actor, @Valid @RequestBody ActualizarPerfilRequest request) {
         return mapper.toResponse(perfilUsuario.actualizarPerfil(actor, mapper.toCommand(request)));
+    }
+
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Darse de baja",
+            description = "Anonimiza el perfil (los bancos, reseñas y fotos se conservan como de «Usuario eliminado»), "
+                    + "borra los favoritos y los check-ins y elimina la cuenta de Firebase. No se puede deshacer.")
+    @SecurityRequirement(name = "firebase")
+    void eliminar(@CurrentActor Actor actor) {
+        perfilUsuario.eliminarCuenta(actor);
     }
 
     @GetMapping("/{id}/estadisticas")

@@ -79,7 +79,10 @@ class ImagenBancoServiceIntegrationTest extends AbstractIntegrationTest {
     void limpiar() {
         // Las imágenes, reseñas y demás filas del banco se borran en cascada
         jdbc.update("DELETE FROM bancos WHERE id = ?", bancoId);
-        usuarios.forEach(id -> jdbc.update("DELETE FROM usuarios WHERE id = ?", id));
+        usuarios.forEach(id -> {
+            jdbc.update("DELETE FROM eventos_moderacion WHERE moderador_id = ?", id);
+            jdbc.update("DELETE FROM usuarios WHERE id = ?", id);
+        });
     }
 
     @Test
@@ -167,7 +170,7 @@ class ImagenBancoServiceIntegrationTest extends AbstractIntegrationTest {
     void rejectingDeletesThePendingFiles() {
         Imagen pendiente = imagenes.subir(ana, bancoId, FOTO);
 
-        moderacion.rechazarImagen(admin, pendiente.id());
+        moderacion.rechazarImagen(admin, pendiente.id(), null);
 
         assertThat(imagenRepository.findById(pendiente.id())).get()
                 .extracting(Imagen::estado).isEqualTo(EstadoImagen.RECHAZADA);

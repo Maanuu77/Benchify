@@ -56,6 +56,7 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
      */
     @Override
     public Banco proponer(Actor actor, BancoCommand command) {
+        actor.exigirEmailVerificado();
         Banco.exigirCupoDePropuestas(actor, () -> bancos.countPendientesByAutorForUpdate(actor.userId()));
         Banco banco = Banco.proponer(UUID.randomUUID(), toDatos(command), actor, clock.instant());
         return bancos.save(banco);

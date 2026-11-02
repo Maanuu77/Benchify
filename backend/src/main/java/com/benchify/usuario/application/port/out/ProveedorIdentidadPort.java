@@ -20,4 +20,7 @@ public interface ProveedorIdentidadPort {
 
     /** Revoca los refresh tokens: el usuario tendrá que volver a iniciar sesión cuando caduque su ID token. */
     void revocarSesiones(String usuarioId);
+
+    /** Borra la cuenta del proveedor de identidad; si ya no existe, no hace nada. */
+    void eliminarUsuario(String usuarioId);
 }

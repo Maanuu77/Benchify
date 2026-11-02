@@ -16,6 +16,7 @@ import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
+import com.benchify.shared.domain.Rol;
 import com.benchify.shared.domain.Ubicacion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,13 @@ class ResenaServiceTest {
         assertThat(resena.fecha()).isEqualTo(AHORA);
         assertThat(banco.valoracion()).isEqualTo(new Valoracion(4.7, 3));
         verify(bancos).save(banco);
+    }
+
+    @Test
+    void aUserMustVerifyTheEmailBeforeReviewing() {
+        assertThatThrownBy(() -> service.publicar(new Actor("ana", Rol.USER, false), UUID.randomUUID(), new ResenaCommand(5, null)))
+                .isInstanceOf(ForbiddenException.class);
+        verify(bancos, never()).findByIdForUpdate(any());
     }
 
     @Test

@@ -28,6 +28,11 @@ public class RecordingIdentityProvider implements ProveedorIdentidadPort {
         registrar(usuarioId, "revocarSesiones");
     }
 
+    @Override
+    public void eliminarUsuario(String usuarioId) {
+        registrar(usuarioId, "eliminarUsuario");
+    }
+
     /** Llamadas recibidas para el usuario, en orden, como {@code asignarRol:ADMIN} o {@code revocarSesiones}. */
     public List<String> llamadas(String usuarioId) {
         return List.copyOf(llamadas.getOrDefault(usuarioId, List.of()));

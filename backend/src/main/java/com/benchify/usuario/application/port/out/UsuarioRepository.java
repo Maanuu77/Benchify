@@ -33,6 +33,9 @@ public interface UsuarioRepository {
 
     void actualizarRol(String usuarioId, Rol rol);
 
+    /** Guarda un perfil dado de baja: datos personales borrados y fecha de baja. */
+    void anonimizar(Usuario usuario);
+
     /** {@code true} si algún usuario tiene ya el rol de administrador. */
     boolean existeAdministrador();
 

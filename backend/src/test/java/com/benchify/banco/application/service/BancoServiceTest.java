@@ -16,9 +16,11 @@ import com.benchify.banco.domain.Imagen;
 import com.benchify.banco.domain.MaterialBanco;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.PreconditionFailedException;
+import com.benchify.shared.domain.Rol;
 import com.benchify.shared.domain.Ubicacion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,6 +90,13 @@ class BancoServiceTest {
         assertThat(banco.datos().direccion().pais()).isEqualTo("España");
         assertThat(banco.datos().caracteristicas().conRespaldo()).isTrue();
         verify(bancos).save(banco);
+    }
+
+    @Test
+    void aUserMustVerifyTheEmailBeforeProposingABench() {
+        assertThatThrownBy(() -> service.proponer(new Actor("ana", Rol.USER, false), command(null)))
+                .isInstanceOf(ForbiddenException.class).hasMessageContaining("Verifica tu email");
+        verify(bancos, never()).save(any());
     }
 
     @Test

@@ -24,7 +24,8 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 @AnalyzeClasses(packages = "com.benchify", importOptions = ImportOption.DoNotIncludeTests.class)
 class HexagonalArchitectureTest {
 
-    static final List<String> FEATURES = List.of("banco", "resena", "usuario", "favorito", "checkin", "moderacion");
+    static final List<String> FEATURES =
+            List.of("banco", "resena", "usuario", "favorito", "checkin", "moderacion", "notificacion");
 
     private static final String[] FRAMEWORKS = {
             "org.springframework..", "jakarta..", "org.hibernate..", "tools.jackson..", "com.fasterxml..",

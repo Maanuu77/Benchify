@@ -23,6 +23,6 @@ public record AuthenticatedUser(
     }
 
     public Actor toActor() {
-        return new Actor(uid, rol);
+        return new Actor(uid, rol, emailVerified);
     }
 }
