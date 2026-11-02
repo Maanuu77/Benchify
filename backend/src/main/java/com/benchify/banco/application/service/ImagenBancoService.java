@@ -83,7 +83,7 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
         Imagen nueva = Imagen.nueva(id, bancoId, foto, miniatura, procesada.tamanoBytes(), actor, clock.instant());
         try {
             // El commit ocurre dentro del try: si falla, los ficheros también se borran
-            return transaccion.execute(status -> registrar(nueva, actor));
+            return transaccion.execute(status -> registrar(nueva, procesada.huella(), actor));
         } catch (RuntimeException e) {
             // Sin fila en la base de datos los ficheros quedarían huérfanos en el bucket
             ficheros.borrarYa(nueva.rutas());
@@ -95,10 +95,12 @@ public class ImagenBancoService implements ImagenesBancoUseCase {
      * Repite las comprobaciones con la fila del banco bloqueada: dos subidas simultáneas no pueden
      * superar el máximo de fotos ni colarse en un banco que se está eliminando.
      */
-    private Imagen registrar(Imagen nueva, Actor actor) {
+    private Imagen registrar(Imagen nueva, long huella, Actor actor) {
         Banco banco = admiteFotos(bancos.findByIdForUpdate(nueva.bancoId()), nueva.bancoId(), actor);
         exigirHueco(banco);
-        return imagenes.saveAndFlush(nueva);
+        Imagen guardada = imagenes.saveAndFlush(nueva);
+        imagenes.guardarHuella(guardada.id(), huella);
+        return guardada;
     }
 
     private FicheroAlmacenado guardar(String ruta, byte[] contenido) {

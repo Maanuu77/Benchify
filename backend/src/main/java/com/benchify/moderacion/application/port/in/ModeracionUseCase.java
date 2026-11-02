@@ -10,6 +10,7 @@ import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Todas las operaciones exigen un actor administrador. */
@@ -33,7 +34,8 @@ public interface ModeracionUseCase {
     /** La reseña reportada es correcta: se mantiene y se limpian sus reportes. */
     Resena mantenerResena(Actor actor, UUID resenaId);
 
-    PageResult<Imagen> imagenesPendientes(Actor actor, PageQuery page);
+    /** Fotos pendientes, de la más antigua a la más reciente, con las fotos ya subidas que se les parecen. */
+    PageResult<ImagenPendiente> imagenesPendientes(Actor actor, PageQuery page);
 
     Imagen aprobarImagen(Actor actor, UUID imagenId);
 
@@ -42,4 +44,15 @@ public interface ModeracionUseCase {
 
     /** Historial de decisiones de moderación, de la más reciente a la más antigua. */
     PageResult<EventoModeracion> eventos(Actor actor, PageQuery page);
+
+    /**
+     * @param parecidas posibles duplicados, de este u otros bancos y en cualquier estado (una foto
+     *                  rechazada que se vuelve a subir también cuenta); los más parecidos primero
+     */
+    record ImagenPendiente(Imagen imagen, List<Imagen> parecidas) {
+
+        public ImagenPendiente {
+            parecidas = List.copyOf(parecidas);
+        }
+    }
 }

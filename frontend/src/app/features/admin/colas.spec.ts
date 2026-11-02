@@ -24,8 +24,12 @@ describe('review and photo queues', () => {
       mantenerResena: vi.fn(() => of({})),
       eliminarResena: vi.fn(() => of(undefined)),
       imagenesPendientes: vi.fn(() => of(pagina<ImagenModeracion>([
-        { id: 'i1', bancoId: 'b1', url: 'https://s/1.jpg', thumbUrl: 'https://s/1_thumb.jpg', requiereAutenticacion: false, estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 73, fechaSubida: '2026-10-01' },
-        { id: 'i2', bancoId: 'b1', url: 'https://s/2.jpg', thumbUrl: 'https://s/2_thumb.jpg', requiereAutenticacion: false, estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 2_621_440, fechaSubida: '2026-10-01' },
+        { id: 'i1', bancoId: 'b1', url: 'https://s/1.jpg', thumbUrl: 'https://s/1_thumb.jpg', requiereAutenticacion: false, estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 73, fechaSubida: '2026-10-01',
+          parecidas: [
+            { id: 'p1', bancoId: 'b1', thumbUrl: 'https://s/p1_thumb.jpg', requiereAutenticacion: false, estado: 'APROBADA', mismoBanco: true },
+            { id: 'p2', bancoId: 'b9', thumbUrl: null, requiereAutenticacion: false, estado: 'RECHAZADA', mismoBanco: false },
+          ] },
+        { id: 'i2', bancoId: 'b1', url: 'https://s/2.jpg', thumbUrl: 'https://s/2_thumb.jpg', requiereAutenticacion: false, estado: 'PENDIENTE', subidaPor: 'ana', tamanoBytes: 2_621_440, fechaSubida: '2026-10-01', parecidas: [] },
       ]))),
       aprobarImagen: vi.fn(() => of({})),
       rechazarImagen: vi.fn(() => of(undefined)),
@@ -73,6 +77,22 @@ describe('review and photo queues', () => {
     await fixture.whenStable();
 
     expect(api['eliminarResena']).not.toHaveBeenCalled();
+  });
+
+  it('flags pending photos that look like ones already uploaded', async () => {
+    const fixture = TestBed.createComponent(ColaImagenes);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const avisos = element.querySelectorAll('.parecidas');
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0].textContent).toContain('Se parece a 2 fotos');
+    expect(avisos[0].textContent).toContain('Este banco · publicada');
+    expect(avisos[0].textContent).toContain('Otro banco · rechazada');
+    // La rechazada no tiene fichero: se muestra un hueco en lugar de la miniatura
+    expect(avisos[0].querySelectorAll('img')).toHaveLength(1);
+    expect(avisos[0].querySelector('.sin-foto')).not.toBeNull();
+    expect(avisos[0].querySelector('a')?.getAttribute('href')).toBe('/bancos/b1');
   });
 
   it('approves and rejects photos and shows readable sizes', async () => {

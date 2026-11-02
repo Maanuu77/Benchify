@@ -94,7 +94,8 @@ class ModeracionController {
     }
 
     @GetMapping("/imagenes/pendientes")
-    @Operation(summary = "Fotos pendientes de revisión, de la más antigua a la más reciente")
+    @Operation(summary = "Fotos pendientes de revisión, de la más antigua a la más reciente",
+            description = "Cada una trae hasta 3 fotos ya subidas que se le parecen (posibles duplicados).")
     PageResponse<ImagenModeracionResponse> imagenesPendientes(@CurrentActor Actor actor,
             @Valid @ParameterObject PageParams page) {
         return PageResponse.from(moderacion.imagenesPendientes(actor, page.toQuery()), mapper::toResponse);

@@ -41,4 +41,13 @@ public interface ImagenRepository {
     PageResult<Imagen> findByEstado(EstadoImagen estado, PageQuery page);
 
     long countByEstado(EstadoImagen estado);
+
+    /** Guarda la huella perceptual de una imagen ya registrada (ver {@code ImagenProcesada#huella}). */
+    void guardarHuella(UUID imagenId, long huella);
+
+    /**
+     * Otras imágenes, de cualquier banco y estado, cuya huella está a {@code distanciaMaxima} bits o
+     * menos de la de esta; las más parecidas primero. Vacío si la imagen no tiene huella.
+     */
+    List<Imagen> findParecidas(UUID imagenId, int distanciaMaxima, int limite);
 }

@@ -7,8 +7,10 @@ import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.infrastructure.web.dto.BancoModeracionResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ImagenModeracionResponse;
+import com.benchify.moderacion.infrastructure.web.dto.ImagenParecidaResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ResenaModeracionResponse;
 import com.benchify.resena.domain.Resena;
 import org.mapstruct.Mapper;
@@ -30,12 +32,32 @@ interface ModeracionWebMapper {
      * {@code ImagenController}, en la feature de bancos) con la cabecera {@code Authorization}.
      */
     default ImagenModeracionResponse toResponse(Imagen imagen) {
-        boolean requiereAutenticacion = imagen.estado() != EstadoImagen.APROBADA;
-        String url = requiereAutenticacion ? urlApi("/api/v1/imagenes/{id}/archivo", imagen) : imagen.url();
-        String thumbUrl = requiereAutenticacion ? urlApi("/api/v1/imagenes/{id}/miniatura", imagen)
+        return toResponse(imagen, List.of());
+    }
+
+    default ImagenModeracionResponse toResponse(ImagenPendiente pendiente) {
+        Imagen imagen = pendiente.imagen();
+        return toResponse(imagen, pendiente.parecidas().stream()
+                .map(parecida -> new ImagenParecidaResponse(parecida.id(), parecida.bancoId(),
+                        parecida.estado() == EstadoImagen.RECHAZADA ? null : thumbUrl(parecida),
+                        requiereAutenticacion(parecida), parecida.estado(), parecida.bancoId().equals(imagen.bancoId())))
+                .toList());
+    }
+
+    private ImagenModeracionResponse toResponse(Imagen imagen, List<ImagenParecidaResponse> parecidas) {
+        String url = requiereAutenticacion(imagen) ? urlApi("/api/v1/imagenes/{id}/archivo", imagen) : imagen.url();
+        return new ImagenModeracionResponse(imagen.id(), imagen.bancoId(), url, thumbUrl(imagen),
+                requiereAutenticacion(imagen), imagen.estado(), imagen.subidaPor(), imagen.tamanoBytes(),
+                imagen.fechaSubida(), parecidas);
+    }
+
+    private static boolean requiereAutenticacion(Imagen imagen) {
+        return imagen.estado() != EstadoImagen.APROBADA;
+    }
+
+    private static String thumbUrl(Imagen imagen) {
+        return requiereAutenticacion(imagen) ? urlApi("/api/v1/imagenes/{id}/miniatura", imagen)
                 : imagen.urlMiniatura() != null ? imagen.urlMiniatura() : imagen.url();
-        return new ImagenModeracionResponse(imagen.id(), imagen.bancoId(), url, thumbUrl, requiereAutenticacion,
-                imagen.estado(), imagen.subidaPor(), imagen.tamanoBytes(), imagen.fechaSubida());
     }
 
     private static String urlApi(String plantilla, Imagen imagen) {
