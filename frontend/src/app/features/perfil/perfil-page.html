@@ -122,6 +122,19 @@
           </mat-tab>
         }
       </mat-tab-group>
+
+      @if (esPropio()) {
+        <section class="peligro" aria-labelledby="titulo-baja">
+          <h2 id="titulo-baja">Eliminar la cuenta</h2>
+          <p>
+            Se borrarán tus datos personales, tus favoritos y tus check-ins. Los bancos, fotos y reseñas que
+            has publicado se quedan, pero firmados como «Usuario eliminado». No se puede deshacer.
+          </p>
+          <button matButton="outlined" type="button" class="boton-peligro" [disabled]="eliminando()" (click)="eliminarCuenta()">
+            <mat-icon aria-hidden="true">delete_forever</mat-icon> Eliminar mi cuenta
+          </button>
+        </section>
+      }
     </section>
   }
 }

@@ -8,7 +8,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatListItem, MatListItemLine, MatListItemTitle, MatNavList } from '@angular/material/list';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { filter, firstValueFrom, forkJoin, map, switchMap } from 'rxjs';
 import { Loadable, loadable } from '../../core/api/api-error';
 import { BancosApi } from '../../core/api/bancos-api';
@@ -17,6 +17,7 @@ import { ResenasApi } from '../../core/api/resenas-api';
 import { UsuariosApi } from '../../core/api/usuarios-api';
 import { AuthService } from '../../core/auth/auth.service';
 import { Notifier } from '../../core/ui/notifier';
+import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
@@ -46,6 +47,8 @@ export class PerfilPage {
   private readonly resenasApi = inject(ResenasApi);
   private readonly notifier = inject(Notifier);
   private readonly auth = inject(AuthService);
+  private readonly confirmation = inject(Confirmation);
+  private readonly router = inject(Router);
 
   /** :id en /usuarios/:id; sin él se muestra el perfil propio (/perfil). */
   readonly id = input<string>();
@@ -106,6 +109,30 @@ export class PerfilPage {
     this.nombre = perfil.nombre;
     this.ciudad = perfil.ciudad ?? '';
     this.editando.set(true);
+  }
+
+  protected readonly eliminando = signal(false);
+
+  protected async eliminarCuenta(): Promise<void> {
+    const ok = await this.confirmation.ask({
+      titulo: '¿Eliminar tu cuenta?',
+      mensaje: 'Se borrarán tus datos personales, favoritos y check-ins, y no podrás volver a entrar con esta cuenta. '
+        + 'Lo que has publicado se quedará como de «Usuario eliminado».',
+      confirmar: 'Eliminar mi cuenta',
+      peligroso: true,
+    });
+    if (!ok) return;
+    this.eliminando.set(true);
+    try {
+      await firstValueFrom(this.usuariosApi.eliminarCuenta());
+      await this.auth.logout().catch(() => undefined);
+      this.notifier.success('Tu cuenta se ha eliminado. ¡Gracias por haber compartido bancos!');
+      await this.router.navigateByUrl('/mapa');
+    } catch (error) {
+      this.notifier.error(error);
+    } finally {
+      this.eliminando.set(false);
+    }
   }
 
   protected async guardar(): Promise<void> {
