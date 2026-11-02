@@ -29,6 +29,8 @@ class NominatimGeocodificadorTest {
               {"lat": "37.3772", "lon": "-5.9869", "name": "Plaza de España",
                "display_name": "Plaza de España, Sevilla, Andalucía, España",
                "boundingbox": ["37.3755", "37.3790", "-5.9890", "-5.9848"]},
+              {"lat": "37.3770", "lon": "-5.9870", "name": "Plaza de España",
+               "display_name": "Plaza de España, Sevilla, Andalucía, España"},
               {"lat": "37.38", "lon": "-5.99", "name": "",
                "display_name": "Calle Plaza de España, Dos Hermanas, España"},
               {"lat": "no es un número", "lon": "-5.99", "name": "Roto"}
@@ -49,7 +51,8 @@ class NominatimGeocodificadorTest {
                 .andExpect(header(HttpHeaders.USER_AGENT, "Benchify-test"))
                 .andExpect(queryParam("q", "Plaza%20de%20Espa%C3%B1a"))
                 .andExpect(queryParam("format", "jsonv2"))
-                .andExpect(queryParam("limit", "5"))
+                // Unos cuantos de más para compensar los repetidos que se quitan
+                .andExpect(queryParam("limit", "8"))
                 .andExpect(queryParam("accept-language", "en"))
                 .andExpect(queryParam("viewbox", "-6.3,37.7,-5.7,37.1"))
                 .andRespond(withSuccess(RESPUESTA, MediaType.APPLICATION_JSON));
@@ -63,6 +66,18 @@ class NominatimGeocodificadorTest {
                         new Encuadre(37.3755, -5.9890, 37.3790, -5.9848)),
                 new Lugar("Calle Plaza de España", "Calle Plaza de España, Dos Hermanas, España",
                         new Ubicacion(37.38, -5.99), null));
+    }
+
+    @Test
+    void neverReturnsMoreThanAskedAfterRemovingRepeats() {
+        servidor.expect(requestTo(org.hamcrest.Matchers.startsWith("https://nominatim.test/search?")))
+                .andExpect(queryParam("limit", "4"))
+                .andRespond(withSuccess(RESPUESTA, MediaType.APPLICATION_JSON));
+
+        List<Lugar> lugares = geocodificador(Duration.ofMillis(1), Duration.ofSeconds(1))
+                .buscar(Busqueda.de("Plaza de España", "es", null), 1);
+
+        assertThat(lugares).extracting(Lugar::direccion).containsExactly("Plaza de España, Sevilla, Andalucía, España");
     }
 
     @Test

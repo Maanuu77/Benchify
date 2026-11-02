@@ -6,6 +6,7 @@ import { API_URL } from '../config/api-url';
 import { AdminApi } from './admin-api';
 import { BancosApi } from './bancos-api';
 import { IncidenciasApi } from './incidencias-api';
+import { LugaresApi } from './lugares-api';
 import { ResenasApi } from './resenas-api';
 import { UsuariosApi } from './usuarios-api';
 
@@ -84,6 +85,15 @@ describe('API clients', () => {
     expect(http.expectOne({ method: 'POST', url: `${API}/resenas/r1/reportes` })).toBeTruthy();
     expect(http.expectOne({ method: 'POST', url: `${API}/admin/bancos/b2/aprobacion` })).toBeTruthy();
     expect(http.expectOne({ method: 'PUT', url: `${API}/admin/usuarios/u1/rol` }).request.body).toEqual({ rol: 'ADMIN' });
+  });
+
+  it('searches places near the map centre', () => {
+    const api = TestBed.inject(LugaresApi);
+    api.buscar('Triana', { lat: 37.38, lng: -6 }).subscribe();
+    api.buscar('Macarena').subscribe();
+
+    const requests = http.match((r) => r.url === `${API}/lugares`);
+    expect(requests.map((r) => r.request.params.toString())).toEqual(['q=Triana&lat=37.38&lng=-6', 'q=Macarena']);
   });
 
   it('reports problems with a bench and reviews them', () => {

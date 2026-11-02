@@ -264,3 +264,15 @@ export interface ResumenIncidencias {
   tipo: TipoIncidencia;
   total: number;
 }
+
+/** Dirección o sitio encontrado por el buscador; el encuadre falta si solo se conoce el punto. */
+export interface Lugar {
+  nombre: string;
+  direccion: string;
+  lat: number;
+  lng: number;
+  sur: number | null;
+  oeste: number | null;
+  norte: number | null;
+  este: number | null;
+}

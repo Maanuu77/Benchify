@@ -86,6 +86,12 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 - Avisos de bancos rotos, sucios o desaparecidos: un aviso abierto por usuario y banco
   (409 `INCIDENCIA_DUPLICADA`), resumen público de avisos abiertos en la ficha y cola "Avisos" en
   moderación para marcarlos como resueltos o descartados; quien avisó recibe una notificación (#75).
+- Buscador de direcciones en el mapa (`GET /api/v1/lugares`): datos de OpenStreetMap (Nominatim)
+  a través del backend, que se identifica con su User-Agent, guarda los resultados 24 h, quita los
+  repetidos y reparte entre todos los usuarios el cupo de una petición por segundo (503
+  `GEOCODIFICACION_NO_DISPONIBLE` si se agota). Prioriza lo cercano al centro del mapa y, al
+  elegir un resultado, encuadra su zona. Las búsquedas tienen su propio límite de 20 por minuto
+  por usuario o IP (#77).
 
 ### Cambiado
 

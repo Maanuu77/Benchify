@@ -17,7 +17,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -30,6 +32,8 @@ class NominatimGeocodificador implements Geocodificador {
     static final String CODE = "GEOCODIFICACION_NO_DISPONIBLE";
     /** Margen alrededor del centro del mapa en el que se priorizan resultados (unos 30 km). */
     private static final double MARGEN_GRADOS = 0.3;
+    /** Resultados de más que se piden para seguir teniendo {@code maximo} tras quitar los repetidos. */
+    private static final int EXTRA_POR_REPETIDOS = 3;
 
     private final RestClient http;
     private final GeocodificacionProperties properties;
@@ -81,7 +85,7 @@ class NominatimGeocodificador implements Geocodificador {
                         uri.path("/search")
                                 .queryParam("q", busqueda.texto())
                                 .queryParam("format", "jsonv2")
-                                .queryParam("limit", maximo)
+                                .queryParam("limit", maximo + EXTRA_POR_REPETIDOS)
                                 .queryParam("accept-language", busqueda.idioma());
                         Ubicacion cerca = busqueda.cerca();
                         if (cerca != null) {
@@ -94,8 +98,15 @@ class NominatimGeocodificador implements Geocodificador {
                     })
                     .retrieve()
                     .body(Resultado[].class);
-            return respuesta == null ? List.of()
-                    : Arrays.stream(respuesta).map(Resultado::aLugar).filter(Objects::nonNull).toList();
+            if (respuesta == null) {
+                return List.of();
+            }
+            // Una plaza puede llegar varias veces (como lugar, como calle, como área peatonal...) con el
+            // mismo texto: para quien busca son el mismo resultado
+            Map<String, Lugar> distintos = new LinkedHashMap<>();
+            Arrays.stream(respuesta).map(Resultado::aLugar).filter(Objects::nonNull)
+                    .forEach(lugar -> distintos.putIfAbsent(lugar.nombre() + "|" + lugar.direccion(), lugar));
+            return distintos.values().stream().limit(maximo).toList();
         } catch (RestClientException e) {
             log.warn("Nominatim no ha respondido a una búsqueda: {}", e.getMessage());
             throw new ServiceUnavailableException(CODE, "El buscador de direcciones no responde; prueba más tarde");

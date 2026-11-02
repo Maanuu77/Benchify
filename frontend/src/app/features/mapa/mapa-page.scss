@@ -64,12 +64,23 @@
   }
 }
 
-.filtros-flotantes {
+// Móvil: buscador y, debajo, los filtros en una fila que se desliza
+.arriba {
   position: absolute;
   top: calc(12px + env(safe-area-inset-top));
   left: 0;
   right: 0;
-  z-index: 500;
+  z-index: 700;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.buscador {
+  margin: 0 12px;
+}
+
+.filtros-flotantes {
   padding: 0 12px;
   overflow-x: auto;
   scrollbar-width: none;

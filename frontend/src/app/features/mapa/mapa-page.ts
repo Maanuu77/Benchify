@@ -9,7 +9,7 @@ import { combineLatest, debounceTime, filter, map, of, skip, switchMap } from 'r
 import { environment } from '../../../environments/environment';
 import { Loadable, loadable } from '../../core/api/api-error';
 import { BancosApi, MAX_RESULTADOS_MAPA } from '../../core/api/bancos-api';
-import { BancoCercano, BancoResumen, BoundingBox, FiltroBancos, Page } from '../../core/api/models';
+import { BancoCercano, BancoResumen, BoundingBox, FiltroBancos, Lugar, Page } from '../../core/api/models';
 import { GeolocationService } from '../../core/geo/geolocation.service';
 import { BREAKPOINT_MOVIL } from '../../core/layout/shell';
 import { Notifier } from '../../core/ui/notifier';
@@ -19,6 +19,7 @@ import { DistanciaPipe } from '../../shared/ui/distancia.pipe';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
+import { BuscadorLugares } from './buscador-lugares';
 import { aQueryParams, leerEstadoMapa } from './estado-mapa';
 import { FiltrosBancos } from './filtros-bancos';
 
@@ -34,8 +35,8 @@ export interface ElementoLista {
 @Component({
   selector: 'bf-mapa-page',
   imports: [
-    BenchMap, FiltrosBancos, LoadingState, ErrorState, EmptyState, DistanciaPipe, DecimalPipe, NgTemplateOutlet,
-    RouterLink, MatButton, MatIcon,
+    BenchMap, BuscadorLugares, FiltrosBancos, LoadingState, ErrorState, EmptyState, DistanciaPipe, DecimalPipe,
+    NgTemplateOutlet, RouterLink, MatButton, MatIcon,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './mapa-page.html',
@@ -59,7 +60,7 @@ export class MapaPage {
   );
 
   protected readonly area = signal<BoundingBox | null>(null);
-  private readonly vista = signal<Vista | null>(this.inicial.vista);
+  protected readonly vista = signal<Vista | null>(this.inicial.vista);
   protected readonly filtro = signal<FiltroBancos>(this.inicial.filtro);
   protected readonly usuario = signal<Punto | null>(null);
   protected readonly seleccionado = signal<BancoResumen | null>(null);
@@ -142,6 +143,18 @@ export class MapaPage {
     } finally {
       this.localizando.set(false);
     }
+  }
+
+  /** Lleva el mapa a la dirección buscada; al moverse se cargan los bancos de esa zona. */
+  protected irALugar(lugar: Lugar): void {
+    const mapa = this.mapa();
+    if (lugar.sur !== null && lugar.oeste !== null && lugar.norte !== null && lugar.este !== null) {
+      mapa?.encuadrar(lugar.sur, lugar.oeste, lugar.norte, lugar.este);
+    } else {
+      mapa?.volarA(lugar, 16);
+    }
+    this.seleccionado.set(null);
+    this.origenCercanos.set(null);
   }
 
   protected cargarCercanos(posicion: Punto): void {
