@@ -101,15 +101,26 @@ class BancoTest {
     class Edicion {
 
         @Test
-        void authorEditOfPublishedBenchSendsItBackToModeration() {
+        void authorEditOfPublishedBenchGoesThroughARevisionAndKeepsItOnTheMap() {
             Banco banco = pendiente();
             banco.aprobar(AHORA);
 
-            banco.editar(datos("Nuevo título"), AUTOR);
+            assertThat(banco.edicionRequiereRevision(AUTOR)).isTrue();
+            assertThat(banco.edicionRequiereRevision(ADMIN)).isFalse();
+            assertThatThrownBy(() -> banco.editar(datos("Nuevo título"), AUTOR)).isInstanceOf(IllegalStateException.class);
+            assertThat(banco.estaPublicado()).isTrue();
+            assertThat(banco.fechaVerificacion()).isEqualTo(AHORA);
+        }
 
-            assertThat(banco.datos().titulo()).isEqualTo("Nuevo título");
+        @Test
+        void authorCanFixABenchThatIsNotPublishedYet() {
+            Banco banco = pendiente();
+
+            assertThat(banco.edicionRequiereRevision(AUTOR)).isFalse();
+            banco.editar(datos("Corregido antes de publicarse"), AUTOR);
+
+            assertThat(banco.datos().titulo()).isEqualTo("Corregido antes de publicarse");
             assertThat(banco.estado()).isEqualTo(EstadoBanco.PENDIENTE);
-            assertThat(banco.fechaVerificacion()).isNull();
         }
 
         @Test

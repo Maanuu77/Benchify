@@ -3,6 +3,7 @@ package com.benchify.moderacion.application.service;
 import com.benchify.banco.application.port.in.ImagenesBancoUseCase;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.ImagenRepository;
+import com.benchify.banco.application.port.out.RevisionBancoRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoNotFoundException;
 import com.benchify.banco.domain.EstadoBanco;
@@ -10,7 +11,10 @@ import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Imagen;
 import com.benchify.banco.domain.ImagenNotFoundException;
 import com.benchify.banco.domain.ImagenProcesada;
+import com.benchify.banco.domain.RevisionBanco;
+import com.benchify.banco.domain.RevisionNotFoundException;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.EdicionPendiente;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.application.port.out.EventoModeracionRepository;
 import com.benchify.moderacion.domain.AccionModeracion;
@@ -54,6 +58,7 @@ public class ModeracionService implements ModeracionUseCase {
 
     private final BancoRepository bancos;
     private final ImagenRepository imagenes;
+    private final RevisionBancoRepository revisiones;
     private final ImagenesBancoUseCase imagenesBanco;
     private final ResenaRepository resenaRepository;
     private final ResenasUseCase resenas;
@@ -63,12 +68,14 @@ public class ModeracionService implements ModeracionUseCase {
     private final TransactionTemplate transaccion;
     private final Clock clock;
 
-    public ModeracionService(BancoRepository bancos, ImagenRepository imagenes, ImagenesBancoUseCase imagenesBanco,
+    public ModeracionService(BancoRepository bancos, ImagenRepository imagenes, RevisionBancoRepository revisiones,
+            ImagenesBancoUseCase imagenesBanco,
             ResenaRepository resenaRepository, ResenasUseCase resenas, UsuarioRepository usuarios,
             EventoModeracionRepository eventos, NotificacionesUseCase notificaciones,
             PlatformTransactionManager transacciones, Clock clock) {
         this.bancos = bancos;
         this.imagenes = imagenes;
+        this.revisiones = revisiones;
         this.imagenesBanco = imagenesBanco;
         this.resenaRepository = resenaRepository;
         this.resenas = resenas;
@@ -90,7 +97,8 @@ public class ModeracionService implements ModeracionUseCase {
                 resenaRepository.countReportadas(),
                 imagenes.countByEstado(EstadoImagen.PENDIENTE),
                 resenaRepository.count(),
-                usuarios.count());
+                usuarios.count(),
+                revisiones.countPendientes());
     }
 
     @Override
@@ -124,6 +132,49 @@ public class ModeracionService implements ModeracionUseCase {
         avisar(actor, banco.autor().id(), new NuevaNotificacion(TipoNotificacion.BANCO_RECHAZADO,
                 "Tu banco «" + titulo(banco) + "» no se ha publicado", evento.motivo(), enlaceBanco(bancoId)));
         return guardado;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResult<EdicionPendiente> edicionesPendientes(Actor actor, PageQuery page) {
+        exigirAdmin(actor);
+        return revisiones.findPendientes(page)
+                .map(revision -> new EdicionPendiente(revision, cargarBanco(revision.bancoId())));
+    }
+
+    /**
+     * La fila del banco se bloquea: así la edición no pisa a otra que el autor o un administrador
+     * esté guardando a la vez. Se aplica con los permisos del moderador, que edita directamente.
+     */
+    @Override
+    public Banco aprobarEdicion(Actor actor, UUID revisionId) {
+        exigirAdmin(actor);
+        RevisionBanco revision = revisiones.findById(revisionId)
+                .orElseThrow(() -> new RevisionNotFoundException(revisionId));
+        RevisionBanco aprobada = revision.aprobar(actor, clock.instant());
+        Banco banco = bancos.findByIdForUpdate(revision.bancoId())
+                .orElseThrow(() -> new BancoNotFoundException(revision.bancoId()));
+        banco.editar(revision.datos(), actor);
+        Banco guardado = bancos.save(banco);
+        revisiones.guardar(aprobada);
+        log.info("Edit {} of bench {} approved by {}", revisionId, banco.id(), actor.userId());
+        registrar(actor, AccionModeracion.EDICION_APROBADA, banco.id(), null);
+        avisar(actor, revision.autorId(), new NuevaNotificacion(TipoNotificacion.EDICION_APROBADA,
+                "Ya se ven tus cambios en «" + titulo(guardado) + "»", null, enlaceBanco(banco.id())));
+        return guardado;
+    }
+
+    @Override
+    public void rechazarEdicion(Actor actor, UUID revisionId, String motivo) {
+        exigirAdmin(actor);
+        RevisionBanco revision = revisiones.findById(revisionId)
+                .orElseThrow(() -> new RevisionNotFoundException(revisionId));
+        revisiones.guardar(revision.rechazar(actor, clock.instant()));
+        log.info("Edit {} of bench {} rejected by {}", revisionId, revision.bancoId(), actor.userId());
+        EventoModeracion evento = registrar(actor, AccionModeracion.EDICION_RECHAZADA, revision.bancoId(), motivo);
+        avisar(actor, revision.autorId(), new NuevaNotificacion(TipoNotificacion.EDICION_RECHAZADA,
+                "No hemos aplicado tus cambios en «" + tituloBanco(revision.bancoId()) + "»", evento.motivo(),
+                enlaceBanco(revision.bancoId())));
     }
 
     @Override

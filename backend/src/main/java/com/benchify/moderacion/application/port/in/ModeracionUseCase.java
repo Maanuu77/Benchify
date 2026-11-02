@@ -3,6 +3,7 @@ package com.benchify.moderacion.application.port.in;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.RevisionBanco;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
 import com.benchify.moderacion.domain.EventoModeracion;
 import com.benchify.resena.domain.Resena;
@@ -26,6 +27,15 @@ public interface ModeracionUseCase {
     /** @param motivo explicación opcional que se guarda en el historial y se envía al autor */
     Banco rechazarBanco(Actor actor, UUID bancoId, String motivo);
 
+    /** Ediciones de bancos publicados propuestas por su autor, de la más antigua a la más reciente. */
+    PageResult<EdicionPendiente> edicionesPendientes(Actor actor, PageQuery page);
+
+    /** Aplica la edición al banco, que sigue publicado. */
+    Banco aprobarEdicion(Actor actor, UUID revisionId);
+
+    /** El banco se queda como estaba; el autor recibe el motivo en su notificación. */
+    void rechazarEdicion(Actor actor, UUID revisionId, String motivo);
+
     PageResult<Resena> resenasReportadas(Actor actor, PageQuery page);
 
     /** La reseña reportada es inapropiada: se borra y se recalcula la valoración del banco. */
@@ -44,6 +54,10 @@ public interface ModeracionUseCase {
 
     /** Historial de decisiones de moderación, de la más reciente a la más antigua. */
     PageResult<EventoModeracion> eventos(Actor actor, PageQuery page);
+
+    /** Edición pendiente junto con el banco tal y como está publicado ahora, para compararlos. */
+    record EdicionPendiente(RevisionBanco revision, Banco banco) {
+    }
 
     /**
      * @param parecidas posibles duplicados, de este u otros bancos y en cualquier estado (una foto

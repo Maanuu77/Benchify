@@ -5,6 +5,7 @@ import com.benchify.moderacion.application.port.in.ModeracionUseCase;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
 import com.benchify.moderacion.domain.EventoModeracion;
 import com.benchify.moderacion.infrastructure.web.dto.BancoModeracionResponse;
+import com.benchify.moderacion.infrastructure.web.dto.EdicionModeracionResponse;
 import com.benchify.moderacion.infrastructure.web.dto.EventoModeracionResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ImagenModeracionResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ResenaModeracionResponse;
@@ -23,7 +24,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -70,6 +70,28 @@ class ModeracionController {
     BancoModeracionResponse rechazarBanco(@CurrentActor Actor actor, @PathVariable UUID id,
             @RequestParam(required = false) String motivo) {
         return mapper.toResponse(moderacion.rechazarBanco(actor, id, motivo));
+    }
+
+    @GetMapping("/ediciones")
+    @Operation(summary = "Ediciones de bancos publicados que esperan moderación, de la más antigua a la más reciente",
+            description = "Cada una trae los datos publicados (`actual`) y los propuestos (`propuesta`) para compararlos.")
+    PageResponse<EdicionModeracionResponse> edicionesPendientes(@CurrentActor Actor actor,
+            @Valid @ParameterObject PageParams page) {
+        return PageResponse.from(moderacion.edicionesPendientes(actor, page.toQuery()), mapper::toResponse);
+    }
+
+    @PostMapping("/ediciones/{id}/aprobacion")
+    @Operation(summary = "Aplicar una edición al banco, que sigue publicado")
+    BancoModeracionResponse aprobarEdicion(@CurrentActor Actor actor, @PathVariable UUID id) {
+        return mapper.toResponse(moderacion.aprobarEdicion(actor, id));
+    }
+
+    @PostMapping("/ediciones/{id}/rechazo")
+    @Operation(summary = "Descartar una edición: el banco se queda como estaba", description = MOTIVO)
+    ResponseEntity<Void> rechazarEdicion(@CurrentActor Actor actor, @PathVariable UUID id,
+            @RequestParam(required = false) String motivo) {
+        moderacion.rechazarEdicion(actor, id, motivo);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/resenas/reportadas")

@@ -3,13 +3,18 @@ package com.benchify.moderacion.application.service;
 import com.benchify.banco.application.port.in.ImagenesBancoUseCase;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.ImagenRepository;
+import com.benchify.banco.application.port.out.RevisionBancoRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoNotFoundException;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.EstadoImagen;
+import com.benchify.banco.domain.EstadoRevision;
 import com.benchify.banco.domain.Imagen;
 import com.benchify.banco.domain.ImagenProcesada;
+import com.benchify.banco.domain.RevisionBanco;
+import com.benchify.banco.domain.RevisionNotFoundException;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.EdicionPendiente;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.application.port.out.EventoModeracionRepository;
 import com.benchify.moderacion.domain.AccionModeracion;
@@ -50,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -65,6 +71,8 @@ class ModeracionServiceTest {
     private BancoRepository bancos;
     @Mock
     private ImagenRepository imagenes;
+    @Mock
+    private RevisionBancoRepository revisiones;
     @Mock
     private ImagenesBancoUseCase imagenesBanco;
     @Mock
@@ -84,8 +92,8 @@ class ModeracionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ModeracionService(bancos, imagenes, imagenesBanco, resenaRepository, resenas, usuarios,
-                eventos, notificaciones, transacciones, Clock.fixed(AHORA, ZoneOffset.UTC));
+        service = new ModeracionService(bancos, imagenes, revisiones, imagenesBanco, resenaRepository, resenas,
+                usuarios, eventos, notificaciones, transacciones, Clock.fixed(AHORA, ZoneOffset.UTC));
         lenient().when(bancos.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -124,6 +132,65 @@ class ModeracionServiceTest {
         assertThat(avisos.getAllValues().get(1).tipo()).isEqualTo(TipoNotificacion.BANCO_RECHAZADO);
         assertThat(avisos.getAllValues().get(1).mensaje()).isEqualTo("Está repetido");
         assertThat(avisos.getAllValues().get(1).enlace()).isEqualTo("/bancos/" + banco.id());
+    }
+
+    @Test
+    void approvingAnEditAppliesItAndKeepsTheBenchPublished() {
+        Banco banco = Banco.proponer(UUID.randomUUID(),
+                new DatosBanco("Antes", null, new Ubicacion(37, -6), null, null, null), Actor.user("ana"), AHORA);
+        banco.aprobar(AHORA);
+        RevisionBanco revision = RevisionBanco.proponer(banco.id(), Actor.user("ana"),
+                new DatosBanco("Después", "Con sombra por la tarde", new Ubicacion(37, -6), null, null, null), AHORA);
+        when(revisiones.findById(revision.id())).thenReturn(Optional.of(revision));
+        when(bancos.findByIdForUpdate(banco.id())).thenReturn(Optional.of(banco));
+        when(revisiones.findPendientes(PageQuery.first(10)))
+                .thenReturn(new PageResult<>(List.of(revision), 0, 10, 1));
+        when(bancos.findById(banco.id())).thenReturn(Optional.of(banco));
+
+        assertThat(service.edicionesPendientes(ADMIN, PageQuery.first(10)).content())
+                .containsExactly(new EdicionPendiente(revision, banco));
+
+        Banco editado = service.aprobarEdicion(ADMIN, revision.id());
+
+        assertThat(editado.datos().titulo()).isEqualTo("Después");
+        assertThat(editado.estaPublicado()).isTrue();
+        ArgumentCaptor<RevisionBanco> guardada = ArgumentCaptor.forClass(RevisionBanco.class);
+        verify(revisiones).guardar(guardada.capture());
+        assertThat(guardada.getValue().estado()).isEqualTo(EstadoRevision.APROBADA);
+        assertThat(guardada.getValue().revisadaPor()).isEqualTo("root");
+        ArgumentCaptor<EventoModeracion> evento = ArgumentCaptor.forClass(EventoModeracion.class);
+        verify(eventos).guardar(evento.capture());
+        assertThat(evento.getValue().accion()).isEqualTo(AccionModeracion.EDICION_APROBADA);
+        assertThat(evento.getValue().recursoId()).isEqualTo(banco.id());
+        ArgumentCaptor<NuevaNotificacion> aviso = ArgumentCaptor.forClass(NuevaNotificacion.class);
+        verify(notificaciones).notificar(eq("ana"), aviso.capture());
+        assertThat(aviso.getValue().titulo()).isEqualTo("Ya se ven tus cambios en «Después»");
+    }
+
+    @Test
+    void rejectingAnEditLeavesTheBenchAsItWas() {
+        Banco banco = Banco.proponer(UUID.randomUUID(),
+                new DatosBanco("Antes", null, new Ubicacion(37, -6), null, null, null), Actor.user("ana"), AHORA);
+        banco.aprobar(AHORA);
+        RevisionBanco revision = RevisionBanco.proponer(banco.id(), Actor.user("ana"),
+                new DatosBanco("Spam", null, new Ubicacion(37, -6), null, null, null), AHORA);
+        when(revisiones.findById(revision.id())).thenReturn(Optional.of(revision));
+        when(bancos.findById(banco.id())).thenReturn(Optional.of(banco));
+
+        service.rechazarEdicion(ADMIN, revision.id(), "No es un título descriptivo");
+
+        assertThat(banco.datos().titulo()).isEqualTo("Antes");
+        verify(bancos, never()).save(any());
+        ArgumentCaptor<RevisionBanco> guardada = ArgumentCaptor.forClass(RevisionBanco.class);
+        verify(revisiones).guardar(guardada.capture());
+        assertThat(guardada.getValue().estado()).isEqualTo(EstadoRevision.RECHAZADA);
+        ArgumentCaptor<NuevaNotificacion> aviso = ArgumentCaptor.forClass(NuevaNotificacion.class);
+        verify(notificaciones).notificar(eq("ana"), aviso.capture());
+        assertThat(aviso.getValue().tipo()).isEqualTo(TipoNotificacion.EDICION_RECHAZADA);
+        assertThat(aviso.getValue().titulo()).isEqualTo("No hemos aplicado tus cambios en «Antes»");
+        assertThat(aviso.getValue().mensaje()).isEqualTo("No es un título descriptivo");
+        assertThatThrownBy(() -> service.aprobarEdicion(ADMIN, UUID.randomUUID()))
+                .isInstanceOf(RevisionNotFoundException.class);
     }
 
     @Test
@@ -190,11 +257,12 @@ class ModeracionServiceTest {
         when(imagenes.countByEstado(EstadoImagen.PENDIENTE)).thenReturn(5L);
         when(resenaRepository.count()).thenReturn(120L);
         when(usuarios.count()).thenReturn(33L);
+        when(revisiones.countPendientes()).thenReturn(4L);
 
         EstadisticasModeracion estadisticas = service.estadisticas(ADMIN);
 
-        assertThat(estadisticas).isEqualTo(new EstadisticasModeracion(3, 40, 2, 1, 5, 120, 33));
-        assertThat(estadisticas.tareasPendientes()).isEqualTo(9);
+        assertThat(estadisticas).isEqualTo(new EstadisticasModeracion(3, 40, 2, 1, 5, 120, 33, 4));
+        assertThat(estadisticas.tareasPendientes()).isEqualTo(13);
     }
 
     @Test
