@@ -55,6 +55,16 @@ benchify:
     uploads:
       capacity: 10
       period: 10m
+    # GET /api/v1/lugares: each search may end up calling Nominatim
+    searches:
+      capacity: 20
+      period: 1m
+  # Address search through Nominatim (OpenStreetMap). Its usage policy asks for an identifying
+  # User-Agent, at most one request per second and caching the results
+  geocodificacion:
+    url: ${GEOCODING_URL:https://nominatim.openstreetmap.org}
+    intervalo: 1s
+    cache: 24h
 
 management:
   endpoints:

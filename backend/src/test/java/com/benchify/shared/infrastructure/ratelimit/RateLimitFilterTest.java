@@ -102,6 +102,16 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void addressSearchesHaveTheirOwnBucket() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            assertThat(enviar("GET", "/api/v1/lugares").getStatus()).isEqualTo(200);
+        }
+        assertThat(enviar("GET", "/api/v1/lugares").getStatus()).isEqualTo(429);
+        // No gastan del cubo de escrituras
+        assertThat(enviar("POST", "/api/v1/bancos").getStatus()).isEqualTo(200);
+    }
+
+    @Test
     void eachUserHasItsOwnBucket() throws Exception {
         autenticar("ana");
         for (int i = 0; i < 3; i++) {
@@ -153,14 +163,14 @@ class RateLimitFilterTest {
 
     @Test
     void propertiesFallBackToTheDefaultLimits() {
-        RateLimitProperties properties = new RateLimitProperties(true, null, null, 10_000);
+        RateLimitProperties properties = new RateLimitProperties(true, null, null, null, 10_000);
 
         assertThat(properties.writes()).isEqualTo(new Limit(30, Duration.ofMinutes(1)));
         assertThat(properties.uploads()).isEqualTo(new Limit(10, Duration.ofMinutes(10)));
     }
 
     private RateLimitFilter filtro(int maxClaves) {
-        return new RateLimitFilter(new RateLimitProperties(true, TRES_POR_MINUTO, UNA_CADA_DIEZ_MINUTOS, maxClaves),
+        return new RateLimitFilter(new RateLimitProperties(true, TRES_POR_MINUTO, UNA_CADA_DIEZ_MINUTOS, TRES_POR_MINUTO, maxClaves),
                 new ProblemDetailSecurityHandler(JsonMapper.builder().build()), reloj);
     }
 

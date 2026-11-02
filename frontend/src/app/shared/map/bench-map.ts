@@ -113,6 +113,11 @@ export class BenchMap {
     this.map?.flyTo([punto.lat, punto.lng], zoom, { duration: 0.6 });
   }
 
+  /** Encuadra una zona (p. ej. el barrio o la calle que se ha buscado) sin acercarse más de la cuenta. */
+  encuadrar(sur: number, oeste: number, norte: number, este: number): void {
+    this.map?.flyToBounds([[sur, oeste], [norte, este]], { maxZoom: 17, duration: 0.6 });
+  }
+
   acercar(): void {
     this.map?.zoomIn();
   }

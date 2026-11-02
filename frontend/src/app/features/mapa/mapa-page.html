@@ -11,8 +11,11 @@
 />
 
 @if (movil()) {
-  <div class="filtros-flotantes">
-    <bf-filtros-bancos [(filtro)]="filtro" />
+  <div class="arriba">
+    <bf-buscador-lugares class="buscador" [cerca]="vista()" (lugarElegido)="irALugar($event)" />
+    <div class="filtros-flotantes">
+      <bf-filtros-bancos [(filtro)]="filtro" />
+    </div>
   </div>
 }
 
@@ -36,6 +39,10 @@
             aria-controls="contenido-panel">
       <span class="sr-only">{{ hojaAbierta() ? 'Plegar la lista' : 'Desplegar la lista' }}</span>
     </button>
+  }
+
+  @if (!movil()) {
+    <bf-buscador-lugares [cerca]="vista()" (lugarElegido)="irALugar($event)" />
   }
 
   <header class="panel-header">

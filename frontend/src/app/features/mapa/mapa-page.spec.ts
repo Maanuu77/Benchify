@@ -1,15 +1,21 @@
-import { Component, input, output } from '@angular/core';
+import { Component, forwardRef, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { BancosApi } from '../../core/api/bancos-api';
-import { BancoResumen, BoundingBox } from '../../core/api/models';
+import { BancoResumen, BoundingBox, Lugar } from '../../core/api/models';
 import { GeolocationService } from '../../core/geo/geolocation.service';
 import { Notifier } from '../../core/ui/notifier';
 import { BenchMap, Punto } from '../../shared/map/bench-map';
 import { MapaPage, RADIO_CERCANIA } from './mapa-page';
+import { BuscadorLugares } from './buscador-lugares';
 
-@Component({ selector: 'bf-bench-map', template: '' })
+// Se registra como BenchMap para que viewChild(BenchMap) de la página lo encuentre
+@Component({
+  selector: 'bf-bench-map',
+  template: '',
+  providers: [{ provide: BenchMap, useExisting: forwardRef(() => BenchMapStub) }],
+})
 class BenchMapStub {
   readonly bancos = input<BancoResumen[]>([]);
   readonly centro = input<Punto>();
@@ -20,8 +26,15 @@ class BenchMapStub {
   readonly vistaChange = output<unknown>();
   readonly bancoSelect = output<BancoResumen>();
   volarA = vi.fn();
+  encuadrar = vi.fn();
   acercar = vi.fn();
   alejar = vi.fn();
+}
+
+@Component({ selector: 'bf-buscador-lugares', template: '' })
+class BuscadorStub {
+  readonly cerca = input<unknown>();
+  readonly lugarElegido = output<Lugar>();
 }
 
 const banco = (id: string, puntuacionMedia: number, extra: Partial<BancoResumen> = {}): BancoResumen => ({
@@ -55,7 +68,10 @@ describe('MapaPage', () => {
         { provide: Notifier, useValue: notifier },
       ],
     });
-    TestBed.overrideComponent(MapaPage, { remove: { imports: [BenchMap] }, add: { imports: [BenchMapStub] } });
+    TestBed.overrideComponent(MapaPage, {
+      remove: { imports: [BenchMap, BuscadorLugares] },
+      add: { imports: [BenchMapStub, BuscadorStub] },
+    });
     fixture = TestBed.createComponent(MapaPage);
     element = fixture.nativeElement;
     fixture.detectChanges();
@@ -152,6 +168,20 @@ describe('MapaPage', () => {
     expect(element.querySelector('.seleccionado h2')?.textContent).toBe('Banco b');
     expect(mapa.volarA).not.toHaveBeenCalled();
     expect(api.enArea).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves the map to the searched place, framing its area when known', async () => {
+    const mapa = fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub).componentInstance;
+    const buscador = fixture.debugElement.query((d) => d.componentInstance instanceof BuscadorStub).componentInstance;
+    const sitio: Lugar = {
+      nombre: 'Triana', direccion: 'Triana, Sevilla', lat: 37.38, lng: -6.0, sur: 37.37, oeste: -6.01, norte: 37.39, este: -5.99,
+    };
+
+    buscador.lugarElegido.emit(sitio);
+    expect(mapa.encuadrar).toHaveBeenCalledWith(37.37, -6.01, 37.39, -5.99);
+
+    buscador.lugarElegido.emit({ ...sitio, sur: null, oeste: null, norte: null, este: null });
+    expect(mapa.volarA).toHaveBeenCalledWith(expect.objectContaining({ lat: 37.38, lng: -6.0 }), 16);
   });
 
   it('reports a denied geolocation without breaking the page', async () => {
