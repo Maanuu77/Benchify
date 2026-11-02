@@ -6,6 +6,7 @@ import com.benchify.shared.domain.DomainException;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.NotFoundException;
 import com.benchify.shared.domain.PreconditionFailedException;
+import com.benchify.shared.domain.ServiceUnavailableException;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.persistence.PessimisticLockException;
 import jakarta.validation.ConstraintViolationException;
@@ -68,6 +69,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(PreconditionFailedException.class)
     ProblemDetail handlePreconditionFailed(PreconditionFailedException ex) {
         return problem(HttpStatus.PRECONDITION_FAILED, ex);
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    ResponseEntity<ProblemDetail> handleServiceUnavailable(ServiceUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, "5")
+                .body(problem(HttpStatus.SERVICE_UNAVAILABLE, ex));
     }
 
     /**

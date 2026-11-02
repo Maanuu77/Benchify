@@ -32,7 +32,9 @@ import java.util.concurrent.TimeUnit;
  * {@code server.forward-headers-strategy=framework}, el primer salto de {@code X-Forwarded-For}).
  * Al agotarlo responde 429 con {@code Retry-After}.
  *
- * <p>Las subidas de fotos tienen su propio cubo, más estricto, y no gastan del de escrituras.
+ * <p>Las subidas de fotos tienen su propio cubo, más estricto, y no gastan del de escrituras. Las
+ * búsquedas de direcciones, aunque son lecturas, también se limitan: cada una puede acabar en una
+ * petición a un servicio externo con un cupo compartido por todos los usuarios.
  * Los cubos viven en la memoria de cada instancia: con varias instancias de Cloud Run el límite
  * efectivo se multiplica por su número.
  */
@@ -44,10 +46,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final PathPattern API = PathPatternParser.defaultInstance.parse("/api/**");
     private static final PathPattern SUBIDA_FOTOS =
             PathPatternParser.defaultInstance.parse("/api/v1/bancos/{bancoId}/imagenes");
+    private static final PathPattern BUSQUEDA_LUGARES = PathPatternParser.defaultInstance.parse("/api/v1/lugares");
     private static final long NANOS_POR_SEGUNDO = TimeUnit.SECONDS.toNanos(1);
 
     private final Cubos escrituras;
     private final Cubos subidas;
+    private final Cubos busquedas;
     private final ProblemDetailSecurityHandler problemHandler;
 
     public RateLimitFilter(RateLimitProperties properties, ProblemDetailSecurityHandler problemHandler) {
@@ -57,19 +61,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
     RateLimitFilter(RateLimitProperties properties, ProblemDetailSecurityHandler problemHandler, TimeMeter reloj) {
         this.escrituras = new Cubos(properties.writes(), properties.maxKeys(), reloj);
         this.subidas = new Cubos(properties.uploads(), properties.maxKeys(), reloj);
+        this.busquedas = new Cubos(properties.searches(), properties.maxKeys(), reloj);
         this.problemHandler = problemHandler;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !ESCRITURAS.contains(request.getMethod()) || !API.matches(ruta(request));
+        return !esBusqueda(request) && (!ESCRITURAS.contains(request.getMethod()) || !API.matches(ruta(request)));
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        boolean subida = HttpMethod.POST.matches(request.getMethod()) && SUBIDA_FOTOS.matches(ruta(request));
-        ConsumptionProbe consumo = (subida ? subidas : escrituras).consumir(clave(request));
+        ConsumptionProbe consumo = cubos(request).consumir(clave(request));
         if (consumo.isConsumed()) {
             chain.doFilter(request, response);
             return;
@@ -81,9 +85,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 "Has hecho demasiadas peticiones seguidas; vuelve a intentarlo dentro de " + segundos + " s");
     }
 
-    /** Claves recordadas entre los dos cubos (para comprobar en tests que el mapa está acotado). */
+    private Cubos cubos(HttpServletRequest request) {
+        if (esBusqueda(request)) {
+            return busquedas;
+        }
+        boolean subida = HttpMethod.POST.matches(request.getMethod()) && SUBIDA_FOTOS.matches(ruta(request));
+        return subida ? subidas : escrituras;
+    }
+
+    private static boolean esBusqueda(HttpServletRequest request) {
+        return HttpMethod.GET.matches(request.getMethod()) && BUSQUEDA_LUGARES.matches(ruta(request));
+    }
+
+    /** Claves recordadas entre todos los cubos (para comprobar en tests que el mapa está acotado). */
     long clavesRecordadas() {
-        return escrituras.tamano() + subidas.tamano();
+        return escrituras.tamano() + subidas.tamano() + busquedas.tamano();
     }
 
     private static String clave(HttpServletRequest request) {
