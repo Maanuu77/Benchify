@@ -73,8 +73,18 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 - Las imágenes exponen `thumbUrl` (#27). La galería y la moderación usan miniaturas, las fotos
   pendientes se descargan con el token y las fotos se reducen a 1600 px en WebP en el navegador
   antes de subirlas (#27).
+- Baja de cuenta (`DELETE /api/v1/usuarios/me`): el perfil se anonimiza, se borran favoritos,
+  check-ins y avisos, y se elimina la cuenta de Firebase; lo publicado se conserva (#57).
+- Historial de moderación (`GET /api/v1/admin/eventos`) con motivo opcional (`?motivo=`) al
+  rechazar bancos o fotos y al retirar reseñas (#59).
+- Notificaciones al autor cuando se aprueba o rechaza su banco o su foto, o se retira su reseña,
+  con contador de no leídas (`/api/v1/usuarios/me/notificaciones`) (#60).
 
 ### Cambiado
+
+- Publicar bancos, reseñas o fotos exige haber verificado el email (403 `EMAIL_NO_VERIFICADO`);
+  los administradores quedan exentos (#54).
+- Migraciones V11 (baja de cuentas e índices de claves foráneas) y V12 (historial y notificaciones).
 
 - Límite de subida de fotos unificado en 10 MB (#27) y máximo de 10000 en el número de página (#41).
 - Migraciones V8 (miniaturas de las imágenes) y V10 (versión de las reseñas para el bloqueo optimista).
