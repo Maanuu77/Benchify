@@ -6,8 +6,13 @@ import java.util.Objects;
 /**
  * Foto lista para guardarse: recodificada a JPEG sin metadatos (EXIF, GPS…), con la orientación
  * aplicada y el lado mayor limitado, más su miniatura para galerías y listados.
+ *
+ * @param huella huella perceptual de 64 bits: dos fotos casi iguales difieren en pocos bits
  */
-public record ImagenProcesada(byte[] contenido, byte[] miniatura) {
+public record ImagenProcesada(byte[] contenido, byte[] miniatura, long huella) {
+
+    /** Bits distintos entre dos huellas a partir de los cuales las fotos ya no se consideran parecidas. */
+    public static final int DISTANCIA_PARECIDAS = 6;
 
     /** Todas las fotos se guardan como JPEG, sea cual sea el formato subido. */
     public static final String CONTENT_TYPE = "image/jpeg";
@@ -36,17 +41,18 @@ public record ImagenProcesada(byte[] contenido, byte[] miniatura) {
     // Los arrays no tienen igualdad por valor: se redefine para que el record sea comparable
     @Override
     public boolean equals(Object o) {
-        return o instanceof ImagenProcesada other
+        return o instanceof ImagenProcesada other && huella == other.huella
                 && Arrays.equals(contenido, other.contenido) && Arrays.equals(miniatura, other.miniatura);
     }
 
     @Override
     public int hashCode() {
-        return 31 * Arrays.hashCode(contenido) + Arrays.hashCode(miniatura);
+        return 31 * (31 * Arrays.hashCode(contenido) + Arrays.hashCode(miniatura)) + Long.hashCode(huella);
     }
 
     @Override
     public String toString() {
-        return "ImagenProcesada[" + contenido.length + " bytes, miniatura " + miniatura.length + " bytes]";
+        return "ImagenProcesada[" + contenido.length + " bytes, miniatura " + miniatura.length + " bytes, huella "
+                + Long.toHexString(huella) + "]";
     }
 }

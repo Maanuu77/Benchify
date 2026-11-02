@@ -52,7 +52,7 @@ class ThumbnailatorProcesadorImagenesAdapter implements ProcesadorImagenesPort {
     public ImagenProcesada procesar(ArchivoImagen archivo) {
         BufferedImage foto = reducir(decodificar(archivo.contenido()), ImagenProcesada.LADO_MAXIMO);
         BufferedImage miniatura = reducir(foto, ImagenProcesada.LADO_MAXIMO_MINIATURA);
-        return new ImagenProcesada(jpeg(foto), jpeg(miniatura));
+        return new ImagenProcesada(jpeg(foto), jpeg(miniatura), HuellaPerceptual.dhash(miniatura));
     }
 
     private static BufferedImage decodificar(byte[] contenido) {

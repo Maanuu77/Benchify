@@ -176,12 +176,14 @@ class ImagenTest {
 
     @Test
     void processedImageHasValueEquality() {
-        ImagenProcesada procesada = new ImagenProcesada(JPEG.clone(), PNG.clone());
+        ImagenProcesada procesada = new ImagenProcesada(JPEG.clone(), PNG.clone(), 0xABL);
 
-        assertThat(procesada).isEqualTo(new ImagenProcesada(JPEG, PNG)).hasSameHashCodeAs(new ImagenProcesada(JPEG, PNG));
-        assertThat(procesada).isNotEqualTo(new ImagenProcesada(JPEG, JPEG));
+        assertThat(procesada).isEqualTo(new ImagenProcesada(JPEG, PNG, 0xABL))
+                .hasSameHashCodeAs(new ImagenProcesada(JPEG, PNG, 0xABL));
+        assertThat(procesada).isNotEqualTo(new ImagenProcesada(JPEG, JPEG, 0xABL));
+        assertThat(procesada).isNotEqualTo(new ImagenProcesada(JPEG, PNG, 0xACL));
         assertThat(procesada.tamanoBytes()).isEqualTo(JPEG.length);
-        assertThat(procesada).hasToString("ImagenProcesada[6 bytes, miniatura 10 bytes]");
+        assertThat(procesada).hasToString("ImagenProcesada[6 bytes, miniatura 10 bytes, huella ab]");
     }
 
     private static Imagen nueva(Actor actor) {

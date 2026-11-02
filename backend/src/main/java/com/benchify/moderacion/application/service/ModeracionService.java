@@ -9,7 +9,9 @@ import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Imagen;
 import com.benchify.banco.domain.ImagenNotFoundException;
+import com.benchify.banco.domain.ImagenProcesada;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.application.port.out.EventoModeracionRepository;
 import com.benchify.moderacion.domain.AccionModeracion;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
@@ -47,6 +49,8 @@ import java.util.UUID;
 public class ModeracionService implements ModeracionUseCase {
 
     private static final Logger log = LoggerFactory.getLogger(ModeracionService.class);
+    /** Posibles duplicados que se enseñan junto a cada foto pendiente. */
+    static final int MAX_PARECIDAS = 3;
 
     private final BancoRepository bancos;
     private final ImagenRepository imagenes;
@@ -150,9 +154,10 @@ public class ModeracionService implements ModeracionUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResult<Imagen> imagenesPendientes(Actor actor, PageQuery page) {
+    public PageResult<ImagenPendiente> imagenesPendientes(Actor actor, PageQuery page) {
         exigirAdmin(actor);
-        return imagenes.findByEstado(EstadoImagen.PENDIENTE, page);
+        return imagenes.findByEstado(EstadoImagen.PENDIENTE, page).map(imagen -> new ImagenPendiente(imagen,
+                imagenes.findParecidas(imagen.id(), ImagenProcesada.DISTANCIA_PARECIDAS, MAX_PARECIDAS)));
     }
 
     /**

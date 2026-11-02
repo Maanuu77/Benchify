@@ -9,6 +9,8 @@ import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.ImagenProcesada;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.application.port.out.EventoModeracionRepository;
 import com.benchify.moderacion.domain.AccionModeracion;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
@@ -39,6 +41,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -204,6 +207,19 @@ class ModeracionServiceTest {
         assertThat(service.bancos(ADMIN, EstadoBanco.PENDIENTE, page).content()).isEmpty();
         assertThat(service.resenasReportadas(ADMIN, page).content()).isEmpty();
         assertThat(service.imagenesPendientes(ADMIN, page).content()).isEmpty();
+    }
+
+    @Test
+    void pendingPhotosComeWithTheirPossibleDuplicates() {
+        PageQuery page = PageQuery.first(10);
+        Imagen pendiente = imagen();
+        Imagen parecida = imagen();
+        when(imagenes.findByEstado(EstadoImagen.PENDIENTE, page)).thenReturn(new PageResult<>(List.of(pendiente), 0, 10, 1));
+        when(imagenes.findParecidas(pendiente.id(), ImagenProcesada.DISTANCIA_PARECIDAS, ModeracionService.MAX_PARECIDAS))
+                .thenReturn(List.of(parecida));
+
+        assertThat(service.imagenesPendientes(ADMIN, page).content())
+                .containsExactly(new ImagenPendiente(pendiente, List.of(parecida)));
     }
 
     private static Imagen imagen() {

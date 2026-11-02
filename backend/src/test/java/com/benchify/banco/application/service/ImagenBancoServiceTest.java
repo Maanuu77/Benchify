@@ -55,7 +55,7 @@ class ImagenBancoServiceTest {
     private static final Instant AHORA = Instant.parse("2026-10-25T10:00:00Z");
     private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1, 2, 3};
     private static final ArchivoImagen ARCHIVO = new ArchivoImagen("image/jpeg", JPEG);
-    private static final ImagenProcesada PROCESADA = new ImagenProcesada(new byte[]{1, 2}, new byte[]{3});
+    private static final ImagenProcesada PROCESADA = new ImagenProcesada(new byte[]{1, 2}, new byte[]{3}, 0xF0F0L);
     private static final Actor ANA = Actor.user("ana");
     private static final Actor LUIS = Actor.user("luis");
     private static final Actor ADMIN = Actor.admin("root");
@@ -114,6 +114,8 @@ class ImagenBancoServiceTest {
         assertThat(imagen.subidaPor()).isEqualTo("luis");
         assertThat(imagen.estado()).isEqualTo(EstadoImagen.PENDIENTE);
         assertThat(imagen.fechaSubida()).isEqualTo(AHORA);
+        // La huella se guarda para buscar duplicados en moderación
+        verify(imagenes).guardarHuella(imagen.id(), 0xF0F0L);
     }
 
     @Test

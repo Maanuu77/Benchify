@@ -7,6 +7,7 @@ import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.Imagen;
 import com.benchify.moderacion.application.port.in.ModeracionUseCase;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.domain.EstadisticasModeracion;
 import com.benchify.resena.domain.Resena;
 import com.benchify.shared.domain.Actor;
@@ -119,8 +120,12 @@ class ModeracionControllerTest {
     void moderatesImages() {
         Imagen imagen = new Imagen(UUID.randomUUID(), BANCO.id(), "bancos/x.jpg", "https://storage/x.jpg",
                 "image/jpeg", 2048, "ana", EstadoImagen.PENDIENTE, AHORA);
-        when(moderacion.imagenesPendientes(ADMIN, PageQuery.first(20)))
-                .thenReturn(new PageResult<>(List.of(imagen), 0, 20, 1));
+        Imagen repetida = new Imagen(UUID.randomUUID(), BANCO.id(), "bancos/y.jpg", "https://storage/y.jpg",
+                "image/jpeg", 1024, "luis", EstadoImagen.APROBADA, AHORA);
+        Imagen rechazadaEnOtroBanco = new Imagen(UUID.randomUUID(), UUID.randomUUID(), "pendientes/z.jpg",
+                "https://storage/z.jpg", "image/jpeg", 1024, "luis", EstadoImagen.RECHAZADA, AHORA);
+        when(moderacion.imagenesPendientes(ADMIN, PageQuery.first(20))).thenReturn(new PageResult<>(
+                List.of(new ImagenPendiente(imagen, List.of(repetida, rechazadaEnOtroBanco))), 0, 20, 1));
         when(moderacion.aprobarImagen(ADMIN, imagen.id())).thenReturn(imagen.aprobar());
 
         assertThat(mvc.get().uri("/api/v1/admin/imagenes/pendientes").header("Authorization", bearerAdmin("root")))
@@ -133,6 +138,12 @@ class ModeracionControllerTest {
                     assertThat(json).extractingPath("$.content[0].thumbUrl")
                             .isEqualTo("http://localhost/api/v1/imagenes/" + imagen.id() + "/miniatura");
                     assertThat(json).extractingPath("$.content[0].requiereAutenticacion").isEqualTo(true);
+                    // Posibles duplicados: la rechazada ya no tiene fichero que enseñar
+                    assertThat(json).extractingPath("$.content[0].parecidas[0].mismoBanco").isEqualTo(true);
+                    assertThat(json).extractingPath("$.content[0].parecidas[0].thumbUrl").isEqualTo("https://storage/y.jpg");
+                    assertThat(json).extractingPath("$.content[0].parecidas[1].mismoBanco").isEqualTo(false);
+                    assertThat(json).extractingPath("$.content[0].parecidas[1].estado").isEqualTo("RECHAZADA");
+                    assertThat(json).extractingPath("$.content[0].parecidas[1].thumbUrl").isNull();
                 });
         assertThat(mvc.post().uri("/api/v1/admin/imagenes/{id}/aprobacion", imagen.id())
                 .header("Authorization", bearerAdmin("root")))

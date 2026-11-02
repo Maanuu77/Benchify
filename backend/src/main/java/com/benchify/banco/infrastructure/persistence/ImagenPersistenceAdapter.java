@@ -79,4 +79,14 @@ class ImagenPersistenceAdapter implements ImagenRepository {
     public long countByEstado(EstadoImagen estado) {
         return repository.countByEstado(estado);
     }
+
+    @Override
+    public void guardarHuella(UUID imagenId, long huella) {
+        repository.guardarHuella(imagenId, huella);
+    }
+
+    @Override
+    public List<Imagen> findParecidas(UUID imagenId, int distanciaMaxima, int limite) {
+        return repository.findParecidas(imagenId, distanciaMaxima, limite).stream().map(mapper::toDomain).toList();
+    }
 }
