@@ -68,7 +68,8 @@ public class FirebaseAuthenticationFilter extends OncePerRequestFilter {
             user = user.withRol(roleResolver.resolve(user));
         } catch (RuntimeException e) {
             // Sin rol fiable no se puede autorizar: mejor un 500 que dejar pasar la petición con el del token
-            log.error("Could not resolve the role of user {}", user.uid(), e);
+            // Sin el uid: sale del token y no debe acabar en los logs
+            log.error("Could not resolve the role of the authenticated user", e);
             contextHolder.clearContext();
             problemHandler.write(request, response, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR",
                     "Se ha producido un error inesperado");
