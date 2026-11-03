@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { Notificacion } from '../api/models';
+import { IDIOMA } from '../i18n/idioma';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { CampanaNotificaciones } from './campana-notificaciones';
 
@@ -58,6 +59,32 @@ describe('CampanaNotificaciones', () => {
 
     expect(servicio.marcarLeida).toHaveBeenCalledWith('n1');
     expect(navigate).toHaveBeenCalledWith('/bancos/b1');
+  });
+
+  it('rebuilds the Spanish notifications in English from their type and bench name', async () => {
+    fixture.destroy();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: NotificacionesService, useValue: servicio },
+        { provide: IDIOMA, useValue: 'en' },
+      ],
+    });
+    servicio.recientes.mockResolvedValue([
+      aviso('n1'),
+      aviso('n2', { tipo: 'INCIDENCIA_REVISADA', titulo: 'Hemos revisado tu aviso sobre «Glorieta»', mensaje: 'Gracias, ya está solucionado.' }),
+    ]);
+    fixture = TestBed.createComponent(CampanaNotificaciones);
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement.querySelector('.campana') as HTMLElement).getAttribute('aria-label'))
+      .toBe('Notifications, 2 unread');
+    await abrirMenu();
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('.aviso')).map((i) => i.textContent);
+    expect(items[0]).toContain('Your bench “Glorieta” is now published');
+    expect(items[1]).toContain('We have reviewed your report about “Glorieta”');
+    expect(items[1]).toContain("Thanks, it's been fixed.");
   });
 
   it('marks everything as read', async () => {

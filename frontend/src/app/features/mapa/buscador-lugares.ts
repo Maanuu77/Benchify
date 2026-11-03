@@ -4,7 +4,9 @@ import { firstValueFrom } from 'rxjs';
 import { toApiError } from '../../core/api/api-error';
 import { LugaresApi } from '../../core/api/lugares-api';
 import { Lugar } from '../../core/api/models';
+import { textos } from '../../core/i18n/idioma';
 import { Punto } from '../../shared/map/bench-map';
+import { BUSCADOR_LUGARES } from './buscador-lugares.i18n';
 
 export const MIN_BUSQUEDA = 3;
 
@@ -23,8 +25,8 @@ export const MIN_BUSQUEDA = 3;
         #campo
         type="search"
         name="q"
-        placeholder="Buscar una calle, un barrio o un sitio"
-        aria-label="Buscar una dirección"
+        [placeholder]="t.placeholder"
+        [attr.aria-label]="t.buscarDireccion"
         autocomplete="off"
         enterkeyhint="search"
         maxlength="120"
@@ -37,18 +39,18 @@ export const MIN_BUSQUEDA = 3;
       @if (buscando()) {
         <mat-icon class="estado girando" aria-hidden="true">autorenew</mat-icon>
       } @else if (texto()) {
-        <button type="button" class="limpiar" aria-label="Borrar la búsqueda" (click)="limpiar(); campo.focus()">
+        <button type="button" class="limpiar" [attr.aria-label]="t.borrar" (click)="limpiar(); campo.focus()">
           <mat-icon>close</mat-icon>
         </button>
       }
     </form>
 
     @if (abierto()) {
-      <div id="resultados-lugares" class="resultados bf-glass" role="region" aria-live="polite" aria-label="Resultados">
+      <div id="resultados-lugares" class="resultados bf-glass" role="region" aria-live="polite" [attr.aria-label]="t.resultados">
         @if (error(); as mensaje) {
           <p class="vacio">{{ mensaje }}</p>
         } @else if (resultados()?.length === 0) {
-          <p class="vacio">No hemos encontrado ese sitio. Prueba con la calle y la ciudad.</p>
+          <p class="vacio">{{ t.sinResultados }}</p>
         } @else {
           <ul>
             @for (lugar of resultados(); track $index) {
@@ -64,7 +66,7 @@ export const MIN_BUSQUEDA = 3;
             }
           </ul>
         }
-        <p class="atribucion">Datos © OpenStreetMap</p>
+        <p class="atribucion">{{ t.atribucion }}</p>
       </div>
     }
   `,
@@ -207,6 +209,7 @@ export const MIN_BUSQUEDA = 3;
 })
 export class BuscadorLugares {
   private readonly api = inject(LugaresApi);
+  protected readonly t = textos(BUSCADOR_LUGARES);
 
   /** Centro del mapa: los resultados cercanos salen antes. */
   readonly cerca = input<Punto | null>(null);

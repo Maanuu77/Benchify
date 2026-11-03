@@ -16,6 +16,7 @@ import { authInterceptor } from './core/auth/auth.interceptor';
 import { revalidarRutaAlPerderAcceso } from './core/auth/guards';
 import { IDIOMA, LOCALES } from './core/i18n/idioma';
 import { idiomaInterceptor } from './core/i18n/idioma.interceptor';
+import { Seo } from './core/seo/seo';
 import { recargarTrasDespliegue } from './core/layout/recargar-tras-despliegue';
 import { Actualizaciones } from './core/pwa/actualizaciones';
 
@@ -46,6 +47,7 @@ export const appConfig: ApplicationConfig = {
     { provide: LOCALE_ID, useFactory: () => LOCALES[inject(IDIOMA)] },
     provideAppInitializer(() => {
       document.documentElement.lang = inject(IDIOMA);
+      inject(Seo).restablecer();
     }),
     // Solo en producción: con ng serve el service worker serviría versiones antiguas al recargar
     provideServiceWorker('ngsw-worker.js', {

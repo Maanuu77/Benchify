@@ -6,23 +6,26 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { IncidenciasApi } from '../../core/api/incidencias-api';
 import { Incidencia } from '../../core/api/models';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { TIPOS_INCIDENCIA } from '../bancos/detalle/avisos-banco';
+import { COLA } from './admin.i18n';
 import { Cola } from './cola';
+import { COLA_INCIDENCIAS } from './cola-incidencias.i18n';
 
 @Component({
   selector: 'bf-cola-incidencias',
   imports: [DatePipe, RouterLink, MatButton, MatIcon, LoadingState, ErrorState, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2>Avisos de la comunidad ({{ cola.total() }})</h2>
+    <h2>{{ t.titulo }} ({{ cola.total() }})</h2>
     @if (cola.error(); as mensaje) {
       <bf-error-state [message]="mensaje" (retry)="cola.cargar()" />
     } @else if (!cola.cargando() && cola.items().length === 0) {
-      <bf-empty-state icon="verified" message="No hay avisos abiertos." />
+      <bf-empty-state icon="verified" [message]="t.vacia" />
     } @else {
       <ul class="lista">
         @for (incidencia of cola.items(); track incidencia.id) {
@@ -32,18 +35,18 @@ import { Cola } from './cola';
                 <strong><mat-icon class="icono" aria-hidden="true">{{ tipos[incidencia.tipo].icono }}</mat-icon>
                   {{ tipos[incidencia.tipo].etiqueta }}</strong> ·
                 {{ incidencia.fecha | date: 'short' }} ·
-                <a [routerLink]="['/bancos', incidencia.bancoId]">ver banco</a>
+                <a [routerLink]="['/bancos', incidencia.bancoId]">{{ tc.verBanco }}</a>
               </p>
-              <p>{{ incidencia.comentario ?? '(sin detalles)' }}</p>
+              <p>{{ incidencia.comentario ?? t.sinDetalles }}</p>
             </div>
             <div class="acciones">
               <button mat-stroked-button type="button" [disabled]="ocupado() === incidencia.id"
                       (click)="cerrar(incidencia, 'DESCARTADA')">
-                <mat-icon aria-hidden="true">close</mat-icon> Descartar
+                <mat-icon aria-hidden="true">close</mat-icon> {{ t.descartar }}
               </button>
               <button mat-flat-button type="button" [disabled]="ocupado() === incidencia.id"
                       (click)="cerrar(incidencia, 'RESUELTA')">
-                <mat-icon aria-hidden="true">done</mat-icon> Resuelta
+                <mat-icon aria-hidden="true">done</mat-icon> {{ t.resuelta }}
               </button>
             </div>
           </li>
@@ -52,7 +55,7 @@ import { Cola } from './cola';
       @if (cola.cargando()) {
         <bf-loading-state />
       } @else if (cola.hayMas()) {
-        <button mat-stroked-button type="button" (click)="cola.cargarMas()">Cargar más</button>
+        <button mat-stroked-button type="button" (click)="cola.cargarMas()">{{ tc.cargarMas }}</button>
       }
     }
   `,
@@ -69,6 +72,8 @@ import { Cola } from './cola';
 export class ColaIncidencias implements OnInit {
   private readonly api = inject(IncidenciasApi);
   private readonly notifier = inject(Notifier);
+  protected readonly t = textos(COLA_INCIDENCIAS);
+  protected readonly tc = textos(COLA);
 
   protected readonly tipos = TIPOS_INCIDENCIA;
   protected readonly cola = new Cola<Incidencia>((page) => this.api.abiertas(page));
@@ -84,7 +89,7 @@ export class ColaIncidencias implements OnInit {
     try {
       await firstValueFrom(this.api.cerrar(incidencia.id, estado));
       this.cola.quitar(incidencia.id);
-      this.notifier.success(estado === 'RESUELTA' ? 'Aviso resuelto' : 'Aviso descartado');
+      this.notifier.success(estado === 'RESUELTA' ? this.t.resuelto : this.t.descartado);
     } catch (error) {
       this.notifier.error(error);
     } finally {

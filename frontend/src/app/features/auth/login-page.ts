@@ -7,6 +7,8 @@ import { MatInput } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 import { mensajeDeErrorAuth } from '../../core/auth/auth-errors';
 import { AuthService } from '../../core/auth/auth.service';
+import { textos } from '../../core/i18n/idioma';
+import { AUTH } from './auth.i18n';
 
 @Component({
   selector: 'bf-login-page',
@@ -21,6 +23,8 @@ import { AuthService } from '../../core/auth/auth.service';
 export class LoginPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  protected readonly t = textos(AUTH);
 
   /** Página a la que volver tras iniciar sesión (?returnUrl=…). */
   readonly returnUrl = input<string>();

@@ -14,6 +14,7 @@ import { Banco, BancoResumen } from '../../../core/api/models';
 import { UsuariosApi } from '../../../core/api/usuarios-api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { textos, textosActuales } from '../../../core/i18n/idioma';
 import { Seo } from '../../../core/seo/seo';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
@@ -24,17 +25,12 @@ import { LoadingState } from '../../../shared/ui/loading-state';
 import { StarRating } from '../../../shared/ui/star-rating';
 import { AvisosBanco } from './avisos-banco';
 import { GaleriaImagenes } from './galeria-imagenes';
+import { BANCO_DETALLE } from './banco-detalle-page.i18n';
 import { ResenasSection } from './resenas-section';
 
-export const ESTADOS: Record<string, string> = {
-  PENDIENTE: 'Pendiente de revisión',
-  OCULTO: 'Rechazado por moderación',
-  ELIMINADO: 'Eliminado',
-};
+export const ESTADOS: Record<string, string> = textosActuales(BANCO_DETALLE).estados;
 
-export const MATERIALES: Record<string, string> = {
-  MADERA: 'Madera', METAL: 'Metal', PIEDRA: 'Piedra', HORMIGON: 'Hormigón', PLASTICO: 'Plástico', OTRO: 'Otro',
-};
+export const MATERIALES: Record<string, string> = textosActuales(BANCO_DETALLE).materiales;
 
 @Component({
   selector: 'bf-banco-detalle-page',
@@ -56,13 +52,14 @@ export class BancoDetallePage {
   private readonly title = inject(Title);
   private readonly seo = inject(Seo);
   protected readonly auth = inject(AuthService);
+  protected readonly t = textos(BANCO_DETALLE);
 
   /** Parámetro de ruta :id. */
   readonly id = input.required<string>();
 
   private readonly recarga = signal(0);
-  protected readonly estados = ESTADOS;
-  protected readonly materiales = MATERIALES;
+  protected readonly estados: Record<string, string> = this.t.estados;
+  protected readonly materiales: Record<string, string> = this.t.materiales;
 
   /**
    * Cambia al iniciar o cerrar sesión: el autor ve su banco pendiente y el resto no. Vale undefined
@@ -151,7 +148,7 @@ export class BancoDetallePage {
         this.title.setTitle(`${banco.titulo} · Benchify`);
         this.seo.describir({
           titulo: `${banco.titulo} · Benchify`,
-          descripcion: banco.descripcion ?? (banco.ciudad ? `Banco en ${banco.ciudad}` : 'Banco público en Benchify'),
+          descripcion: banco.descripcion ?? (banco.ciudad ? this.t.bancoEn(banco.ciudad) : this.t.bancoPublico),
           url: location.origin + this.router.serializeUrl(this.router.createUrlTree(['/bancos', banco.id])),
           imagen: `${location.origin}/og.png`,
         });
@@ -177,15 +174,15 @@ export class BancoDetallePage {
     const url = location.origin + this.router.serializeUrl(this.router.createUrlTree(['/s', b.id]));
     try {
       if (navigator.share) {
-        await navigator.share({ title: b.titulo, text: `${b.titulo} en Benchify`, url });
+        await navigator.share({ title: b.titulo, text: this.t.compartirTexto(b.titulo), url });
       } else {
         await navigator.clipboard.writeText(url);
-        this.notifier.success('Enlace copiado');
+        this.notifier.success(this.t.enlaceCopiado);
       }
     } catch (error) {
       // Cerrar el menú de compartir no es un error
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
-        this.notifier.error('No hemos podido compartir el enlace.');
+        this.notifier.error(this.t.noCompartido);
       }
     }
   }
@@ -199,7 +196,7 @@ export class BancoDetallePage {
     this.favorito.set(nuevo);
     try {
       await firstValueFrom(nuevo ? this.usuariosApi.marcarFavorito(this.id()) : this.usuariosApi.desmarcarFavorito(this.id()));
-      this.notifier.success(nuevo ? 'Guardado en favoritos' : 'Quitado de favoritos');
+      this.notifier.success(nuevo ? this.t.guardadoEnFavoritos : this.t.quitadoDeFavoritos);
     } catch (error) {
       this.favorito.set(!nuevo);
       this.notifier.error(error);
@@ -216,7 +213,7 @@ export class BancoDetallePage {
       const posicion = await this.geo.posicionActual();
       const checkIn = await firstValueFrom(this.usuariosApi.checkIn(this.id(), posicion.lat, posicion.lng));
       this.totalCheckIns.update((t) => (t ?? 0) + 1);
-      this.notifier.success(`¡Check-in hecho! Estabas a ${new DistanciaPipe().transform(checkIn.distanciaMetros)}.`);
+      this.notifier.success(this.t.checkInHecho(new DistanciaPipe().transform(checkIn.distanciaMetros)));
     } catch (error) {
       this.notifier.error(error instanceof Error && !('status' in error) ? error.message : error);
     } finally {
@@ -226,15 +223,15 @@ export class BancoDetallePage {
 
   protected async eliminar(): Promise<void> {
     const ok = await this.confirmation.ask({
-      titulo: 'Eliminar banco',
-      mensaje: 'Dejará de aparecer en el mapa y sus fotos se borrarán. Esta acción no se puede deshacer.',
-      confirmar: 'Eliminar',
+      titulo: this.t.eliminarTitulo,
+      mensaje: this.t.eliminarMensaje,
+      confirmar: this.t.eliminar,
       peligroso: true,
     });
     if (!ok) return;
     try {
       await firstValueFrom(this.bancosApi.eliminar(this.id()));
-      this.notifier.success('Banco eliminado');
+      this.notifier.success(this.t.bancoEliminado);
       await this.router.navigateByUrl('/mapa');
     } catch (error) {
       this.notifier.error(error);

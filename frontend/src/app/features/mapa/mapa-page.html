@@ -22,12 +22,12 @@
 <div class="controles">
   @if (!movil()) {
     <div class="zoom bf-glass">
-      <button type="button" (click)="acercar()" aria-label="Acercar"><mat-icon>add</mat-icon></button>
-      <button type="button" (click)="alejar()" aria-label="Alejar"><mat-icon>remove</mat-icon></button>
+      <button type="button" (click)="acercar()" [attr.aria-label]="t.acercar"><mat-icon>add</mat-icon></button>
+      <button type="button" (click)="alejar()" [attr.aria-label]="t.alejar"><mat-icon>remove</mat-icon></button>
     </div>
   }
   <button type="button" class="localizar bf-glass" [disabled]="localizando()" (click)="buscarCerca()"
-          [attr.aria-label]="localizando() ? 'Localizando…' : 'Cerca de mí'" [class.activo]="!!usuario()">
+          [attr.aria-label]="localizando() ? t.localizando : t.cercaDeMi" [class.activo]="!!usuario()">
     <mat-icon aria-hidden="true">{{ localizando() ? 'hourglass_top' : 'near_me' }}</mat-icon>
   </button>
 </div>
@@ -37,7 +37,7 @@
   @if (movil()) {
     <button type="button" class="asa" (click)="alternarHoja()" [attr.aria-expanded]="hojaAbierta()"
             aria-controls="contenido-panel">
-      <span class="sr-only">{{ hojaAbierta() ? 'Plegar la lista' : 'Desplegar la lista' }}</span>
+      <span class="sr-only">{{ hojaAbierta() ? t.plegarLista : t.desplegarLista }}</span>
     </button>
   }
 
@@ -46,11 +46,11 @@
   }
 
   <header class="panel-header">
-    <h1 id="titulo-mapa" [class.sr-only]="movil()">Bancos en el mapa</h1>
+    <h1 id="titulo-mapa" [class.sr-only]="movil()">{{ t.titulo }}</h1>
     @if (!movil()) {
       <button mat-flat-button type="button" class="cerca" [disabled]="localizando()" (click)="buscarCerca()">
         <mat-icon aria-hidden="true">near_me</mat-icon>
-        {{ localizando() ? 'Localizando…' : 'Cerca de mí' }}
+        {{ localizando() ? t.localizando : t.cercaDeMi }}
       </button>
     }
   </header>
@@ -64,21 +64,21 @@
       <article class="seleccionado" aria-live="polite">
         <div class="seleccionado-cabecera">
           <h2>{{ banco.titulo }}</h2>
-          <button type="button" class="cerrar" (click)="cerrarSeleccion()" aria-label="Cerrar">
+          <button type="button" class="cerrar" (click)="cerrarSeleccion()" [attr.aria-label]="t.cerrar">
             <mat-icon>close</mat-icon>
           </button>
         </div>
         <p class="meta">
           <mat-icon aria-hidden="true" class="estrella">star</mat-icon>
           <b>{{ banco.puntuacionMedia | number: '1.1-1' }}</b>
-          · {{ banco.numResenas }} {{ banco.numResenas === 1 ? 'reseña' : 'reseñas' }}
+          · {{ t.resenas(banco.numResenas) }}
           @if (distanciaA(banco); as metros) { · {{ metros | distancia }} }
           @if (banco.ciudad) { · {{ banco.ciudad }} }
         </p>
         <div class="acciones">
-          <a mat-flat-button [routerLink]="['/bancos', banco.id]">Ver ficha</a>
+          <a mat-flat-button [routerLink]="['/bancos', banco.id]">{{ t.verFicha }}</a>
           <a matButton="tonal" [href]="comoLlegar(banco)" target="_blank" rel="noopener">
-            <mat-icon aria-hidden="true">directions</mat-icon> Cómo llegar
+            <mat-icon aria-hidden="true">directions</mat-icon> {{ t.comoLlegar }}
           </a>
         </div>
       </article>
@@ -87,19 +87,19 @@
     @if (cercanos(); as estado) {
       <section aria-labelledby="titulo-cercanos">
         <div class="section-header">
-          <h2 id="titulo-cercanos">Cerca de ti</h2>
-          <button mat-button type="button" (click)="cerrarCercanos()">Ver los del mapa</button>
+          <h2 id="titulo-cercanos">{{ t.cercaDeTi }}</h2>
+          <button mat-button type="button" (click)="cerrarCercanos()">{{ t.verLosDelMapa }}</button>
         </div>
         @switch (estado.status) {
           @case ('loading') {
-            <bf-loading-state message="Buscando bancos cercanos…" [esqueleto]="3" />
+            <bf-loading-state [message]="t.buscandoCercanos" [esqueleto]="3" />
           }
           @case ('error') {
             <bf-error-state [message]="estado.error.message" [retryable]="!!usuario()" (retry)="cargarCercanos(usuario()!)" />
           }
           @case ('success') {
             @if (estado.value.content.length === 0) {
-              <bf-empty-state icon="wrong_location" message="No hay bancos a menos de 1,5 km. ¿Añades uno?" />
+              <bf-empty-state icon="wrong_location" [message]="t.sinCercanos" />
             } @else {
               <ul class="lista">
                 @for (item of estado.value.content; track item.banco.id) {
@@ -116,31 +116,31 @@
       <section aria-labelledby="titulo-visibles">
         <h2 id="titulo-visibles">
           @if (enLimite()) {
-            Más de {{ bancos().length }} bancos en esta zona
+            {{ t.masDeEnZona(bancos().length) }}
           } @else {
-            {{ bancos().length }} {{ bancos().length === 1 ? 'banco' : 'bancos' }} en esta zona
+            {{ t.enZona(bancos().length) }}
           }
         </h2>
         @if (enLimite()) {
-          <p class="aviso-limite" role="status">Acerca el mapa para ver todos los bancos de la zona.</p>
+          <p class="aviso-limite" role="status">{{ t.acercaElMapa }}</p>
         }
         @if (sinConexion() && !mostrarError()) {
           <p class="aviso-limite" role="status">
-            Sin conexión: se muestran los últimos bancos que cargaste.
-            <button type="button" class="enlace" (click)="reintentarArea()">Reintentar</button>
+            {{ t.sinConexion }}
+            <button type="button" class="enlace" (click)="reintentarArea()">{{ t.reintentar }}</button>
           </p>
         }
         @switch (mostrarError() ? 'error' : 'ok') {
           @case ('error') {
-            <bf-error-state message="No hemos podido cargar los bancos de esta zona." (retry)="reintentarArea()" />
+            <bf-error-state [message]="t.errorZona" (retry)="reintentarArea()" />
           }
           @default {
             @if (estado().status === 'loading' && bancos().length === 0) {
-              <bf-loading-state message="Cargando bancos…" [esqueleto]="4" />
+              <bf-loading-state [message]="t.cargandoBancos" [esqueleto]="4" />
             } @else if (bancos().length === 0) {
-              <bf-empty-state icon="search_off" message="No hay bancos aquí con estos filtros. Mueve el mapa o quita filtros." />
+              <bf-empty-state icon="search_off" [message]="t.sinBancos" />
             } @else {
-              <ul class="lista" aria-label="Bancos mejor valorados de la zona">
+              <ul class="lista" [attr.aria-label]="t.mejorValorados">
                 @for (item of mejorValorados(); track item.banco.id) {
                   <li>
                     <ng-container *ngTemplateOutlet="tarjeta; context: { $implicit: item.banco, distancia: item.distancia }" />
@@ -163,13 +163,12 @@
       <span class="titulo">{{ banco.titulo }}</span>
       <span class="meta">
         <mat-icon aria-hidden="true" class="estrella">star</mat-icon>
-        {{ banco.puntuacionMedia | number: '1.1-1' }} · {{ banco.numResenas }}
-        {{ banco.numResenas === 1 ? 'reseña' : 'reseñas' }}@if (banco.ciudad) { · {{ banco.ciudad }}}
+        {{ banco.puntuacionMedia | number: '1.1-1' }} · {{ t.resenas(banco.numResenas) }}@if (banco.ciudad) { · {{ banco.ciudad }}}
       </span>
       <span class="caracteristicas">
-        @if (banco.accesible) { <mat-icon aria-label="Accesible">accessible</mat-icon> }
-        @if (banco.conSombra) { <mat-icon aria-label="Con sombra">park</mat-icon> }
-        @if (banco.conRespaldo) { <mat-icon aria-label="Con respaldo">chair</mat-icon> }
+        @if (banco.accesible) { <mat-icon [attr.aria-label]="t.accesible">accessible</mat-icon> }
+        @if (banco.conSombra) { <mat-icon [attr.aria-label]="t.conSombra">park</mat-icon> }
+        @if (banco.conRespaldo) { <mat-icon [attr.aria-label]="t.conRespaldo">chair</mat-icon> }
       </span>
     </span>
     @if (distancia !== null) {

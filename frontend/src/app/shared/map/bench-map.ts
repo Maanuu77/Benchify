@@ -13,6 +13,8 @@ import {
 } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { BancoResumen, BoundingBox } from '../../core/api/models';
+import { textos } from '../../core/i18n/idioma';
+import { BENCH_MAP } from './bench-map.i18n';
 import { anadirCapaBase, cargarLeaflet, iconoBanco, iconoGrupo, iconoUsuario, LeafletLib } from './leaflet-loader';
 
 export interface Punto {
@@ -52,6 +54,7 @@ function limitar(valor: number, maximo: number): number {
   `,
 })
 export class BenchMap {
+  private readonly t = textos(BENCH_MAP);
   readonly bancos = input<BancoResumen[]>([]);
   readonly centro = input.required<Punto>();
   readonly zoom = input(14);
@@ -59,7 +62,7 @@ export class BenchMap {
   readonly usuario = input<Punto | null>(null);
   /** Banco resaltado en el mapa. */
   readonly seleccionado = input<string | null>(null);
-  readonly ariaLabel = input('Mapa de bancos');
+  readonly ariaLabel = input(this.t.mapaDeBancos);
   /** Sin zoom con la rueda ni arrastre en móvil: para mapas dentro de una página que se desplaza. */
   readonly interactivo = input(true);
 
@@ -212,7 +215,7 @@ export class BenchMap {
     } else {
       this.marcadorUsuario = this.L.marker([lat, lng], {
         icon: iconoUsuario(this.L),
-        title: 'Estás aquí',
+        title: this.t.estasAqui,
         keyboard: false,
         zIndexOffset: 2000,
       }).addTo(this.map!);

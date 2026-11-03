@@ -1,5 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, map, of, startWith } from 'rxjs';
+import { idiomaActual, textosActuales } from '../i18n/idioma';
+import { ERRORES, MENSAJES_EN } from './api-error.i18n';
 
 /** Error de la API normalizado a partir del ProblemDetail (RFC 9457) del backend. */
 export interface ApiError {
@@ -18,27 +20,38 @@ interface ProblemDetail {
 }
 
 export function toApiError(error: unknown): ApiError {
+  const t = textosActuales(ERRORES);
   if (!(error instanceof HttpErrorResponse)) {
-    return { status: 0, code: 'UNKNOWN', message: 'Se ha producido un error inesperado.', fieldErrors: [] };
+    return { status: 0, code: 'UNKNOWN', message: t.inesperado, fieldErrors: [] };
   }
   if (error.status === 0) {
-    return { status: 0, code: 'NETWORK', message: 'No hay conexión con el servidor. Revisa tu red.', fieldErrors: [] };
+    return { status: 0, code: 'NETWORK', message: t.sinConexion, fieldErrors: [] };
   }
   const problem = (typeof error.error === 'object' && error.error !== null ? error.error : {}) as ProblemDetail;
+  const code = problem.code ?? `HTTP_${error.status}`;
   return {
     status: error.status,
-    code: problem.code ?? `HTTP_${error.status}`,
-    message: problem.detail ?? mensajePorEstado(error.status),
+    code,
+    message: mensaje(code, problem.detail, error.status),
     fieldErrors: problem.errors ?? [],
   };
 }
 
+/** El mensaje del backend está en español: en inglés se usa su traducción o el genérico de su estado. */
+function mensaje(code: string, detalle: string | undefined, status: number): string {
+  if (idiomaActual() === 'es') {
+    return detalle ?? mensajePorEstado(status);
+  }
+  return MENSAJES_EN[code] ?? mensajePorEstado(status);
+}
+
 function mensajePorEstado(status: number): string {
-  if (status === 401) return 'Tu sesión ha caducado. Vuelve a iniciar sesión.';
-  if (status === 403) return 'No tienes permiso para hacer esto.';
-  if (status === 404) return 'No hemos encontrado lo que buscas.';
-  if (status >= 500) return 'El servidor no está disponible ahora mismo.';
-  return 'No se ha podido completar la operación.';
+  const t = textosActuales(ERRORES);
+  if (status === 401) return t.sesionCaducada;
+  if (status === 403) return t.sinPermiso;
+  if (status === 404) return t.noEncontrado;
+  if (status >= 500) return t.servidor;
+  return t.generico;
 }
 
 /** Estado de una carga asíncrona para pintar spinners, errores y datos desde una signal. */

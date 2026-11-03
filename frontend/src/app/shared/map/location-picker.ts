@@ -12,8 +12,10 @@ import {
   viewChild,
 } from '@angular/core';
 import type * as Leaflet from 'leaflet';
+import { textos } from '../../core/i18n/idioma';
 import { Punto } from './bench-map';
 import { anadirCapaBase, cargarLeaflet, iconoBanco, LeafletLib } from './leaflet-loader';
+import { LOCATION_PICKER } from './location-picker.i18n';
 
 /**
  * Mapa para elegir dónde está un banco: clic en el mapa o arrastrar el marcador.
@@ -22,7 +24,7 @@ import { anadirCapaBase, cargarLeaflet, iconoBanco, LeafletLib } from './leaflet
 @Component({
   selector: 'bf-location-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div #mapa class="mapa" role="application" aria-label="Mapa para marcar la ubicación del banco"></div>`,
+  template: `<div #mapa class="mapa" role="application" [attr.aria-label]="t.mapa"></div>`,
   styles: `
     .mapa {
       height: 100%;
@@ -32,6 +34,7 @@ import { anadirCapaBase, cargarLeaflet, iconoBanco, LeafletLib } from './leaflet
   `,
 })
 export class LocationPicker {
+  protected readonly t = textos(LOCATION_PICKER);
   readonly ubicacion = model<Punto | null>(null);
   readonly centro = input.required<Punto>();
   readonly zoom = input(16);
@@ -70,7 +73,7 @@ export class LocationPicker {
   private colocarMarcador(punto: Punto): void {
     if (!this.marker) {
       this.marker = this.L.marker([punto.lat, punto.lng], {
-        draggable: true, icon: iconoBanco(this.L, true), title: 'Ubicación del banco', keyboard: true,
+        draggable: true, icon: iconoBanco(this.L, true), title: this.t.ubicacion, keyboard: true,
       }).addTo(this.map!);
       this.marker.on('dragend', () => this.ubicacion.set(redondear(this.marker!.getLatLng())));
     } else {

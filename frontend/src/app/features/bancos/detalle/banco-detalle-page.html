@@ -1,15 +1,15 @@
 @switch (estado().status) {
   @case ('loading') {
-    <bf-loading-state message="Cargando banco…" />
+    <bf-loading-state [message]="t.cargando" />
   }
   @case ('error') {
     @let fallo = error()!;
     @if (fallo.status === 404) {
       <section class="no-encontrado">
         <mat-icon aria-hidden="true">wrong_location</mat-icon>
-        <h1>Banco no encontrado</h1>
-        <p>Puede que se haya eliminado o que todavía esté pendiente de revisión.</p>
-        <a mat-flat-button routerLink="/mapa">Volver al mapa</a>
+        <h1>{{ t.noEncontrado }}</h1>
+        <p>{{ t.noEncontradoDetalle }}</p>
+        <a mat-flat-button routerLink="/mapa">{{ t.volverAlMapa }}</a>
       </section>
     } @else {
       <bf-error-state [message]="fallo.message" (retry)="recargar()" />
@@ -20,7 +20,7 @@
     <article class="ficha">
       <div class="hero">
         <bf-bench-map class="hero-mapa" [bancos]="comoResumen()" [centro]="{ lat: b.lat, lng: b.lng }" [zoom]="17"
-                      [seleccionado]="b.id" [interactivo]="false" [ariaLabel]="'Ubicación de ' + b.titulo" />
+                      [seleccionado]="b.id" [interactivo]="false" [ariaLabel]="t.ubicacionDe(b.titulo)" />
       </div>
 
       <div class="contenido">
@@ -31,39 +31,40 @@
           @if (edicionPendiente(); as pendiente) {
             <p class="estado" role="status">
               <mat-icon aria-hidden="true">rate_review</mat-icon>
-              Cambios del {{ pendiente.fecha | date: 'd MMM' }} pendientes de revisión
+              {{ t.cambiosPendientes(pendiente.fecha | date: 'd MMM') }}
             </p>
           }
           <h1>{{ b.titulo }}</h1>
           <div class="valoracion">
             <bf-star-rating [value]="b.puntuacionMedia" />
-            <span><b>{{ b.puntuacionMedia | number: '1.1-1' }}</b> · {{ b.numResenas }} {{ b.numResenas === 1 ? 'reseña' : 'reseñas' }}</span>
-            @if (totalCheckIns() !== null) {
-              <span>· {{ totalCheckIns() }} check-ins</span>
+            <span><b>{{ b.puntuacionMedia | number: '1.1-1' }}</b> · {{ t.resenas(b.numResenas) }}</span>
+            @let checkIns = totalCheckIns();
+            @if (checkIns !== null) {
+              <span>· {{ t.checkIns(checkIns) }}</span>
             }
           </div>
           <p class="direccion">
             <mat-icon aria-hidden="true">place</mat-icon>
-            {{ direccion() || 'Sin dirección' }}
+            {{ direccion() || t.sinDireccion }}
           </p>
 
           <div class="acciones">
             <button type="button" class="accion accion--principal" [disabled]="haciendoCheckIn() || b.estado !== 'PUBLICADO'"
                     (click)="checkIn()">
               <mat-icon aria-hidden="true">where_to_vote</mat-icon>
-              {{ haciendoCheckIn() ? 'Comprobando…' : 'Estoy aquí' }}
+              {{ haciendoCheckIn() ? t.comprobando : t.estoyAqui }}
             </button>
             <button type="button" class="accion" [attr.aria-pressed]="favorito()" (click)="alternarFavorito()">
               <mat-icon aria-hidden="true">{{ favorito() ? 'favorite' : 'favorite_border' }}</mat-icon>
-              {{ favorito() ? 'Guardado' : 'Guardar' }}
+              {{ favorito() ? t.guardado : t.guardar }}
             </button>
             <a class="accion" [href]="comoLlegar()" target="_blank" rel="noopener">
               <mat-icon aria-hidden="true">directions</mat-icon>
-              Cómo llegar
+              {{ t.comoLlegar }}
             </a>
             <button type="button" class="accion" (click)="compartir()">
               <mat-icon aria-hidden="true">ios_share</mat-icon>
-              Compartir
+              {{ t.compartir }}
             </button>
           </div>
         </header>
@@ -71,11 +72,11 @@
         <bf-avisos-banco [bancoId]="b.id" [tituloBanco]="b.titulo" [publicado]="b.estado === 'PUBLICADO'" />
 
         <section class="bloque" aria-labelledby="titulo-caracteristicas">
-          <h2 id="titulo-caracteristicas" class="sr-only">Características</h2>
+          <h2 id="titulo-caracteristicas" class="sr-only">{{ t.caracteristicas }}</h2>
           <ul class="chips">
-            @if (b.accesible) { <li><mat-icon aria-hidden="true">accessible</mat-icon>Accesible</li> }
-            @if (b.conSombra) { <li><mat-icon aria-hidden="true">park</mat-icon>Con sombra</li> }
-            @if (b.conRespaldo) { <li><mat-icon aria-hidden="true">chair</mat-icon>Con respaldo</li> }
+            @if (b.accesible) { <li><mat-icon aria-hidden="true">accessible</mat-icon>{{ t.accesible }}</li> }
+            @if (b.conSombra) { <li><mat-icon aria-hidden="true">park</mat-icon>{{ t.conSombra }}</li> }
+            @if (b.conRespaldo) { <li><mat-icon aria-hidden="true">chair</mat-icon>{{ t.conRespaldo }}</li> }
             @if (b.material) { <li><mat-icon aria-hidden="true">category</mat-icon>{{ materiales[b.material] }}</li> }
             @for (etiqueta of b.etiquetas; track etiqueta.id) {
               <li class="etiqueta" [style.--bf-etiqueta]="etiqueta.color">#{{ etiqueta.nombre }}</li>
@@ -98,13 +99,13 @@
 
         <footer class="pie">
           <p>
-            Añadido por <a [routerLink]="['/usuarios', b.autor.id]">{{ b.autor.nombre ?? 'un usuario' }}</a>
-            el {{ b.fechaSubida | date: 'longDate' }}
+            {{ t.anadidoPor }} <a [routerLink]="['/usuarios', b.autor.id]">{{ b.autor.nombre ?? t.unUsuario }}</a>
+            {{ t.el }} {{ b.fechaSubida | date: 'longDate' }}
           </p>
           @if (esGestor()) {
             <div class="gestion">
-              <a matButton="tonal" [routerLink]="['/bancos', b.id, 'editar']"><mat-icon aria-hidden="true">edit</mat-icon> Editar</a>
-              <button matButton type="button" class="peligro" (click)="eliminar()"><mat-icon aria-hidden="true">delete</mat-icon> Eliminar</button>
+              <a matButton="tonal" [routerLink]="['/bancos', b.id, 'editar']"><mat-icon aria-hidden="true">edit</mat-icon> {{ t.editar }}</a>
+              <button matButton type="button" class="peligro" (click)="eliminar()"><mat-icon aria-hidden="true">delete</mat-icon> {{ t.eliminar }}</button>
             </div>
           }
         </footer>

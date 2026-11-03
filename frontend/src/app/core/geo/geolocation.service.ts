@@ -1,4 +1,6 @@
 import { Injectable } from '@angular/core';
+import { CORE } from '../i18n/core.i18n';
+import { textosActuales } from '../i18n/idioma';
 
 export interface Posicion {
   lat: number;
@@ -7,7 +9,7 @@ export interface Posicion {
   precision: number;
 }
 
-/** Envuelve la API de geolocalización del navegador en una Promise con mensajes en castellano. */
+/** Envuelve la API de geolocalización del navegador en una Promise con mensajes en el idioma de la visita. */
 @Injectable({ providedIn: 'root' })
 export class GeolocationService {
   isSupported(): boolean {
@@ -16,7 +18,7 @@ export class GeolocationService {
 
   posicionActual(): Promise<Posicion> {
     if (!this.isSupported()) {
-      return Promise.reject(new Error('Tu navegador no permite obtener la ubicación.'));
+      return Promise.reject(new Error(textosActuales(CORE).geoNoSoportada));
     }
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
@@ -29,12 +31,13 @@ export class GeolocationService {
 }
 
 function mensaje(error: GeolocationPositionError): string {
+  const t = textosActuales(CORE);
   switch (error.code) {
     case error.PERMISSION_DENIED:
-      return 'Necesitamos permiso para usar tu ubicación.';
+      return t.geoSinPermiso;
     case error.TIMEOUT:
-      return 'La ubicación está tardando demasiado. Inténtalo de nuevo.';
+      return t.geoLenta;
     default:
-      return 'No hemos podido obtener tu ubicación.';
+      return t.geoError;
   }
 }

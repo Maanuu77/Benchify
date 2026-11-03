@@ -31,7 +31,7 @@ describe('Seo', () => {
 
     seo.restablecer();
 
-    expect(meta.getTag('name="description"')?.content).toBe('Por defecto');
+    expect(meta.getTag('name="description"')?.content).toBe('Descubre, valora y comparte bancos públicos cerca de ti.');
     expect(meta.getTag('property="og:url"')).toBeNull();
     expect(meta.getTag('property="og:image"')).toBeNull();
     expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();

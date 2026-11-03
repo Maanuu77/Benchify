@@ -8,10 +8,12 @@ import { toApiError } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
 import { Imagen } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
+import { textos, textosActuales } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
 import { comprimirImagen } from '../../../shared/imagenes/comprimir-imagen';
 import { ImagenSrc } from '../../../shared/imagenes/imagen-src';
 import { Confirmation } from '../../../shared/ui/confirm-dialog';
+import { GALERIA_IMAGENES } from './galeria-imagenes.i18n';
 
 /** Resultado de pedir las fotos: la lista, o null y el mensaje si ha fallado. */
 interface CargaFotos {
@@ -25,11 +27,11 @@ export const MAX_BYTES_IMAGEN = 10 * 1024 * 1024;
 
 /** Comprobaciones previas en el cliente; el backend valida además el contenido real del fichero. */
 export function validarTipoImagen(file: File): string | null {
-  return TIPOS_IMAGEN.includes(file.type) ? null : 'Solo se admiten fotos JPEG, PNG o WebP.';
+  return TIPOS_IMAGEN.includes(file.type) ? null : textosActuales(GALERIA_IMAGENES).tipoNoAdmitido;
 }
 
 export function validarTamanoImagen(file: File): string | null {
-  return file.size > MAX_BYTES_IMAGEN ? 'La foto no puede superar 10 MB.' : null;
+  return file.size > MAX_BYTES_IMAGEN ? textosActuales(GALERIA_IMAGENES).demasiadoGrande : null;
 }
 
 @Component({
@@ -39,37 +41,37 @@ export function validarTamanoImagen(file: File): string | null {
   template: `
     <section aria-labelledby="titulo-fotos">
       <div class="cabecera">
-        <h2 id="titulo-fotos">Fotos <span class="cuenta">{{ imagenes().length || '' }}</span></h2>
+        <h2 id="titulo-fotos">{{ t.fotos }} <span class="cuenta">{{ imagenes().length || '' }}</span></h2>
       </div>
       @if (subiendo()) {
-        <mat-progress-bar mode="indeterminate" aria-label="Subiendo foto" />
+        <mat-progress-bar mode="indeterminate" [attr.aria-label]="t.subiendo" />
       }
-      <input #selector type="file" class="oculto" [accept]="tipos" (change)="subir(selector)" aria-label="Elegir foto"
+      <input #selector type="file" class="oculto" [accept]="tipos" (change)="subir(selector)" [attr.aria-label]="t.elegir"
              [disabled]="!puedeSubir()" />
       @if (imagenes().length === 0 && !puedeSubir()) {
-        <p class="vacio">{{ error() ?? 'Este banco aún no tiene fotos.' }}</p>
+        <p class="vacio">{{ error() ?? t.sinFotos }}</p>
       } @else {
         <ul class="galeria">
           @for (imagen of imagenes(); track imagen.id; let i = $index) {
             <li>
               @if (rotas().has(imagen.id)) {
-                <div class="rota" role="img" [attr.aria-label]="'Foto ' + (i + 1) + ' no disponible'">
+                <div class="rota" role="img" [attr.aria-label]="t.fotoNoDisponibleN(i + 1)">
                   <mat-icon aria-hidden="true">broken_image</mat-icon>
-                  <span>Foto no disponible</span>
+                  <span>{{ t.fotoNoDisponible }}</span>
                 </div>
               } @else {
                 <button type="button" class="miniatura" (click)="ampliar(imagen, visor)"
-                        [attr.aria-label]="'Ampliar la foto ' + (i + 1)">
+                        [attr.aria-label]="t.ampliarN(i + 1)">
                   <img [bfImagenSrc]="imagen.thumbUrl" [autenticada]="imagen.requiereAutenticacion"
-                       [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy"
+                       [alt]="t.fotoNDe(i + 1, tituloBanco())" loading="lazy"
                        (error)="marcarRota(imagen.id)" (fallo)="marcarRota(imagen.id)" />
                 </button>
               }
               @if (imagen.estado === 'PENDIENTE') {
-                <span class="pendiente">Pendiente de revisión</span>
+                <span class="pendiente">{{ t.pendiente }}</span>
               }
               @if (imagen.subidaPor === miUid()) {
-                <button mat-icon-button type="button" class="borrar" (click)="borrar(imagen)" aria-label="Borrar foto">
+                <button mat-icon-button type="button" class="borrar" (click)="borrar(imagen)" [attr.aria-label]="t.borrarFoto">
                   <mat-icon>delete</mat-icon>
                 </button>
               }
@@ -79,7 +81,7 @@ export function validarTamanoImagen(file: File): string | null {
             <li>
               <button type="button" class="anadir" [disabled]="subiendo()" (click)="selector.click()">
                 <mat-icon aria-hidden="true">add_a_photo</mat-icon>
-                Añadir foto
+                {{ t.anadirFoto }}
               </button>
             </li>
           }
@@ -87,11 +89,11 @@ export function validarTamanoImagen(file: File): string | null {
       }
     </section>
 
-    <dialog #visor class="visor" aria-label="Foto ampliada" (close)="ampliada.set(null)">
+    <dialog #visor class="visor" [attr.aria-label]="t.fotoAmpliada" (close)="ampliada.set(null)">
       @if (ampliada(); as imagen) {
-        <img [bfImagenSrc]="imagen.url" [autenticada]="imagen.requiereAutenticacion" [alt]="'Foto de ' + tituloBanco()" />
+        <img [bfImagenSrc]="imagen.url" [autenticada]="imagen.requiereAutenticacion" [alt]="t.fotoDe(tituloBanco())" />
       }
-      <button mat-icon-button type="button" class="cerrar-visor" aria-label="Cerrar" (click)="visor.close()">
+      <button mat-icon-button type="button" class="cerrar-visor" [attr.aria-label]="t.cerrar" (click)="visor.close()">
         <mat-icon>close</mat-icon>
       </button>
     </dialog>
@@ -213,6 +215,7 @@ export class GaleriaImagenes {
   private readonly notifier = inject(Notifier);
   private readonly confirmation = inject(Confirmation);
   private readonly auth = inject(AuthService);
+  protected readonly t = textos(GALERIA_IMAGENES);
 
   readonly bancoId = input.required<string>();
   readonly tituloBanco = input('');
@@ -267,7 +270,7 @@ export class GaleriaImagenes {
         return;
       }
       const imagen = await firstValueFrom(this.api.subirImagen(this.bancoId(), file));
-      this.notifier.success(imagen.estado === 'APROBADA' ? 'Foto publicada' : 'Foto enviada: se publicará cuando la revisemos');
+      this.notifier.success(imagen.estado === 'APROBADA' ? this.t.publicada : this.t.enviada);
       this.recarga.update((n) => n + 1);
     } catch (error) {
       this.notifier.error(error);
@@ -287,7 +290,7 @@ export class GaleriaImagenes {
 
   protected async borrar(imagen: Imagen): Promise<void> {
     const ok = await this.confirmation.ask({
-      titulo: 'Borrar foto', mensaje: 'La foto se eliminará definitivamente.', confirmar: 'Borrar', peligroso: true,
+      titulo: this.t.borrarFoto, mensaje: this.t.borrarMensaje, confirmar: this.t.borrar, peligroso: true,
     });
     if (!ok) return;
     try {

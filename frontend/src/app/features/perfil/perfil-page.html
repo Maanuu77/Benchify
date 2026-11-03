@@ -1,9 +1,9 @@
 @switch (estado().status) {
   @case ('loading') {
-    <bf-loading-state message="Cargando perfil…" />
+    <bf-loading-state [message]="t.cargando" />
   }
   @case ('error') {
-    <bf-error-state message="No hemos podido cargar este perfil." (retry)="reintentar()" />
+    <bf-error-state [message]="t.errorCarga" (retry)="reintentar()" />
   }
   @case ('success') {
     @let datos = datosPerfil()!;
@@ -13,51 +13,51 @@
         @if (editando()) {
           <form class="edicion" (ngSubmit)="guardar()">
             <mat-form-field appearance="outline">
-              <mat-label>Nombre</mat-label>
+              <mat-label>{{ t.nombre }}</mat-label>
               <input matInput name="nombre" [(ngModel)]="nombre" maxlength="100" required />
             </mat-form-field>
             <mat-form-field appearance="outline">
-              <mat-label>Ciudad</mat-label>
+              <mat-label>{{ t.ciudad }}</mat-label>
               <input matInput name="ciudad" [(ngModel)]="ciudad" maxlength="100" />
             </mat-form-field>
-            <button mat-button type="button" (click)="editando.set(false)">Cancelar</button>
-            <button mat-flat-button type="submit">Guardar</button>
+            <button mat-button type="button" (click)="editando.set(false)">{{ t.cancelar }}</button>
+            <button mat-flat-button type="submit">{{ t.guardar }}</button>
           </form>
         } @else {
           <div>
             <h1>{{ datos.perfil.nombre }}</h1>
             <p class="meta">
               @if (datos.perfil.ciudad) { {{ datos.perfil.ciudad }} · }
-              En Benchify desde {{ datos.perfil.fechaRegistro | date: 'MMMM y' }}
+              {{ t.desde }} {{ datos.perfil.fechaRegistro | date: 'MMMM y' }}
             </p>
           </div>
           @if (esPropio()) {
             <button mat-stroked-button type="button" (click)="editar(datos.perfil)">
-              <mat-icon aria-hidden="true">edit</mat-icon> Editar perfil
+              <mat-icon aria-hidden="true">edit</mat-icon> {{ t.editarPerfil }}
             </button>
           }
         }
       </header>
 
       <dl class="estadisticas">
-        <div><dt>Bancos</dt><dd>{{ datos.estadisticas.bancosPublicados }}</dd></div>
-        <div><dt>Reseñas</dt><dd>{{ datos.estadisticas.resenas }}</dd></div>
-        <div><dt>Favoritos</dt><dd>{{ datos.estadisticas.favoritos }}</dd></div>
-        <div><dt>Check-ins</dt><dd>{{ datos.estadisticas.checkIns }}</dd></div>
+        <div><dt>{{ t.bancos }}</dt><dd>{{ datos.estadisticas.bancosPublicados }}</dd></div>
+        <div><dt>{{ t.resenas }}</dt><dd>{{ datos.estadisticas.resenas }}</dd></div>
+        <div><dt>{{ t.favoritos }}</dt><dd>{{ datos.estadisticas.favoritos }}</dd></div>
+        <div><dt>{{ t.checkIns }}</dt><dd>{{ datos.estadisticas.checkIns }}</dd></div>
       </dl>
 
       <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
-        <mat-tab label="Bancos subidos">
+        <mat-tab [label]="t.bancosSubidos">
           @if (datos.bancos.content.length === 0) {
-            <bf-empty-state icon="add_location_alt" message="Todavía no ha subido ningún banco." />
+            <bf-empty-state icon="add_location_alt" [message]="t.sinBancos" />
           } @else {
             <mat-nav-list>
               @for (banco of datos.bancos.content; track banco.id) {
                 <a mat-list-item [routerLink]="['/bancos', banco.id]">
                   <span matListItemTitle>{{ banco.titulo }}</span>
                   <span matListItemLine>
-                    @if (banco.estado !== 'PUBLICADO') { <strong class="estado">{{ banco.estado === 'PENDIENTE' ? 'Pendiente' : 'Oculto' }}</strong> · }
-                    ★ {{ banco.puntuacionMedia | number: '1.1-1' }} · {{ banco.ciudad ?? 'Sin ciudad' }}
+                    @if (banco.estado !== 'PUBLICADO') { <strong class="estado">{{ banco.estado === 'PENDIENTE' ? t.pendiente : t.oculto }}</strong> · }
+                    ★ {{ banco.puntuacionMedia | number: '1.1-1' }} · {{ banco.ciudad ?? t.sinCiudad }}
                   </span>
                 </a>
               }
@@ -65,14 +65,14 @@
           }
         </mat-tab>
 
-        <mat-tab label="Reseñas">
+        <mat-tab [label]="t.resenas">
           @if (datos.resenas.content.length === 0) {
-            <bf-empty-state icon="rate_review" message="Todavía no ha escrito ninguna reseña." />
+            <bf-empty-state icon="rate_review" [message]="t.sinResenas" />
           } @else {
             <ul class="resenas">
               @for (resena of datos.resenas.content; track resena.id) {
                 <li>
-                  <a [routerLink]="['/bancos', resena.bancoId]">Ver banco</a>
+                  <a [routerLink]="['/bancos', resena.bancoId]">{{ t.verBanco }}</a>
                   <bf-star-rating [value]="resena.puntuacion" />
                   <time [attr.datetime]="resena.fecha">{{ resena.fecha | date: 'mediumDate' }}</time>
                   @if (resena.comentario) { <p>{{ resena.comentario }}</p> }
@@ -83,10 +83,10 @@
         </mat-tab>
 
         @if (esPropio()) {
-          <mat-tab label="Favoritos">
+          <mat-tab [label]="t.favoritos">
             @if (favoritos(); as lista) {
               @if (lista.length === 0) {
-                <bf-empty-state icon="favorite_border" message="Guarda bancos para encontrarlos aquí." />
+                <bf-empty-state icon="favorite_border" [message]="t.sinFavoritos" />
               } @else {
                 <mat-nav-list>
                   @for (favorito of lista; track favorito.bancoId) {
@@ -102,15 +102,15 @@
             }
           </mat-tab>
 
-          <mat-tab label="Check-ins">
+          <mat-tab [label]="t.checkIns">
             @if (checkIns(); as lista) {
               @if (lista.length === 0) {
-                <bf-empty-state icon="where_to_vote" message="Haz check-in cuando te sientes en un banco." />
+                <bf-empty-state icon="where_to_vote" [message]="t.sinCheckIns" />
               } @else {
                 <mat-nav-list>
                   @for (checkIn of lista; track checkIn.id) {
                     <a mat-list-item [routerLink]="['/bancos', checkIn.bancoId]">
-                      <span matListItemTitle>{{ checkIn.tituloBanco ?? 'Banco eliminado' }}</span>
+                      <span matListItemTitle>{{ checkIn.tituloBanco ?? t.bancoEliminado }}</span>
                       <span matListItemLine>{{ checkIn.fecha | date: 'medium' }}</span>
                     </a>
                   }
@@ -125,13 +125,10 @@
 
       @if (esPropio()) {
         <section class="peligro" aria-labelledby="titulo-baja">
-          <h2 id="titulo-baja">Eliminar la cuenta</h2>
-          <p>
-            Se borrarán tus datos personales, tus favoritos y tus check-ins. Los bancos, fotos y reseñas que
-            has publicado se quedan, pero firmados como «Usuario eliminado». No se puede deshacer.
-          </p>
+          <h2 id="titulo-baja">{{ t.eliminarCuenta }}</h2>
+          <p>{{ t.eliminarExplicacion }}</p>
           <button matButton="outlined" type="button" class="boton-peligro" [disabled]="eliminando()" (click)="eliminarCuenta()">
-            <mat-icon aria-hidden="true">delete_forever</mat-icon> Eliminar mi cuenta
+            <mat-icon aria-hidden="true">delete_forever</mat-icon> {{ t.eliminarMiCuenta }}
           </button>
         </section>
       }

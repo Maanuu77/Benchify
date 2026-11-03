@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
+import { textos } from '../../core/i18n/idioma';
 import { EmptyState } from '../../shared/ui/empty-state';
+import { NOT_FOUND } from './not-found-page.i18n';
 
 @Component({
   selector: 'bf-not-found-page',
@@ -9,9 +11,9 @@ import { EmptyState } from '../../shared/ui/empty-state';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <h1>Página no encontrada</h1>
-      <bf-empty-state icon="explore_off" message="Este banco se ha quedado sin sitio en el mapa.">
-        <a mat-flat-button routerLink="/mapa">Volver al mapa</a>
+      <h1>{{ t.titulo }}</h1>
+      <bf-empty-state icon="explore_off" [message]="t.mensaje">
+        <a mat-flat-button routerLink="/mapa">{{ t.volver }}</a>
       </bf-empty-state>
     </section>
   `,
@@ -24,4 +26,6 @@ import { EmptyState } from '../../shared/ui/empty-state';
     }
   `,
 })
-export class NotFoundPage {}
+export class NotFoundPage {
+  protected readonly t = textos(NOT_FOUND);
+}

@@ -12,12 +12,14 @@ import { toApiError } from '../../../core/api/api-error';
 import { Resena } from '../../../core/api/models';
 import { ResenasApi } from '../../../core/api/resenas-api';
 import { AuthService } from '../../../core/auth/auth.service';
+import { textos } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
 import { Confirmation } from '../../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../../shared/ui/empty-state';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { StarRating } from '../../../shared/ui/star-rating';
+import { RESENAS_SECTION } from './resenas-section.i18n';
 
 const TAMANO_PAGINA = 20;
 
@@ -36,6 +38,7 @@ export class ResenasSection {
   private readonly notifier = inject(Notifier);
   private readonly confirmation = inject(Confirmation);
   protected readonly auth = inject(AuthService);
+  protected readonly t = textos(RESENAS_SECTION);
 
   readonly bancoId = input.required<string>();
   readonly autorBancoId = input.required<string>();
@@ -116,10 +119,10 @@ export class ResenasSection {
       const editando = this.editando();
       if (editando) {
         await firstValueFrom(this.api.editar(editando.id, request));
-        this.notifier.success('Reseña actualizada');
+        this.notifier.success(this.t.actualizada);
       } else {
         await firstValueFrom(this.api.publicar(this.bancoId(), request));
-        this.notifier.success('Gracias por tu reseña');
+        this.notifier.success(this.t.gracias);
       }
       this.editando.set(null);
       this.limpiarFormulario();
@@ -135,12 +138,12 @@ export class ResenasSection {
 
   protected async borrar(resena: Resena): Promise<void> {
     const ok = await this.confirmation.ask({
-      titulo: 'Borrar reseña', mensaje: '¿Seguro que quieres borrar tu reseña?', confirmar: 'Borrar', peligroso: true,
+      titulo: this.t.borrarTitulo, mensaje: this.t.borrarMensaje, confirmar: this.t.borrar, peligroso: true,
     });
     if (!ok) return;
     try {
       await firstValueFrom(this.api.eliminar(resena.id));
-      this.notifier.success('Reseña borrada');
+      this.notifier.success(this.t.borrada);
       this.recargaMia.update((n) => n + 1);
       await this.recargar();
       this.valoracionCambiada.emit();
@@ -151,14 +154,14 @@ export class ResenasSection {
 
   protected async reportar(resena: Resena): Promise<void> {
     const ok = await this.confirmation.ask({
-      titulo: 'Reportar reseña',
-      mensaje: 'La revisará un moderador si varios usuarios la reportan. ¿Es ofensiva, spam o no habla del banco?',
-      confirmar: 'Reportar',
+      titulo: this.t.reportarTitulo,
+      mensaje: this.t.reportarMensaje,
+      confirmar: this.t.reportar,
     });
     if (!ok) return;
     try {
       await firstValueFrom(this.api.reportar(resena.id));
-      this.notifier.success('Gracias, hemos recibido tu reporte');
+      this.notifier.success(this.t.reporteRecibido);
     } catch (error) {
       this.notifier.error(error);
     }

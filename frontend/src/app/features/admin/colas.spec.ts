@@ -1,4 +1,7 @@
+import { registerLocaleData } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
+import localeEs from '@angular/common/locales/es';
+import { LOCALE_ID } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -8,6 +11,8 @@ import { Notifier } from '../../core/ui/notifier';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { ColaImagenes } from './cola-imagenes';
 import { ColaResenas } from './cola-resenas';
+
+registerLocaleData(localeEs);
 
 const pagina = <T>(content: T[]): Page<T> => ({ content, page: 0, size: 20, totalElements: content.length, totalPages: 1 });
 
@@ -38,6 +43,8 @@ describe('review and photo queues', () => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
+        // Los tamaños de las fotos siguen el locale de la aplicación
+        { provide: LOCALE_ID, useValue: 'es-ES' },
         provideRouter([]),
         { provide: AdminApi, useValue: api },
         { provide: Confirmation, useValue: confirmation },

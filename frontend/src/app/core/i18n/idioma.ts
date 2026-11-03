@@ -23,7 +23,8 @@ export function idiomaPreferido(): Idioma {
   } catch {
     // Sin almacenamiento se decide por el navegador
   }
-  const delNavegador = (navigator.languages?.length ? navigator.languages : [navigator.language])
+  const lista = navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
+  const delNavegador = lista
     .map((l) => l.slice(0, 2).toLowerCase())
     .find((l): l is Idioma => l === 'es' || l === 'en');
   return delNavegador ?? 'es';

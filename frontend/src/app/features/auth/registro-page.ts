@@ -14,6 +14,8 @@ import { MatInput } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 import { mensajeDeErrorAuth } from '../../core/auth/auth-errors';
 import { AuthService } from '../../core/auth/auth.service';
+import { textos } from '../../core/i18n/idioma';
+import { AUTH } from './auth.i18n';
 
 export const passwordsMatch: ValidatorFn = (group: AbstractControl): ValidationErrors | null =>
   group.get('password')?.value === group.get('confirmacion')?.value ? null : { passwordsMismatch: true };
@@ -31,6 +33,8 @@ export const passwordsMatch: ValidatorFn = (group: AbstractControl): ValidationE
 export class RegistroPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  protected readonly t = textos(AUTH);
 
   readonly returnUrl = input<string>();
 

@@ -6,23 +6,26 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
 import { BancoModeracion } from '../../core/api/models';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
+import { COLA } from './admin.i18n';
 import { Cola } from './cola';
+import { COLA_BANCOS } from './cola-bancos.i18n';
 
 @Component({
   selector: 'bf-cola-bancos',
   imports: [DatePipe, RouterLink, MatButton, MatIcon, LoadingState, ErrorState, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2>Bancos pendientes ({{ cola.total() }})</h2>
+    <h2>{{ t.titulo }} ({{ cola.total() }})</h2>
     @if (cola.error(); as mensaje) {
       <bf-error-state [message]="mensaje" (retry)="cola.cargar()" />
     } @else if (!cola.cargando() && cola.items().length === 0) {
-      <bf-empty-state icon="task_alt" message="No hay bancos pendientes. ¡Todo al día!" />
+      <bf-empty-state icon="task_alt" [message]="t.vacia" />
     } @else {
       <ul class="lista">
         @for (banco of cola.items(); track banco.id) {
@@ -40,10 +43,10 @@ import { Cola } from './cola';
             </div>
             <div class="acciones">
               <button mat-flat-button type="button" [disabled]="ocupado() === banco.id" (click)="aprobar(banco)">
-                <mat-icon aria-hidden="true">check</mat-icon> Aprobar
+                <mat-icon aria-hidden="true">check</mat-icon> {{ t.aprobar }}
               </button>
               <button mat-stroked-button type="button" [disabled]="ocupado() === banco.id" (click)="rechazar(banco)">
-                <mat-icon aria-hidden="true">block</mat-icon> Rechazar
+                <mat-icon aria-hidden="true">block</mat-icon> {{ t.rechazar }}
               </button>
             </div>
           </li>
@@ -52,7 +55,7 @@ import { Cola } from './cola';
       @if (cola.cargando()) {
         <bf-loading-state />
       } @else if (cola.hayMas()) {
-        <button mat-stroked-button type="button" (click)="cola.cargarMas()">Cargar más</button>
+        <button mat-stroked-button type="button" (click)="cola.cargarMas()">{{ tc.cargarMas }}</button>
       }
     }
   `,
@@ -62,6 +65,8 @@ export class ColaBancos implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly notifier = inject(Notifier);
   private readonly confirmation = inject(Confirmation);
+  protected readonly t = textos(COLA_BANCOS);
+  protected readonly tc = textos(COLA);
 
   protected readonly cola = new Cola<BancoModeracion>((page) => this.api.bancos('PENDIENTE', page));
   protected readonly ocupado = signal<string | null>(null);
@@ -71,18 +76,18 @@ export class ColaBancos implements OnInit {
   }
 
   protected aprobar(banco: BancoModeracion): Promise<void> {
-    return this.decidir(banco, () => this.api.aprobarBanco(banco.id), `«${banco.titulo}» publicado`);
+    return this.decidir(banco, () => this.api.aprobarBanco(banco.id), this.t.publicado(banco.titulo));
   }
 
   protected async rechazar(banco: BancoModeracion): Promise<void> {
     const motivo = await this.confirmation.pedirMotivo({
-      titulo: 'Rechazar banco',
-      mensaje: `«${banco.titulo}» dejará de estar visible. Puedes explicar el motivo al autor.`,
-      confirmar: 'Rechazar',
-      sugerencias: ['Ya existe en el mapa', 'La ubicación no es correcta', 'No es un banco público', 'Faltan datos'],
+      titulo: this.t.rechazarBanco,
+      mensaje: this.t.rechazarMensaje(banco.titulo),
+      confirmar: this.t.rechazar,
+      sugerencias: this.t.sugerencias,
     });
     if (motivo === undefined) return;
-    await this.decidir(banco, () => this.api.rechazarBanco(banco.id, motivo), `«${banco.titulo}» rechazado`);
+    await this.decidir(banco, () => this.api.rechazarBanco(banco.id, motivo), this.t.rechazado(banco.titulo));
   }
 
   private async decidir(banco: BancoModeracion, accion: () => ReturnType<AdminApi['aprobarBanco']>,

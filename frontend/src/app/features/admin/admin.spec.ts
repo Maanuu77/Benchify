@@ -7,9 +7,11 @@ import { AdminApi } from '../../core/api/admin-api';
 import { BancoModeracion, EventoModeracion, Page, PageRequest, Usuario } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { FakeAuthService } from '../../core/auth/testing/fake-auth.service';
+import { IDIOMA } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { AdminDashboard } from './admin-dashboard';
+import { AdminLayout } from './admin-layout';
 import { AdminUsuarios } from './admin-usuarios';
 import { Cola } from './cola';
 import { ColaBancos } from './cola-bancos';
@@ -169,5 +171,38 @@ describe('admin screens', () => {
 
     expect(selects[0].getAttribute('aria-disabled')).toBe('true');
     expect(selects[1].getAttribute('aria-disabled')).toBe('false');
+  });
+
+  describe('in English', () => {
+    beforeEach(() => TestBed.overrideProvider(IDIOMA, { useValue: 'en' }));
+
+    it('labels the sections, the overview and the queues', async () => {
+      const layout: HTMLElement = (await render(AdminLayout)).nativeElement;
+      expect(layout.querySelector('h1')?.textContent).toBe('Moderation');
+      expect(layout.querySelector('nav')?.getAttribute('aria-label')).toBe('Moderation sections');
+      expect(layout.textContent).toContain('Overview');
+
+      const dashboard: HTMLElement = (await render(AdminDashboard)).nativeElement;
+      expect(dashboard.querySelector('a[href="/ediciones"]')?.textContent).toContain('4pending edits');
+      expect(dashboard.textContent).toContain('Published benches');
+
+      const historial: HTMLElement = (await render(HistorialModeracion)).nativeElement;
+      expect(historial.textContent).toContain('History (2)');
+      expect(historial.textContent).toContain('Photo rejected');
+      expect(historial.textContent).toContain('by a moderator');
+    });
+
+    it('asks for the rejection reason in English', async () => {
+      const fixture = await render(ColaBancos);
+      const element: HTMLElement = fixture.nativeElement;
+      expect(element.textContent).toContain('Pending benches (2)');
+
+      Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Reject'))!.click();
+      await fixture.whenStable();
+
+      expect(confirmation.pedirMotivo).toHaveBeenCalledWith(expect.objectContaining({
+        titulo: 'Reject bench', confirmar: 'Reject', sugerencias: expect.arrayContaining(['Already on the map']),
+      }));
+    });
   });
 });

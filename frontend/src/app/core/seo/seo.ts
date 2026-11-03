@@ -1,5 +1,7 @@
 import { DOCUMENT, inject, Injectable } from '@angular/core';
 import { Meta } from '@angular/platform-browser';
+import { CORE } from '../i18n/core.i18n';
+import { textos } from '../i18n/idioma';
 
 export interface Descripcion {
   titulo: string;
@@ -17,7 +19,7 @@ export interface Descripcion {
 export class Seo {
   private readonly meta = inject(Meta);
   private readonly document = inject(DOCUMENT);
-  private readonly descripcionPorDefecto = this.meta.getTag('name="description"')?.content ?? '';
+  private readonly t = textos(CORE);
 
   describir({ titulo, descripcion, url, imagen }: Descripcion): void {
     this.meta.updateTag({ name: 'description', content: descripcion });
@@ -32,11 +34,11 @@ export class Seo {
     this.canonica().setAttribute('href', url);
   }
 
-  /** Vuelve a la descripción general de la aplicación. */
+  /** Vuelve a la descripción general de la aplicación (también al arrancar, para el idioma de la visita). */
   restablecer(): void {
-    this.meta.updateTag({ name: 'description', content: this.descripcionPorDefecto });
-    this.meta.updateTag({ property: 'og:title', content: 'Benchify · Mapa colaborativo de bancos' });
-    this.meta.updateTag({ property: 'og:description', content: this.descripcionPorDefecto });
+    this.meta.updateTag({ name: 'description', content: this.t.descripcionApp });
+    this.meta.updateTag({ property: 'og:title', content: this.t.tituloApp });
+    this.meta.updateTag({ property: 'og:description', content: this.t.descripcionApp });
     this.meta.removeTag('property="og:url"');
     this.meta.removeTag('property="og:image"');
     this.document.head.querySelector('link[rel="canonical"]')?.remove();
