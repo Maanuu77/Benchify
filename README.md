@@ -3,36 +3,44 @@
 # 🌳 Benchify
 
 **Mapa colaborativo de bancos públicos.** Descubre bancos cerca de ti, valóralos, guárdalos en
-favoritos, haz check-in cuando te sientes en uno y comparte fotos. Cada aportación pasa por moderación.
+favoritos, haz check-in cuando te sientes en uno, comparte fotos y avisa si alguno está roto. Cada
+aportación pasa por moderación. En español e inglés, y se instala como aplicación.
 
 [![CI](https://github.com/Maanuu77/Benchify/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Maanuu77/Benchify/actions/workflows/ci.yml)
+[![Versión](https://img.shields.io/github/v/release/Maanuu77/Benchify?label=versi%C3%B3n)](https://github.com/Maanuu77/Benchify/releases/latest)
 ![Java 21](https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot&logoColor=white)
-![Angular 21](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)
+![Angular 22](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)
 ![PostGIS](https://img.shields.io/badge/PostgreSQL%2017-PostGIS-336791?logo=postgresql&logoColor=white)
-![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Storage%20%7C%20Hosting-FFCA28?logo=firebase&logoColor=black)
-![Cobertura backend](https://img.shields.io/badge/cobertura%20backend-95%25-brightgreen)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Hosting-FFCA28?logo=firebase&logoColor=black)
+![Cobertura backend](https://img.shields.io/badge/cobertura%20backend-96%25-brightgreen)
 
 </div>
 
 <p align="center">
-  <img src="docs/screenshots/mapa.png" alt="Mapa de bancos de Sevilla con marcadores agrupados y lista de los mejor valorados" width="820" />
+  <img src="docs/screenshots/mapa.png" alt="Mapa de Sevilla a pantalla completa con buscador de direcciones, filtros en píldoras y lista de bancos en un panel lateral" width="820" />
 </p>
 
 | Ficha de banco | Moderación | Móvil (modo oscuro) |
 |---|---|---|
-| <img src="docs/screenshots/detalle.png" alt="Ficha de un banco con valoración, características, mapa y reseñas" width="360" /> | <img src="docs/screenshots/admin.png" alt="Panel de moderación con contadores de pendientes" width="360" /> | <img src="docs/screenshots/mapa-movil.png" alt="Mapa en un móvil con el panel de filtros debajo" width="160" /> |
+| <img src="docs/screenshots/detalle.png" alt="Ficha de un banco con su mapa, valoración y botones para hacer check-in, guardar, llegar y compartir" width="360" /> | <img src="docs/screenshots/admin.png" alt="Panel de moderación con pestañas y contadores de pendientes" width="360" /> | <img src="docs/screenshots/mapa-movil.png" alt="Mapa en modo oscuro en un móvil, con filtros arriba, hoja inferior con la lista y barra de navegación" width="160" /> |
 
 ## Funcionalidades
 
-- **Mapa** con clustering, filtros (accesible, sombra, respaldo, etiqueta, valoración) y búsqueda
-  **cerca de mí** con distancias reales calculadas por PostGIS.
-- **Fichas** con reseñas (1–5 ★), fotos, favoritos, check-in validado por proximidad (≤ 150 m)
-  y enlace para llegar.
-- **Contribución**: alta y edición de bancos con selector en el mapa y subida de fotos.
-- **Moderación**: cola de bancos, reseñas reportadas (3 reportes de usuarios distintos), fotos
-  pendientes y gestión de roles.
-- **Cuentas** con Firebase Authentication (email/contraseña y Google) y perfiles públicos.
+- **Mapa** a pantalla completa con clústeres, filtros en píldoras (accesible, sombra, respaldo,
+  etiqueta, valoración), búsqueda **cerca de mí** con distancias reales calculadas por PostGIS y
+  buscador de direcciones (OpenStreetMap). La vista y los filtros viajan en la URL.
+- **Fichas** con reseñas (1–5 ★), fotos, favoritos, check-in validado por proximidad (≤ 150 m),
+  enlace para llegar y **enlace para compartir** con vista previa en WhatsApp, Telegram o X.
+- **Avisos** de bancos rotos, sucios o desaparecidos, con resumen público en la ficha.
+- **Contribución**: alta de bancos con selector en el mapa y subida de fotos (se reducen en el
+  navegador). Las ediciones de un banco publicado quedan pendientes sin retirarlo del mapa.
+- **Moderación**: colas de bancos, ediciones, fotos (con posibles duplicados por huella perceptual),
+  reseñas reportadas y avisos; motivo opcional, historial y gestión de roles.
+- **Cuentas** con Firebase Authentication (email/contraseña y Google), verificación del email para
+  publicar, notificaciones, perfiles públicos y baja de cuenta.
+- **Diseño** minimalista con modo claro y oscuro automático, navegación inferior en móvil,
+  **español e inglés** y **PWA** que funciona sin conexión con los últimos bancos vistos.
 
 ## Arquitectura
 
@@ -65,7 +73,10 @@ backend/src/main/java/com/benchify/
 ├── usuario/
 ├── favorito/
 ├── checkin/
-└── moderacion/
+├── moderacion/
+├── notificacion/
+├── incidencia/   Avisos de bancos en mal estado
+└── lugar/        Buscador de direcciones (Nominatim)
 ```
 
 ```mermaid
@@ -78,15 +89,15 @@ flowchart LR
 ```
 
 Decisiones documentadas en [`docs/adr`](docs/adr): monorepo, Spring Boot 4, hexagonal, PostGIS +
-Flyway, Firebase Auth, estrategia de tests, Angular 21 y despliegue.
+Flyway, Firebase Auth, estrategia de tests, frontend Angular y despliegue gratuito.
 
 ## Stack
 
 | Capa | Tecnologías |
 |------|-------------|
-| Backend | Java 21, Spring Boot 4.1 (Web MVC, Security, Data JPA, Validation, Actuator), Hibernate 7, Flyway, MapStruct, springdoc-openapi 3, Firebase Admin SDK |
-| Datos | PostgreSQL 17 + PostGIS 3.5 (`geography`, índices GIST, `ST_DWithin`) |
-| Frontend | Angular 21 (standalone, zoneless, signals, control flow), Angular Material 3, AngularFire 21, Leaflet + markercluster |
+| Backend | Java 21, Spring Boot 4.1 (Web MVC, Security, Data JPA, Validation, Actuator), Hibernate 7, Flyway, MapStruct, springdoc-openapi 3, Firebase Admin SDK, Bucket4j, Caffeine, Thumbnailator |
+| Datos | PostgreSQL 17 + PostGIS 3.5 (`geography`, índices GIST, `ST_DWithin`); las fotos, también en PostgreSQL en producción |
+| Frontend | Angular 22 y TypeScript 6 (standalone, zoneless, signals), Angular Material, SDK de Firebase, Leaflet + markercluster, service worker de Angular |
 | Tests | JUnit 5, Mockito, Testcontainers, ArchUnit, JaCoCo · Vitest, Playwright |
 | DevOps | Docker, docker compose, GitHub Actions, Dependabot, Render, Neon, Firebase Hosting |
 
@@ -129,8 +140,11 @@ Todas están descritas en [`.env.example`](.env.example). Las principales:
 | Variable | Perfil | Descripción |
 |----------|--------|-------------|
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | dev / prod | Conexión JDBC (en prod, Neon con `sslmode=require`) |
-| `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET` | dev / prod | Proyecto de Firebase y bucket de fotos |
+| `FIREBASE_PROJECT_ID` | dev / prod | Proyecto de Firebase |
+| `ALMACEN_TIPO` | prod | Dónde se guardan las fotos: `postgres` (por defecto) o `firebase` (Cloud Storage, `FIREBASE_STORAGE_BUCKET`) |
+| `API_PUBLIC_URL` | prod | Dirección pública de la API para las URLs de las fotos (en Render se toma sola) |
 | `FIREBASE_AUTH_EMULATOR_HOST`, `FIREBASE_STORAGE_EMULATOR_URL` | dev | Emuladores locales |
+| `WEB_URL` | prod | Dirección de la web, para los enlaces para compartir y el sitemap |
 | `CORS_ALLOWED_ORIGINS` | prod | Orígenes del frontend, separados por comas |
 | `API_DOCS_ENABLED` | prod | Publica Swagger UI (`false` por defecto) |
 | `SEED_USERS_PASSWORD` | dev | Contraseña de los usuarios de prueba del emulador |
@@ -142,20 +156,24 @@ datos es una variable del servicio de Render y la clave de Firebase Admin, un *S
 ## Tests
 
 ```bash
-cd backend && ./mvnw verify            # 247 tests: unitarios, slices web, PostGIS (Testcontainers), ArchUnit, JaCoCo
-cd frontend && npm run test:ci         # Vitest con cobertura
+cd backend && ./mvnw verify            # 455 tests: unitarios, slices web, PostGIS (Testcontainers), ArchUnit, JaCoCo
+cd frontend && npm run test:ci         # 171 tests con Vitest y cobertura
 cd frontend && npm run e2e             # Playwright (escritorio y móvil) con la API simulada
 cd frontend && npm run e2e:stack       # Playwright contra backend + emuladores reales
 ```
 
 | Suite | Cobertura mínima | Actual |
 |-------|------------------|--------|
-| Backend (CI, con Testcontainers) | 85 % líneas · 70 % ramas | 95 % · 82 % |
-| Backend (local sin Docker) | 70 % · 60 % | 73 % · 73 % |
-| Frontend | 70 % líneas · 65 % ramas | 73 % · 73 % |
+| Backend (CI, con PostGIS) | 85 % líneas · 70 % ramas | 96 % · 84 % |
+| Backend (local sin PostGIS) | 70 % · 60 % | — |
+| Frontend | 70 % líneas · 65 % ramas | 76 % · 72 % |
+
+Sin Docker, los tests de integración pueden usar un PostGIS propio con `IT_DATABASE_URL`.
 
 GitHub Actions ejecuta un job por aplicación, filtrado por la carpeta que cambia: build, tests y
-cobertura del backend más la imagen Docker; lint, tests, build y e2e del frontend.
+cobertura del backend más la imagen Docker (analizada con Trivy); lint, tests, build y e2e del
+frontend. Además pasan CodeQL y la revisión de dependencias, y Dependabot propone las
+actualizaciones cada semana.
 
 ## API
 
@@ -170,15 +188,19 @@ siguen [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) con un `code` estable:
 ## Despliegue
 
 Todo en planes gratuitos sin tarjeta: frontend en **Firebase Hosting**, backend en **Render** y
-base de datos (con las fotos) en **Neon**. Guía paso a paso en [`deploy/README.md`](deploy/README.md)
+base de datos (con las fotos) en **Neon**. Render despliega el backend con cada cambio en `main` y
+GitHub Actions publica el frontend en Hosting sin claves (Workload Identity Federation), con canal
+de vista previa en cada PR. Guía paso a paso en [`deploy/README.md`](deploy/README.md)
 ([ADR-0010](docs/adr/0010-neon-y-despliegue-continuo.md)).
 
 ## Forma de trabajo
 
 - **Git Flow**: `main` (estable) ← `release/*` ← `develop` ← `feature/*`, `fix/*`, `chore/*`,
   `ci/*`, `docs/*`, integradas con `git merge --no-ff` y un mensaje tipo PR.
-- **Conventional Commits** en inglés, cada uno referenciando su issue del [roadmap](docs/ROADMAP.md).
-- Cambios en [`CHANGELOG.md`](CHANGELOG.md).
+- Una rama y un PR a `develop` por bloque de trabajo; se fusiona con la CI en verde.
+- **Conventional Commits** en inglés, cada uno referenciando su issue de GitHub
+  ([tablero](https://github.com/users/Maanuu77/projects/1), [roadmap](docs/ROADMAP.md)).
+- Cambios en [`CHANGELOG.md`](CHANGELOG.md) y versiones en [Releases](https://github.com/Maanuu77/Benchify/releases).
 
 ## Estructura del repositorio
 
