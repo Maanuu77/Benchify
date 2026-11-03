@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
@@ -8,7 +8,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatListItem, MatListItemLine, MatListItemTitle, MatNavList } from '@angular/material/list';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { filter, firstValueFrom, forkJoin, map, switchMap } from 'rxjs';
 import { Loadable, loadable } from '../../core/api/api-error';
 import { BancosApi } from '../../core/api/bancos-api';
@@ -16,11 +16,14 @@ import { BancoResumen, CheckIn, EstadisticasUsuario, Favorito, Page, PerfilPubli
 import { ResenasApi } from '../../core/api/resenas-api';
 import { UsuariosApi } from '../../core/api/usuarios-api';
 import { AuthService } from '../../core/auth/auth.service';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
+import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { StarRating } from '../../shared/ui/star-rating';
+import { PERFIL } from './perfil-page.i18n';
 
 interface DatosPerfil {
   perfil: PerfilPublico;
@@ -46,6 +49,9 @@ export class PerfilPage {
   private readonly resenasApi = inject(ResenasApi);
   private readonly notifier = inject(Notifier);
   private readonly auth = inject(AuthService);
+  private readonly confirmation = inject(Confirmation);
+  private readonly router = inject(Router);
+  protected readonly t = textos(PERFIL);
 
   /** :id en /usuarios/:id; sin él se muestra el perfil propio (/perfil). */
   readonly id = input<string>();
@@ -54,7 +60,7 @@ export class PerfilPage {
   protected readonly esPropio = computed(() => !!this.uid() && this.uid() === this.auth.session()?.uid);
   private readonly recarga = signal(0);
 
-  protected readonly estado = toSignal(
+  private readonly carga = toSignal(
     toObservable(computed(() => ({ uid: this.uid(), recarga: this.recarga() }))).pipe(
       map(({ uid }) => uid),
       filter((uid): uid is string => uid !== null),
@@ -67,6 +73,15 @@ export class PerfilPage {
     ),
     { initialValue: { status: 'loading' } as Loadable<DatosPerfil> },
   );
+
+  /** Tras guardar se sigue mostrando el perfil anterior mientras llega el nuevo, sin desmontar la página. */
+  protected readonly estado = linkedSignal<Loadable<DatosPerfil>, Loadable<DatosPerfil>>({
+    source: this.carga,
+    computation: (nuevo, anterior) =>
+      nuevo.status === 'loading' && anterior?.value.status === 'success' && anterior.value.value.perfil.id === this.uid()
+        ? anterior.value
+        : nuevo,
+  });
 
   protected readonly datosPerfil = computed(() => {
     const estado = this.estado();
@@ -99,15 +114,40 @@ export class PerfilPage {
     this.editando.set(true);
   }
 
+  protected readonly eliminando = signal(false);
+
+  protected async eliminarCuenta(): Promise<void> {
+    const ok = await this.confirmation.ask({
+      titulo: this.t.confirmarTitulo,
+      mensaje: this.t.confirmarMensaje,
+      confirmar: this.t.eliminarMiCuenta,
+      peligroso: true,
+    });
+    if (!ok) return;
+    this.eliminando.set(true);
+    try {
+      await firstValueFrom(this.usuariosApi.eliminarCuenta());
+      await this.auth.logout().catch(() => undefined);
+      this.notifier.success(this.t.cuentaEliminada);
+      await this.router.navigateByUrl('/mapa');
+    } catch (error) {
+      this.notifier.error(error);
+    } finally {
+      this.eliminando.set(false);
+    }
+  }
+
   protected async guardar(): Promise<void> {
     if (!this.nombre.trim()) {
-      this.notifier.error('El nombre es obligatorio.');
+      this.notifier.error(this.t.nombreObligatorio);
       return;
     }
     try {
       await firstValueFrom(this.usuariosApi.actualizarPerfil(this.nombre.trim(), this.ciudad.trim() || null));
+      // La cabecera muestra el nombre de la sesión de Firebase: se actualiza también allí
+      await this.auth.actualizarNombre(this.nombre.trim()).catch(() => undefined);
       this.editando.set(false);
-      this.notifier.success('Perfil actualizado');
+      this.notifier.success(this.t.perfilActualizado);
       this.reintentar();
     } catch (error) {
       this.notifier.error(error);

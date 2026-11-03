@@ -6,6 +6,10 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+/**
+ * Las reseñas solo cuentan si su banco está publicado, igual que en el listado público de reseñas
+ * del usuario: el perfil no revela bancos pendientes, ocultos ni eliminados.
+ */
 @Component
 class EstadisticasUsuarioJdbcAdapter implements EstadisticasUsuarioPort {
 
@@ -20,7 +24,8 @@ class EstadisticasUsuarioJdbcAdapter implements EstadisticasUsuarioPort {
         return jdbc.queryForObject("""
                 SELECT
                     (SELECT count(*) FROM bancos WHERE creado_por = :id AND estado = 'PUBLICADO') AS bancos,
-                    (SELECT count(*) FROM resenas WHERE usuario_id = :id) AS resenas,
+                    (SELECT count(*) FROM resenas r JOIN bancos b ON b.id = r.banco_id
+                     WHERE r.usuario_id = :id AND b.estado = 'PUBLICADO') AS resenas,
                     (SELECT count(*) FROM favoritos WHERE usuario_id = :id) AS favoritos,
                     (SELECT count(*) FROM checkins WHERE usuario_id = :id) AS checkins
                 """, new MapSqlParameterSource("id", usuarioId),

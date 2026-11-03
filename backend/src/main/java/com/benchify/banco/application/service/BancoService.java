@@ -5,6 +5,8 @@ import com.benchify.banco.application.port.in.ConsultarBancosUseCase;
 import com.benchify.banco.application.port.in.GestionarBancoUseCase;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.EtiquetaRepository;
+import com.benchify.banco.application.port.out.ImagenRepository;
+import com.benchify.banco.application.port.out.RevisionBancoRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BancoNotFoundException;
@@ -12,10 +14,14 @@ import com.benchify.banco.domain.BoundingBox;
 import com.benchify.banco.domain.Caracteristicas;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.DireccionPostal;
+import com.benchify.banco.domain.EntradaSitemap;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
+import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.RevisionBanco;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Ubicacion;
@@ -25,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,32 +42,89 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
 
     private final BancoRepository bancos;
     private final EtiquetaRepository etiquetas;
+    private final ImagenRepository imagenes;
+    private final RevisionBancoRepository revisiones;
+    private final BorradoFicherosImagen ficheros;
     private final Clock clock;
 
-    public BancoService(BancoRepository bancos, EtiquetaRepository etiquetas, Clock clock) {
+    public BancoService(BancoRepository bancos, EtiquetaRepository etiquetas, ImagenRepository imagenes,
+            RevisionBancoRepository revisiones, BorradoFicherosImagen ficheros, Clock clock) {
         this.bancos = bancos;
         this.etiquetas = etiquetas;
+        this.imagenes = imagenes;
+        this.revisiones = revisiones;
+        this.ficheros = ficheros;
         this.clock = clock;
     }
 
+    /**
+     * Contar las propuestas pendientes del autor las bloquea hasta que esta transacción termina,
+     * así que la comprobación del límite y la inserción son atómicas.
+     */
     @Override
     public Banco proponer(Actor actor, BancoCommand command) {
+        actor.exigirEmailVerificado();
+        Banco.exigirCupoDePropuestas(actor, () -> bancos.countPendientesByAutorForUpdate(actor.userId()));
         Banco banco = Banco.proponer(UUID.randomUUID(), toDatos(command), actor, clock.instant());
         return bancos.save(banco);
     }
 
+    /**
+     * Con versión esperada la fila se bloquea antes de compararla, así que la comprobación y el
+     * guardado son atómicos: de dos ediciones simultáneas desde la misma versión, la segunda recibe
+     * un 412 en lugar de pisar a la primera.
+     */
     @Override
-    public Banco editar(Actor actor, UUID bancoId, BancoCommand command) {
-        Banco banco = cargarVisible(bancoId, actor);
-        banco.editar(toDatos(command), actor);
-        return bancos.save(banco);
+    public ResultadoEdicion editar(Actor actor, UUID bancoId, BancoCommand command, Long versionEsperada) {
+        Banco banco;
+        if (versionEsperada == null) {
+            banco = cargarVisible(bancoId, actor);
+        } else {
+            banco = bancos.findByIdForUpdate(bancoId)
+                    .filter(b -> b.esVisiblePara(actor))
+                    .orElseThrow(() -> new BancoNotFoundException(bancoId));
+            banco.exigirVersion(versionEsperada, actor);
+        }
+        banco.exigirEditable(actor);
+        DatosBanco datos = toDatos(command);
+        if (!banco.edicionRequiereRevision(actor)) {
+            banco.editar(datos, actor);
+            return new ResultadoEdicion(bancos.save(banco), null);
+        }
+        // El banco sigue publicado tal cual; una edición anterior aún sin revisar se sustituye
+        RevisionBanco revision = revisiones.findPendienteByBanco(bancoId)
+                .map(pendiente -> pendiente.sustituir(datos, clock.instant()))
+                .orElseGet(() -> RevisionBanco.proponer(bancoId, actor, datos, clock.instant()));
+        revisiones.guardar(revision);
+        return new ResultadoEdicion(banco, revision);
     }
 
     @Override
-    public void eliminar(Actor actor, UUID bancoId) {
+    @Transactional(readOnly = true)
+    public Optional<RevisionBanco> revisionPendiente(Actor actor, UUID bancoId) {
         Banco banco = cargarVisible(bancoId, actor);
+        if (!banco.puedeGestionar(actor)) {
+            throw new ForbiddenException("BANCO_NO_AUTOR", "Solo el autor o un administrador pueden ver sus ediciones");
+        }
+        return revisiones.findPendienteByBanco(bancoId);
+    }
+
+    /**
+     * El borrado del banco es lógico, pero no se puede deshacer: sus fotos se borran del todo, las filas
+     * ahora y los ficheros del bucket tras el commit, para que dejen de ser accesibles. La fila del banco
+     * se bloquea para que una subida simultánea no deje una foto suelta.
+     */
+    @Override
+    public void eliminar(Actor actor, UUID bancoId) {
+        Banco banco = bancos.findByIdForUpdate(bancoId)
+                .filter(b -> b.esVisiblePara(actor))
+                .orElseThrow(() -> new BancoNotFoundException(bancoId));
         banco.eliminar(actor);
         bancos.save(banco);
+        List<String> rutas = imagenes.deleteByBanco(bancoId).stream()
+                .flatMap(imagen -> imagen.rutas().stream())
+                .toList();
+        ficheros.borrarTrasCommit(rutas);
     }
 
     @Override
@@ -96,6 +160,12 @@ public class BancoService implements GestionarBancoUseCase, ConsultarBancosUseCa
     @Transactional(readOnly = true)
     public List<Etiqueta> etiquetas() {
         return etiquetas.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EntradaSitemap> sitemap() {
+        return bancos.findPublicadosParaSitemap(MAX_SITEMAP);
     }
 
     /** Un banco que el actor no puede ver se trata como inexistente para no revelar su existencia. */

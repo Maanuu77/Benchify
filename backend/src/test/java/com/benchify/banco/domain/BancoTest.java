@@ -3,6 +3,7 @@ package com.benchify.banco.domain;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ForbiddenException;
+import com.benchify.shared.domain.PreconditionFailedException;
 import com.benchify.shared.domain.Ubicacion;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,22 @@ class BancoTest {
         assertThat(banco.fechaVerificacion()).isEqualTo(AHORA);
     }
 
+    @Test
+    void aUserCannotHaveMoreThanFivePendingProposals() {
+        Banco.exigirCupoDePropuestas(AUTOR, () -> Banco.MAX_PENDIENTES_POR_AUTOR - 1);
+
+        assertThatThrownBy(() -> Banco.exigirCupoDePropuestas(AUTOR, () -> Banco.MAX_PENDIENTES_POR_AUTOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("BANCO_LIMITE_PENDIENTES");
+    }
+
+    @Test
+    void adminsHaveNoProposalLimitAndAreNotEvenCounted() {
+        Banco.exigirCupoDePropuestas(ADMIN, () -> {
+            throw new AssertionError("No debería contar los pendientes de un administrador");
+        });
+    }
+
     @Nested
     class Visibilidad {
 
@@ -84,15 +101,26 @@ class BancoTest {
     class Edicion {
 
         @Test
-        void authorEditOfPublishedBenchSendsItBackToModeration() {
+        void authorEditOfPublishedBenchGoesThroughARevisionAndKeepsItOnTheMap() {
             Banco banco = pendiente();
             banco.aprobar(AHORA);
 
-            banco.editar(datos("Nuevo título"), AUTOR);
+            assertThat(banco.edicionRequiereRevision(AUTOR)).isTrue();
+            assertThat(banco.edicionRequiereRevision(ADMIN)).isFalse();
+            assertThatThrownBy(() -> banco.editar(datos("Nuevo título"), AUTOR)).isInstanceOf(IllegalStateException.class);
+            assertThat(banco.estaPublicado()).isTrue();
+            assertThat(banco.fechaVerificacion()).isEqualTo(AHORA);
+        }
 
-            assertThat(banco.datos().titulo()).isEqualTo("Nuevo título");
+        @Test
+        void authorCanFixABenchThatIsNotPublishedYet() {
+            Banco banco = pendiente();
+
+            assertThat(banco.edicionRequiereRevision(AUTOR)).isFalse();
+            banco.editar(datos("Corregido antes de publicarse"), AUTOR);
+
+            assertThat(banco.datos().titulo()).isEqualTo("Corregido antes de publicarse");
             assertThat(banco.estado()).isEqualTo(EstadoBanco.PENDIENTE);
-            assertThat(banco.fechaVerificacion()).isNull();
         }
 
         @Test
@@ -123,6 +151,25 @@ class BancoTest {
             assertThat(banco.estado()).isEqualTo(EstadoBanco.ELIMINADO);
             assertThatThrownBy(() -> banco.editar(datos("x"), ADMIN)).isInstanceOf(BusinessRuleException.class);
             assertThatThrownBy(() -> banco.eliminar(ADMIN)).isInstanceOf(BusinessRuleException.class);
+        }
+
+        @Test
+        void anEditMustStartFromTheCurrentVersion() {
+            Banco banco = new Banco(UUID.randomUUID(), datos("Versionado"), EstadoBanco.PUBLICADO, Autor.of("autor"),
+                    Valoracion.SIN_RESENAS, AHORA, AHORA, 4);
+
+            banco.exigirVersion(4, AUTOR);
+            banco.exigirVersion(4, ADMIN);
+            assertThatThrownBy(() -> banco.exigirVersion(3, AUTOR))
+                    .isInstanceOf(PreconditionFailedException.class)
+                    .extracting("code").isEqualTo("BANCO_VERSION_OBSOLETA");
+        }
+
+        @Test
+        void permissionsAreCheckedBeforeTheVersion() {
+            Banco banco = pendiente();
+
+            assertThatThrownBy(() -> banco.exigirVersion(7, OTRO)).isInstanceOf(ForbiddenException.class);
         }
     }
 

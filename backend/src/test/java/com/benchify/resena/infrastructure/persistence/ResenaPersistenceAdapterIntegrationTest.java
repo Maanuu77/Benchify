@@ -8,19 +8,24 @@ import com.benchify.resena.domain.Resena;
 import com.benchify.resena.domain.ResumenPuntuacion;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.PageQuery;
+import com.benchify.shared.domain.PageResult;
 import com.benchify.shared.domain.Ubicacion;
 import com.benchify.support.AbstractIntegrationTest;
 import com.benchify.support.TestData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 @Transactional
@@ -62,6 +67,16 @@ class ResenaPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void findsTheReviewOfAUserOnABench() {
+        Resena deAna = resenas.save(resena("res-ana", 5, AHORA));
+        resenas.save(resena("res-luis", 2, AHORA.plusSeconds(1)));
+
+        assertThat(resenas.findByBancoAndAutor(bancoId, "res-ana")).map(Resena::id).contains(deAna.id());
+        assertThat(resenas.findByBancoAndAutor(bancoId, "res-autor")).isEmpty();
+        assertThat(resenas.findByBancoAndAutor(UUID.randomUUID(), "res-ana")).isEmpty();
+    }
+
+    @Test
     void summaryOfABenchWithoutReviewsIsEmpty() {
         assertThat(resenas.resumen(bancoId)).isEqualTo(ResumenPuntuacion.VACIO);
     }
@@ -77,32 +92,76 @@ class ResenaPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void reportsAreUniquePerUserAndFeedTheModerationQueue() {
+    void reportsAreUniquePerUserAndFeedTheModerationQueueAtTheThreshold() {
         Resena resena = resenas.save(resena("res-ana", 1, AHORA));
         long antes = resenas.countReportadas();
 
         assertThat(resenas.registrarReporte(resena.id(), "res-luis", AHORA)).isTrue();
         assertThat(resenas.registrarReporte(resena.id(), "res-luis", AHORA)).isFalse();
 
-        Resena reportada = resenas.findByIdForUpdate(resena.id()).orElseThrow()
-                .conReporteAdicional().conReporteAdicional().conReporteAdicional();
-        resenas.save(reportada);
+        assertThat(resenas.sumarReporte(resena.id(), 3).reportada()).isFalse();
+        assertThat(resenas.sumarReporte(resena.id(), 3).numReportes()).isEqualTo(2);
+        Resena reportada = resenas.sumarReporte(resena.id(), 3);
+        assertThat(reportada.numReportes()).isEqualTo(3);
+        assertThat(reportada.reportada()).isTrue();
         assertThat(resenas.countReportadas()).isEqualTo(antes + 1);
         assertThat(resenas.findReportadas(PageQuery.first(50)).content()).extracting(Resena::id).contains(resena.id());
 
-        resenas.borrarReportes(resena.id());
+        Resena revisada = resenas.borrarReportes(resena.id());
+        assertThat(revisada.numReportes()).isZero();
+        assertThat(revisada.reportada()).isFalse();
+        assertThat(resenas.findById(resena.id()).orElseThrow().numReportes()).isZero();
         assertThat(resenas.registrarReporte(resena.id(), "res-luis", AHORA)).isTrue();
     }
 
     @Test
-    void listsByAuthorNewestFirst() {
-        resenas.save(resena("res-ana", 3, AHORA));
+    void editsBumpTheVersionKeepReportCountersAndRejectStaleVersions() {
+        Resena original = resenas.save(resena("res-ana", 4, AHORA));
+        assertThat(original.version()).isZero();
+        resenas.sumarReporte(original.id(), 3);
 
-        assertThat(resenas.findByAutor("res-ana", PageQuery.first(5)).content())
-                .singleElement().extracting(Resena::puntuacion).isEqualTo(3);
+        // La edición parte de una lectura anterior al reporte: el contador no vuelve a cero
+        Resena editada = resenas.save(original.editar(Actor.user("res-ana"), 2, "Editada", AHORA.plusSeconds(5)));
+        assertThat(editada.comentario()).isEqualTo("Editada");
+        assertThat(editada.numReportes()).isEqualTo(1);
+        assertThat(editada.version()).isEqualTo(1);
+
+        // Otra edición basada en la versión anterior no pisa la primera
+        assertThatThrownBy(() -> resenas.save(original.editar(Actor.user("res-ana"), 5, "Vieja", AHORA.plusSeconds(9))))
+                .isInstanceOf(OptimisticLockingFailureException.class);
+        assertThat(resenas.findById(original.id()).orElseThrow().comentario()).isEqualTo("Editada");
+    }
+
+    @Test
+    void listsAnAuthorsReviewsOnlyOnPublishedBenchesNewestFirst() {
+        UUID otroPublicado = banco(Actor.admin("res-autor"), banco -> { });
+        UUID pendiente = banco(Actor.user("res-autor"), banco -> { });
+        UUID oculto = banco(Actor.user("res-autor"), Banco::rechazar);
+        UUID eliminado = banco(Actor.admin("res-autor"), banco -> banco.eliminar(Actor.admin("res-autor")));
+        resenas.save(resena("res-ana", 3, AHORA));
+        resenas.save(resenaEn(otroPublicado, "res-ana", 5, AHORA.plusSeconds(1)));
+        for (UUID noVisible : List.of(pendiente, oculto, eliminado)) {
+            resenas.save(resenaEn(noVisible, "res-ana", 1, AHORA.plusSeconds(2)));
+        }
+
+        PageResult<Resena> pagina = resenas.findByAutorEnBancosPublicados("res-ana", PageQuery.first(10));
+
+        assertThat(pagina.content()).extracting(Resena::bancoId).containsExactly(otroPublicado, bancoId);
+        assertThat(pagina.totalElements()).isEqualTo(2);
+    }
+
+    private UUID banco(Actor autor, Consumer<Banco> transicion) {
+        Banco banco = Banco.proponer(UUID.randomUUID(),
+                new DatosBanco("Otro", null, new Ubicacion(20, 20), null, null, null), autor, AHORA);
+        transicion.accept(banco);
+        return bancos.save(banco).id();
     }
 
     private Resena resena(String autor, int puntuacion, Instant fecha) {
-        return Resena.publicar(UUID.randomUUID(), bancoId, Actor.user(autor), puntuacion, "Comentario", fecha);
+        return resenaEn(bancoId, autor, puntuacion, fecha);
+    }
+
+    private static Resena resenaEn(UUID banco, String autor, int puntuacion, Instant fecha) {
+        return Resena.publicar(UUID.randomUUID(), banco, Actor.user(autor), puntuacion, "Comentario", fecha);
     }
 }

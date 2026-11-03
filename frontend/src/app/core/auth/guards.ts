@@ -1,6 +1,38 @@
-import { inject } from '@angular/core';
+import { computed, effect, inject, untracked } from '@angular/core';
 import { CanActivateFn, CanMatchFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
+
+/**
+ * Los guards solo se evalúan al navegar. Si se pierde acceso estando ya dentro (se cierra sesión en
+ * otra pestaña, un administrador pierde el rol), se vuelve a navegar a la página actual para que
+ * sus guards decidan. Ganar acceso (iniciar sesión) no hace nada: de eso se encarga el login.
+ */
+export function revalidarRutaAlPerderAcceso(): void {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const acceso = computed(() => {
+    if (auth.isLoading()) {
+      return null;
+    }
+    const session = auth.session();
+    return session ? { uid: session.uid, admin: session.rol === 'ADMIN' } : { uid: null, admin: false };
+  });
+  let anterior: { uid: string | null; admin: boolean } | null = null;
+  effect(() => {
+    const actual = acceso();
+    if (actual === null) {
+      return;
+    }
+    const perdido =
+      anterior !== null &&
+      anterior.uid !== null &&
+      (actual.uid !== anterior.uid || (anterior.admin && !actual.admin));
+    anterior = actual;
+    if (perdido) {
+      untracked(() => void router.navigateByUrl(router.url, { onSameUrlNavigation: 'reload' }));
+    }
+  });
+}
 
 /** Exige sesión; si no la hay, lleva al login y vuelve después a la página pedida. */
 export const authGuard: CanActivateFn = async (_route, state) => {

@@ -5,6 +5,158 @@ Todos los cambios relevantes de Benchify. Formato basado en
 [versionado semántico](https://semver.org/lang/es/). Los números `#n` son issues del
 [roadmap](docs/ROADMAP.md).
 
+## [Sin publicar]
+
+## [2.0.0] - 2026-11-03
+
+Interfaz rediseñada, en español e inglés y como PWA, revisiones de seguridad, nuevas funciones
+(incidencias, búsqueda de direcciones, enlaces para compartir, ediciones moderadas) y despliegue
+gratuito en Firebase Hosting, Render y Neon.
+
+Desde la 1.0.1 los números `#n` son issues de GitHub
+([tablero](https://github.com/users/Maanuu77/projects/1)); los de versiones anteriores son del roadmap antiguo.
+
+### Rediseño de la interfaz
+
+- Nuevo estilo "minimal moderno": tokens de color con modo claro y oscuro automático, verde de
+  marca #22C55E, paneles translúcidos, Inter y Material Icons autoalojados y logo nuevo (#43).
+- Cabecera ligera en escritorio y barra de navegación inferior en móvil (#44).
+- Mapa a pantalla completa con panel lateral (escritorio) u hoja inferior (móvil), filtros en
+  píldoras, controles flotantes, marcadores y clústeres propios y teselas de OpenStreetMap
+  atenuadas; la vista y los filtros se guardan en la URL (#45, #46). Los marcadores se actualizan
+  por diferencias en lugar de recrearse en cada movimiento (#47).
+- Ficha con el mapa como cabecera, tarjeta de resumen, acciones grandes (incluida "Compartir"),
+  fila de fotos con visor y reseñas en tarjetas (#48).
+- Formulario de banco, acceso, perfil y moderación con el nuevo estilo; skeletons de carga y
+  estados de vacío y error rediseñados (#49–#53).
+
+### Seguridad
+
+- Análisis de seguridad en el CI: CodeQL (Java, TypeScript y workflows, consultas
+  `security-extended`) en cada PR y cada semana, Trivy sobre la imagen del backend (falla con
+  vulnerabilidades críticas que ya tienen arreglo, incluidas las librerías del jar),
+  `npm audit` de las dependencias de producción y *dependency review* en los PRs. `@grpc/grpc-js`
+  (dependencia de Firestore, que la web no usa) se fija en 1.13.6 o superior (#64).
+- Dependabot ignora las versiones mayores, que se actualizan a propósito, y agrupa las menores; las
+  actions del CI pasan a sus últimas versiones (#63).
+- Las fotos pendientes de moderación ya no son públicas: se guardan en `pendientes/` y solo las
+  ven su autor y los administradores a través de la API; al aprobarlas pasan a la ruta pública.
+  `storage.rules` deja de permitir listar carpetas y las fotos públicas ya no se cachean como
+  inmutables (#14).
+- El rol de la base de datos es el que autoriza. Al cambiarlo se revocan las sesiones del usuario
+  y un token antiguo ya no puede volver a escribir el rol anterior (#15).
+- Las fotos se recodifican a JPEG sin metadatos EXIF/GPS, con un máximo de 2048 px, una miniatura
+  de 480 px y un límite de 40 megapíxeles (#27).
+- Límite de frecuencia en las escrituras: 30 por minuto y 10 subidas de fotos cada 10 minutos por
+  usuario, con 429 `DEMASIADAS_PETICIONES` y `Retry-After`. Un usuario puede tener como máximo
+  5 bancos pendientes (#26).
+
+- Firebase Hosting envía `Content-Security-Policy`, `X-Frame-Options: DENY` y
+  `Cross-Origin-Opener-Policy`, y las rutas de la SPA ya no se cachean (#32).
+
+### Corregido
+
+- La cabecera de la ficha tapaba la tarjeta del banco en cuanto cargaban las teselas del mapa; si el
+  catálogo de etiquetas no carga (p. ej. sin conexión), el filtro y el formulario siguen funcionando sin
+  errores en consola.
+- Frontend: las primeras peticiones tras recargar ya llevan el token, los guards no se quedan
+  esperando si falla la restauración de la sesión, y ante un 401/403 se pide un token nuevo y se
+  reintenta una vez; perder la sesión o el rol en otra pestaña saca de la página protegida (#15, #17, #18).
+- Frontend: la ficha y el perfil se refrescan sin desmontarse, se descartan las respuestas de otro
+  banco o sesión y el formulario de reseña sabe si ya has reseñado el banco (#20, #30, #31, #35).
+- Mapa: recorrer la lista con el teclado ya no la vacía, "Cerca de mí" respeta los filtros, el área
+  pedida siempre es válida, se avisa del límite de 500 bancos y se puede reintentar (#21, #28, #29).
+- Moderación: "Cargar más" ya no se salta elementos tras moderar (#19).
+- Formulario de banco: aviso de cambios sin guardar, comprobación del autor, mensajes de
+  coordenadas y edición con `If-Match` (#37, #38). Estrellas accesibles (#36).
+- Las subidas a Storage ya no ocupan una conexión de la base de datos, los ficheros se borran solo
+  después del commit y un fallo al guardar no deja ficheros huérfanos (#16).
+- Condiciones de carrera en el límite de 10 fotos por banco y en el intervalo de 12 h entre
+  check-ins (#23), y en los reportes de reseñas, que ya no se pierden ante ediciones simultáneas (#24).
+- El primer inicio de sesión con peticiones en paralelo ya no devuelve 500; una violación de
+  restricción en la base de datos responde 409 `CONFLICTO_DATOS` (#22).
+- Las reseñas y estadísticas de un perfil y el total de check-ins ya no muestran datos de bancos
+  no publicados (#25).
+- Al borrar un banco se borran también sus fotos del bucket (#33).
+- `ultimo_acceso` se actualiza cada 15 minutos de uso (#34).
+- Las cabeceras `Location` de reseñas e imágenes apuntan a recursos que existen (#38).
+
+### Añadido
+
+- `GET /api/v1/bancos/{id}/resenas/mia`, `GET /api/v1/resenas/{id}` y `GET /api/v1/imagenes/{id}`
+  (con `/archivo` y `/miniatura` para las fotos pendientes) (#14, #31, #38).
+- `ETag` en la ficha de un banco y `If-Match` opcional al editarlo (412 `BANCO_VERSION_OBSOLETA`) (#38).
+- Las imágenes exponen `thumbUrl` (#27). La galería y la moderación usan miniaturas, las fotos
+  pendientes se descargan con el token y las fotos se reducen a 1600 px en WebP en el navegador
+  antes de subirlas (#27).
+- Baja de cuenta (`DELETE /api/v1/usuarios/me`): el perfil se anonimiza, se borran favoritos,
+  check-ins y avisos, y se elimina la cuenta de Firebase; lo publicado se conserva (#57).
+- Historial de moderación (`GET /api/v1/admin/eventos`) con motivo opcional (`?motivo=`) al
+  rechazar bancos o fotos y al retirar reseñas (#59).
+- Notificaciones al autor cuando se aprueba o rechaza su banco o su foto, o se retira su reseña,
+  con contador de no leídas (`/api/v1/usuarios/me/notificaciones`) (#60).
+- Frontend: recuperar la contraseña, aviso para confirmar el email (con reenvío), inicio de sesión
+  con Google por redirección si el navegador bloquea la ventana (#54); baja de cuenta desde el
+  perfil (#57); campana de notificaciones en la cabecera (#60); motivo al moderar con sugerencias
+  e historial de moderación (#59).
+- Avisos de bancos rotos, sucios o desaparecidos: un aviso abierto por usuario y banco
+  (409 `INCIDENCIA_DUPLICADA`), resumen público de avisos abiertos en la ficha y cola "Avisos" en
+  moderación para marcarlos como resueltos o descartados; quien avisó recibe una notificación (#75).
+- Buscador de direcciones en el mapa (`GET /api/v1/lugares`): datos de OpenStreetMap (Nominatim)
+  a través del backend, que se identifica con su User-Agent, guarda los resultados 24 h, quita los
+  repetidos y reparte entre todos los usuarios el cupo de una petición por segundo (503
+  `GEOCODIFICACION_NO_DISPONIBLE` si se agota). Prioriza lo cercano al centro del mapa y, al
+  elegir un resultado, encuadra su zona. Las búsquedas tienen su propio límite de 20 por minuto
+  por usuario o IP (#77).
+- Posibles fotos duplicadas en moderación: al subir cada foto se calcula su huella perceptual
+  (dHash de 64 bits) y la cola de fotos pendientes muestra hasta 3 fotos ya subidas que se le
+  parecen (6 bits de diferencia como mucho), de ese u otros bancos y en cualquier estado. Las fotos
+  anteriores a este cambio no tienen huella (#61).
+- Compartir un banco genera un enlace `/s/{id}` que sirve el backend con las etiquetas Open Graph
+  (título, descripción o resumen, primera foto o imagen genérica) y lleva a la ficha al instante, así
+  que el enlace se ve con vista previa en WhatsApp, Telegram o X. El backend sirve también
+  `sitemap.xml` con los bancos publicados y `robots.txt`; Firebase Hosting reenvía esas rutas a Cloud
+  Run. La ficha actualiza la descripción, las etiquetas Open Graph y el enlace canónico (#56).
+- Benchify se puede instalar como aplicación (PWA): manifest con iconos y atajo para añadir un banco,
+  y service worker que guarda la aplicación y las teselas del mapa visitadas para abrirla sin
+  conexión. Sin conexión el mapa enseña los últimos bancos cargados (guardados en el navegador, nunca
+  respuestas personales de la API) y, cuando hay una versión nueva, se ofrece actualizar (#55).
+- La web está en español e inglés: el idioma se elige con el botón de la cabecera (o se toma del
+  navegador) y se aplica a textos, títulos de página, fechas, números y a la cabecera
+  `Accept-Language` de las peticiones a la API. Los textos están en ficheros `*.i18n.ts` por
+  componente y el compilador exige que la traducción inglesa tenga todas las claves. Los errores de la
+  API y las notificaciones, que el backend genera en español, se muestran en inglés a partir de su
+  código o de su tipo (#62).
+
+### Cambiado
+
+- Despliegue gratuito y sin tarjeta: Firebase en el plan Spark (Authentication y Hosting), la API en
+  el plan gratuito de Render (`render.yaml`, se despliega al llegar a `main`) y la base de datos en
+  Neon (PostgreSQL 17 con PostGIS). Las fotos se guardan en la base de datos (V16) y la API las sirve
+  con caché de un año, porque Firebase Storage es de pago; se reducen a 1600 px. Un workflow avisa a
+  la API cada 10 minutos para que Render no la duerma. El frontend se publica en Hosting desde GitHub
+  Actions con Workload Identity Federation, sin claves, y con canal de vista previa en los PRs;
+  `deploy/preparar-proyecto.sh` lo prepara una vez y no necesita facturación (#67).
+- Arranque en frío del backend más corto con Class Data Sharing en la imagen: de ~7 s a ~4,5 s en las
+  pruebas locales. La JVM se ajusta para caber en 512 MB (#66).
+- Frontend en Angular 22 y TypeScript 6. AngularFire se sustituye por el SDK de Firebase: la app es
+  zoneless y solo usa autenticación, así que el envoltorio sobraba y era lo que impedía actualizar (#68).
+- La dirección de la API se escribe en el build (`deploy/configurar-frontend.mjs`) y los enlaces para
+  compartir apuntan a ella. Solo los ficheros con hash se cachean como inmutables (antes también
+  `leaflet.css`, que no lo lleva) (#55).
+- Publicar bancos, reseñas o fotos exige haber verificado el email (403 `EMAIL_NO_VERIFICADO`);
+  los administradores quedan exentos (#54).
+- Editar un banco publicado ya no lo retira del mapa: si lo edita su autor, el cambio queda como
+  edición pendiente (`PUT` responde 202) y el banco sigue como estaba hasta que un moderador la
+  aplica o la descarta desde la nueva cola "Ediciones", que muestra solo los campos que cambian. Una
+  edición nueva sustituye a la pendiente; el autor ve el aviso en la ficha y en el formulario
+  (`GET /api/v1/bancos/{id}/edicion-pendiente`) y recibe una notificación con el resultado (#58).
+- Migraciones V11 (baja de cuentas e índices de claves foráneas), V12 (historial y notificaciones)
+  V13 (avisos de la comunidad), V14 (huella de las fotos) y V15 (ediciones pendientes).
+
+- Límite de subida de fotos unificado en 10 MB (#27) y máximo de 10000 en el número de página (#41).
+- Migraciones V8 (miniaturas de las imágenes) y V10 (versión de las reseñas para el bloqueo optimista).
+
 ## [1.0.1] - 2026-10-27
 
 ### Corregido
@@ -73,5 +225,7 @@ con una API REST hexagonal y una SPA Angular, con Firebase y PostGIS.
 - Reglas de Storage: lectura pública de fotos de bancos y ninguna escritura desde el cliente.
 - Respuestas 401/403 sin filtrar detalles internos; los errores inesperados no exponen mensajes.
 
+[Sin publicar]: https://github.com/Maanuu77/Benchify/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Maanuu77/Benchify/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/Maanuu77/Benchify/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Maanuu77/Benchify/releases/tag/v1.0.0

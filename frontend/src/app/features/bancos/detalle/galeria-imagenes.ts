@@ -1,104 +1,162 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
-import { firstValueFrom } from 'rxjs';
+import { catchError, combineLatest, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { toApiError } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
 import { Imagen } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
+import { textos, textosActuales } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
+import { comprimirImagen } from '../../../shared/imagenes/comprimir-imagen';
+import { ImagenSrc } from '../../../shared/imagenes/imagen-src';
 import { Confirmation } from '../../../shared/ui/confirm-dialog';
+import { GALERIA_IMAGENES } from './galeria-imagenes.i18n';
+
+/** Resultado de pedir las fotos: la lista, o null y el mensaje si ha fallado. */
+interface CargaFotos {
+  lista: Imagen[] | null;
+  error: string | null;
+}
 
 export const TIPOS_IMAGEN = ['image/jpeg', 'image/png', 'image/webp'];
-export const MAX_BYTES_IMAGEN = 5 * 1024 * 1024;
+/** Mismo límite que el servidor; se comprueba después de comprimir la foto en el navegador. */
+export const MAX_BYTES_IMAGEN = 10 * 1024 * 1024;
 
-/** Comprobación previa en el cliente; el backend valida además el contenido real del fichero. */
-export function validarImagen(file: File): string | null {
-  if (!TIPOS_IMAGEN.includes(file.type)) return 'Solo se admiten fotos JPEG, PNG o WebP.';
-  if (file.size > MAX_BYTES_IMAGEN) return 'La foto no puede superar 5 MB.';
-  return null;
+/** Comprobaciones previas en el cliente; el backend valida además el contenido real del fichero. */
+export function validarTipoImagen(file: File): string | null {
+  return TIPOS_IMAGEN.includes(file.type) ? null : textosActuales(GALERIA_IMAGENES).tipoNoAdmitido;
+}
+
+export function validarTamanoImagen(file: File): string | null {
+  return file.size > MAX_BYTES_IMAGEN ? textosActuales(GALERIA_IMAGENES).demasiadoGrande : null;
 }
 
 @Component({
   selector: 'bf-galeria-imagenes',
-  imports: [MatButton, MatIconButton, MatIcon, MatProgressBar],
+  imports: [MatIconButton, MatIcon, MatProgressBar, ImagenSrc],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section aria-labelledby="titulo-fotos">
       <div class="cabecera">
-        <h2 id="titulo-fotos">Fotos</h2>
-        @if (puedeSubir()) {
-          <input #selector type="file" class="oculto" [accept]="tipos" (change)="subir(selector)" aria-label="Elegir foto" />
-          <button mat-stroked-button type="button" [disabled]="subiendo()" (click)="selector.click()">
-            <mat-icon aria-hidden="true">add_a_photo</mat-icon> Añadir foto
-          </button>
-        }
+        <h2 id="titulo-fotos">{{ t.fotos }} <span class="cuenta">{{ imagenes().length || '' }}</span></h2>
       </div>
       @if (subiendo()) {
-        <mat-progress-bar mode="indeterminate" aria-label="Subiendo foto" />
+        <mat-progress-bar mode="indeterminate" [attr.aria-label]="t.subiendo" />
       }
-      @if (imagenes().length === 0) {
-        <p class="vacio">{{ error() ?? 'Este banco aún no tiene fotos.' }}</p>
+      <input #selector type="file" class="oculto" [accept]="tipos" (change)="subir(selector)" [attr.aria-label]="t.elegir"
+             [disabled]="!puedeSubir()" />
+      @if (imagenes().length === 0 && !puedeSubir()) {
+        <p class="vacio">{{ error() ?? t.sinFotos }}</p>
       } @else {
         <ul class="galeria">
           @for (imagen of imagenes(); track imagen.id; let i = $index) {
             <li>
               @if (rotas().has(imagen.id)) {
-                <div class="rota" role="img" [attr.aria-label]="'Foto ' + (i + 1) + ' no disponible'">
+                <div class="rota" role="img" [attr.aria-label]="t.fotoNoDisponibleN(i + 1)">
                   <mat-icon aria-hidden="true">broken_image</mat-icon>
-                  <span>Foto no disponible</span>
+                  <span>{{ t.fotoNoDisponible }}</span>
                 </div>
               } @else {
-                <img [src]="imagen.url" [alt]="'Foto ' + (i + 1) + ' de ' + tituloBanco()" loading="lazy"
-                     (error)="marcarRota(imagen.id)" />
+                <button type="button" class="miniatura" (click)="ampliar(imagen, visor)"
+                        [attr.aria-label]="t.ampliarN(i + 1)">
+                  <img [bfImagenSrc]="imagen.thumbUrl" [autenticada]="imagen.requiereAutenticacion"
+                       [alt]="t.fotoNDe(i + 1, tituloBanco())" loading="lazy"
+                       (error)="marcarRota(imagen.id)" (fallo)="marcarRota(imagen.id)" />
+                </button>
               }
               @if (imagen.estado === 'PENDIENTE') {
-                <span class="pendiente">Pendiente de revisión</span>
+                <span class="pendiente">{{ t.pendiente }}</span>
               }
               @if (imagen.subidaPor === miUid()) {
-                <button mat-icon-button type="button" class="borrar" (click)="borrar(imagen)" aria-label="Borrar foto">
+                <button mat-icon-button type="button" class="borrar" (click)="borrar(imagen)" [attr.aria-label]="t.borrarFoto">
                   <mat-icon>delete</mat-icon>
                 </button>
               }
             </li>
           }
+          @if (puedeSubir()) {
+            <li>
+              <button type="button" class="anadir" [disabled]="subiendo()" (click)="selector.click()">
+                <mat-icon aria-hidden="true">add_a_photo</mat-icon>
+                {{ t.anadirFoto }}
+              </button>
+            </li>
+          }
         </ul>
       }
     </section>
+
+    <dialog #visor class="visor" [attr.aria-label]="t.fotoAmpliada" (close)="ampliada.set(null)">
+      @if (ampliada(); as imagen) {
+        <img [bfImagenSrc]="imagen.url" [autenticada]="imagen.requiereAutenticacion" [alt]="t.fotoDe(tituloBanco())" />
+      }
+      <button mat-icon-button type="button" class="cerrar-visor" [attr.aria-label]="t.cerrar" (click)="visor.close()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </dialog>
   `,
   styles: `
-    .cabecera {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
     h2 {
-      font: var(--mat-sys-title-large);
+      margin: 0 0 12px;
+      font: 600 18px var(--bf-font);
+    }
+    .cuenta {
+      color: var(--bf-ink-2);
+      font-weight: 500;
     }
     .oculto {
       display: none;
     }
     .vacio {
-      color: var(--mat-sys-on-surface-variant);
+      color: var(--bf-ink-2);
     }
     .galeria {
       list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      display: flex;
       gap: 8px;
+      margin: 0 -16px;
+      padding: 0 16px 4px;
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      scrollbar-width: thin;
     }
     li {
       position: relative;
+      flex: none;
+      scroll-snap-align: start;
+    }
+    .miniatura,
+    .anadir,
+    .rota {
+      display: block;
+      width: 160px;
+      height: 120px;
+      padding: 0;
+      border: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--bf-surface-2);
+      cursor: zoom-in;
     }
     img {
       width: 100%;
-      aspect-ratio: 4 / 3;
+      height: 100%;
       object-fit: cover;
-      border-radius: 8px;
       display: block;
+    }
+    .anadir {
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 4px;
+      border: 1.5px dashed var(--bf-ink-2);
+      background: transparent;
+      color: var(--bf-ink-2);
+      font: 600 13px var(--bf-font);
+      cursor: pointer;
     }
     .rota {
       display: flex;
@@ -106,19 +164,17 @@ export function validarImagen(file: File): string | null {
       align-items: center;
       justify-content: center;
       gap: 4px;
-      aspect-ratio: 4 / 3;
-      border-radius: 8px;
-      background: var(--mat-sys-surface-container-high);
-      color: var(--mat-sys-on-surface-variant);
-      font: var(--mat-sys-label-medium);
+      color: var(--bf-ink-2);
+      font: 500 12px var(--bf-font);
+      cursor: default;
     }
     .pendiente {
       position: absolute;
       left: 8px;
       bottom: 8px;
       padding: 2px 8px;
-      border-radius: 4px;
-      font: var(--mat-sys-label-small);
+      border-radius: var(--bf-r-pill);
+      font: 600 11px var(--bf-font);
       background: var(--mat-sys-tertiary-container);
       color: var(--mat-sys-on-tertiary-container);
     }
@@ -126,7 +182,31 @@ export function validarImagen(file: File): string | null {
       position: absolute;
       top: 4px;
       right: 4px;
-      background: var(--mat-sys-surface);
+      background: var(--bf-glass);
+    }
+    .visor {
+      max-width: min(96vw, 1200px);
+      max-height: 92vh;
+      padding: 0;
+      border: 0;
+      border-radius: var(--bf-r);
+      background: #000;
+      overflow: hidden;
+
+      &::backdrop {
+        background: rgb(0 0 0 / 80%);
+      }
+      img {
+        max-height: 92vh;
+        object-fit: contain;
+      }
+    }
+    .cerrar-visor {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgb(0 0 0 / 55%);
+      color: #fff;
     }
   `,
 })
@@ -135,46 +215,73 @@ export class GaleriaImagenes {
   private readonly notifier = inject(Notifier);
   private readonly confirmation = inject(Confirmation);
   private readonly auth = inject(AuthService);
+  protected readonly t = textos(GALERIA_IMAGENES);
 
   readonly bancoId = input.required<string>();
   readonly tituloBanco = input('');
   readonly puedeSubir = input(false);
 
   protected readonly tipos = TIPOS_IMAGEN.join(',');
-  protected readonly imagenes = signal<Imagen[]>([]);
-  protected readonly error = signal<string | null>(null);
   protected readonly subiendo = signal(false);
   /** Imágenes cuyo fichero no se ha podido descargar (borrado o sin conexión con Storage). */
   protected readonly rotas = signal(new Set<string>());
+  /** Foto abierta en el visor a pantalla completa. */
+  protected readonly ampliada = signal<Imagen | null>(null);
   protected readonly miUid = computed(() => this.auth.session()?.uid ?? null);
+  private readonly recarga = signal(0);
 
-  constructor() {
-    effect(() => {
-      this.bancoId();
-      this.auth.session();
-      void this.cargar();
-    });
-  }
+  /**
+   * Depende del usuario y no de la sesión entera: la sesión cambia con cada renovación del token
+   * y la galería se volvería a pedir cada hora. Solo cuenta la respuesta de la última petición.
+   */
+  private readonly carga = toSignal(
+    combineLatest([toObservable(this.bancoId), toObservable(this.miUid), toObservable(this.recarga)]).pipe(
+      switchMap(([bancoId]) =>
+        this.api.imagenes(bancoId).pipe(
+          map((lista): CargaFotos => ({ lista, error: null })),
+          catchError((error: unknown) => of<CargaFotos>({ lista: null, error: toApiError(error).message })),
+        ),
+      ),
+    ),
+    { initialValue: { lista: [], error: null } as CargaFotos },
+  );
+  /** Si falla una recarga se conservan las fotos que ya había. */
+  protected readonly imagenes = linkedSignal<CargaFotos, Imagen[]>({
+    source: this.carga,
+    computation: (carga, anterior) => carga.lista ?? anterior?.value ?? [],
+  });
+  protected readonly error = computed(() => this.carga().error);
 
   protected async subir(selector: HTMLInputElement): Promise<void> {
-    const file = selector.files?.[0];
+    const original = selector.files?.[0];
     selector.value = '';
-    if (!file) return;
-    const invalida = validarImagen(file);
-    if (invalida) {
-      this.notifier.error(invalida);
+    if (!original) return;
+    const tipoInvalido = validarTipoImagen(original);
+    if (tipoInvalido) {
+      this.notifier.error(tipoInvalido);
       return;
     }
     this.subiendo.set(true);
     try {
+      const file = await comprimirImagen(original);
+      const demasiadoGrande = validarTamanoImagen(file);
+      if (demasiadoGrande) {
+        this.notifier.error(demasiadoGrande);
+        return;
+      }
       const imagen = await firstValueFrom(this.api.subirImagen(this.bancoId(), file));
-      this.notifier.success(imagen.estado === 'APROBADA' ? 'Foto publicada' : 'Foto enviada: se publicará cuando la revisemos');
-      await this.cargar();
+      this.notifier.success(imagen.estado === 'APROBADA' ? this.t.publicada : this.t.enviada);
+      this.recarga.update((n) => n + 1);
     } catch (error) {
       this.notifier.error(error);
     } finally {
       this.subiendo.set(false);
     }
+  }
+
+  protected ampliar(imagen: Imagen, visor: HTMLDialogElement): void {
+    this.ampliada.set(imagen);
+    visor.showModal?.();
   }
 
   protected marcarRota(id: string): void {
@@ -183,7 +290,7 @@ export class GaleriaImagenes {
 
   protected async borrar(imagen: Imagen): Promise<void> {
     const ok = await this.confirmation.ask({
-      titulo: 'Borrar foto', mensaje: 'La foto se eliminará definitivamente.', confirmar: 'Borrar', peligroso: true,
+      titulo: this.t.borrarFoto, mensaje: this.t.borrarMensaje, confirmar: this.t.borrar, peligroso: true,
     });
     if (!ok) return;
     try {
@@ -191,15 +298,6 @@ export class GaleriaImagenes {
       this.imagenes.update((lista) => lista.filter((i) => i.id !== imagen.id));
     } catch (error) {
       this.notifier.error(error);
-    }
-  }
-
-  private async cargar(): Promise<void> {
-    try {
-      this.imagenes.set(await firstValueFrom(this.api.imagenes(this.bancoId())));
-      this.error.set(null);
-    } catch (error) {
-      this.error.set(toApiError(error).message);
     }
   }
 }

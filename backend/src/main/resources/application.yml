@@ -29,21 +29,45 @@ spring:
     clean-disabled: true
   servlet:
     multipart:
+      # Same limit as ArchivoImagen.MAX_BYTES; the request only adds the multipart framing
       max-file-size: 10MB
-      max-request-size: 15MB
+      max-request-size: 11MB
 
 server:
   port: ${PORT:8080}
   shutdown: graceful
-  # Cloud Run terminates TLS at the load balancer and forwards X-Forwarded-* headers
+  # The hosting platform (Render) terminates TLS at its proxy and forwards X-Forwarded-* headers
   forward-headers-strategy: framework
 
 benchify:
   cors:
     allowed-origins: []
+  # Public address of the web app: shared links, sitemap.xml and Open Graph tags
+  web:
+    url: ${WEB_URL:http://localhost:4200}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:demo-benchify}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}
+  rate-limit:
+    # Writes under /api/** per user (client IP when anonymous). Buckets live in memory, so every
+    # instance enforces its own limit
+    writes:
+      capacity: 30
+      period: 1m
+    # POST /api/v1/bancos/{id}/imagenes
+    uploads:
+      capacity: 10
+      period: 10m
+    # GET /api/v1/lugares: each search may end up calling Nominatim
+    searches:
+      capacity: 20
+      period: 1m
+  # Address search through Nominatim (OpenStreetMap). Its usage policy asks for an identifying
+  # User-Agent, at most one request per second and caching the results
+  geocodificacion:
+    url: ${GEOCODING_URL:https://nominatim.openstreetmap.org}
+    intervalo: 1s
+    cache: 24h
 
 management:
   endpoints:
@@ -52,7 +76,7 @@ management:
         include: health,info
   endpoint:
     health:
-      # /actuator/health/liveness and /readiness for Cloud Run startup and liveness probes
+      # /actuator/health/liveness and /readiness for the platform health checks
       probes:
         enabled: true
       show-details: never

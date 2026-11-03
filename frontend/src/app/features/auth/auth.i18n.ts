@@ -1,0 +1,91 @@
+import { traducciones } from '../../core/i18n/idioma';
+
+/** Textos de las pantallas de inicio de sesión, registro y recuperación de la contraseña. */
+export const AUTH = traducciones(
+  {
+    lema: 'Encuentra tu banco.',
+    lema2: 'Siéntate. Compártelo.',
+    sub: 'El mapa colaborativo de los bancos públicos de tu ciudad.',
+    email: 'Email',
+    emailInvalido: 'Introduce un email válido',
+    emailObligatorio: 'El email es obligatorio',
+    contrasena: 'Contraseña',
+    contrasenaObligatoria: 'La contraseña es obligatoria',
+    mostrarContrasena: 'Mostrar contraseña',
+    ocultarContrasena: 'Ocultar contraseña',
+    volverALogin: 'Volver a iniciar sesión',
+    login: {
+      titulo: 'Iniciar sesión',
+      intro: 'Hola de nuevo. Entra para guardar favoritos, reseñar y añadir bancos.',
+      olvido: '¿Has olvidado la contraseña?',
+      entrar: 'Entrar',
+      o: 'o',
+      google: 'Continuar con Google',
+      sinCuenta: '¿No tienes cuenta?',
+      registrate: 'Regístrate',
+    },
+    registro: {
+      titulo: 'Crear cuenta',
+      intro: 'Únete y ayuda a que nadie se quede sin un buen sitio donde sentarse.',
+      nombre: 'Nombre',
+      nombreObligatorio: 'El nombre es obligatorio',
+      minimo: 'Mínimo 8 caracteres',
+      repite: 'Repite la contraseña',
+      noCoinciden: 'Las contraseñas no coinciden',
+      crear: 'Crear cuenta',
+      yaTienes: '¿Ya tienes cuenta?',
+      iniciaSesion: 'Inicia sesión',
+    },
+    recuperar: {
+      titulo: 'Recuperar la contraseña',
+      enviado:
+        'Si hay una cuenta con ese email, te hemos enviado un enlace para elegir una contraseña nueva. '
+        + 'Revisa también la carpeta de correo no deseado.',
+      intro: 'Escribe el email de tu cuenta y te enviaremos un enlace para cambiarla.',
+      enviar: 'Enviar enlace',
+    },
+  },
+  {
+    lema: 'Find your bench.',
+    lema2: 'Sit down. Share it.',
+    sub: 'The collaborative map of the public benches in your city.',
+    email: 'Email',
+    emailInvalido: 'Enter a valid email',
+    emailObligatorio: 'Email is required',
+    contrasena: 'Password',
+    contrasenaObligatoria: 'Password is required',
+    mostrarContrasena: 'Show password',
+    ocultarContrasena: 'Hide password',
+    volverALogin: 'Back to sign in',
+    login: {
+      titulo: 'Sign in',
+      intro: 'Welcome back. Sign in to save favourites, write reviews and add benches.',
+      olvido: 'Forgotten your password?',
+      entrar: 'Sign in',
+      o: 'or',
+      google: 'Continue with Google',
+      sinCuenta: "Don't have an account?",
+      registrate: 'Sign up',
+    },
+    registro: {
+      titulo: 'Create account',
+      intro: 'Join in and help make sure nobody is left without a good place to sit.',
+      nombre: 'Name',
+      nombreObligatorio: 'Name is required',
+      minimo: 'At least 8 characters',
+      repite: 'Repeat the password',
+      noCoinciden: "The passwords don't match",
+      crear: 'Create account',
+      yaTienes: 'Already have an account?',
+      iniciaSesion: 'Sign in',
+    },
+    recuperar: {
+      titulo: 'Reset your password',
+      enviado:
+        "If there's an account with that email, we've sent you a link to choose a new password. "
+        + 'Check your spam folder too.',
+      intro: "Enter your account's email and we'll send you a link to change it.",
+      enviar: 'Send link',
+    },
+  },
+);

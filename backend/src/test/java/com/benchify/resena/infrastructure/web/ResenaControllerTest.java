@@ -3,6 +3,7 @@ package com.benchify.resena.infrastructure.web;
 import com.benchify.resena.application.port.in.ResenasUseCase;
 import com.benchify.resena.application.port.in.ResenasUseCase.ResenaCommand;
 import com.benchify.resena.domain.Resena;
+import com.benchify.resena.domain.ResenaNotFoundException;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.ConflictException;
 import com.benchify.shared.domain.PageQuery;
@@ -30,8 +31,8 @@ import static org.mockito.Mockito.when;
 class ResenaControllerTest {
 
     private static final UUID BANCO = UUID.randomUUID();
-    private static final Resena RESENA = Resena.publicar(UUID.randomUUID(), BANCO, Actor.user("ana"), 4, "Bonito",
-            Instant.parse("2026-10-25T10:00:00Z")).conReporteAdicional();
+    private static final Resena RESENA = new Resena(UUID.randomUUID(), BANCO, "ana", "Ana", 4, "Bonito",
+            Instant.parse("2026-10-25T10:00:00Z"), null, 1, false, 0);
 
     @Autowired
     private MockMvcTester mvc;
@@ -99,6 +100,51 @@ class ResenaControllerTest {
     @Test
     void reportingRequiresAuthentication() {
         assertThat(mvc.post().uri("/api/v1/resenas/{id}/reportes", RESENA.id())).hasStatus(401);
+    }
+
+    @Test
+    void theLocationOfAPublishedReviewCanBeRead() {
+        when(resenas.obtener(RESENA.id(), null)).thenReturn(RESENA);
+        when(resenas.obtener(RESENA.id(), Actor.user("luis"))).thenThrow(new ResenaNotFoundException(RESENA.id()));
+
+        assertThat(mvc.get().uri("/api/v1/resenas/{id}", RESENA.id()))
+                .hasStatusOk()
+                .bodyJson()
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$.id").isEqualTo(RESENA.id().toString());
+                    assertThat(json).doesNotHavePath("$.numReportes");
+                });
+        assertThat(mvc.get().uri("/api/v1/resenas/{id}", RESENA.id()).header("Authorization", bearer("luis")))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("RESENA_NOT_FOUND");
+    }
+
+    @Test
+    void ownReviewOfABenchRequiresAuthentication() {
+        when(resenas.mia(BANCO, Actor.user("ana"))).thenReturn(RESENA);
+        when(resenas.mia(BANCO, Actor.user("luis"))).thenThrow(ResenaNotFoundException.sinResenaPropia(BANCO));
+
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", BANCO)).hasStatus(401);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", BANCO).header("Authorization", bearer("ana")))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(RESENA.id().toString());
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", BANCO).header("Authorization", bearer("luis")))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("RESENA_NO_ENCONTRADA");
+    }
+
+    @Test
+    void pagesBeyondTheMaximumAreRejected() {
+        when(resenas.deUsuario("ana", new PageQuery(PageQuery.MAX_PAGE, 20))).thenReturn(PageResult.empty(
+                new PageQuery(PageQuery.MAX_PAGE, 20)));
+
+        assertThat(mvc.get().uri("/api/v1/usuarios/ana/resenas?page={page}", PageQuery.MAX_PAGE)).hasStatusOk();
+        assertThat(mvc.get().uri("/api/v1/usuarios/ana/resenas?page={page}", PageQuery.MAX_PAGE + 1))
+                .hasStatus(400)
+                .bodyJson()
+                .satisfies(json -> {
+                    assertThat(json).extractingPath("$.code").isEqualTo("VALIDATION_FAILED");
+                    assertThat(json).extractingPath("$.errors[0].field").isEqualTo("page");
+                    assertThat(json).extractingPath("$.errors[0].message")
+                            .isEqualTo("La página no puede ser mayor que 10000");
+                });
     }
 
     @Test

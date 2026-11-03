@@ -1,40 +1,54 @@
 import { Routes } from '@angular/router';
 import { adminGuard, anonymousGuard, authGuard } from './core/auth/guards';
+import { CORE } from './core/i18n/core.i18n';
+import { textos } from './core/i18n/idioma';
+import { cambiosSinGuardarGuard } from './features/bancos/formulario/cambios-sin-guardar.guard';
+
+/** Título de la pestaña en el idioma de la visita (se resuelve al navegar, con inyección disponible). */
+const titulo = (clave: keyof (typeof CORE)['es']['titulos']) => () => textos(CORE).titulos[clave];
 
 /** Cada feature se carga bajo demanda (lazy loading) para mantener pequeño el bundle inicial. */
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'mapa' },
   {
     path: 'mapa',
-    title: 'Mapa · Benchify',
+    title: titulo('mapa'),
     loadComponent: () => import('./features/mapa/mapa-page').then((m) => m.MapaPage),
   },
   {
     path: 'bancos/nuevo',
-    title: 'Añadir banco · Benchify',
+    title: titulo('anadirBanco'),
     canActivate: [authGuard],
+    runGuardsAndResolvers: 'always',
+    canDeactivate: [cambiosSinGuardarGuard],
     loadComponent: () => import('./features/bancos/formulario/banco-form-page').then((m) => m.BancoFormPage),
   },
   {
     path: 'bancos/:id/editar',
-    title: 'Editar banco · Benchify',
+    title: titulo('editarBanco'),
     canActivate: [authGuard],
+    runGuardsAndResolvers: 'always',
+    canDeactivate: [cambiosSinGuardarGuard],
     loadComponent: () => import('./features/bancos/formulario/banco-form-page').then((m) => m.BancoFormPage),
   },
+  // Enlace para compartir: en producción lo sirve el backend con las etiquetas Open Graph; si llega aquí
+  // (desarrollo, o la app ya cargada), lleva directamente a la ficha
+  { path: 's/:id', redirectTo: ({ params }) => `/bancos/${params['id']}` },
   {
     path: 'bancos/:id',
-    title: 'Banco · Benchify',
+    title: titulo('banco'),
     loadComponent: () => import('./features/bancos/detalle/banco-detalle-page').then((m) => m.BancoDetallePage),
   },
   {
     path: 'perfil',
-    title: 'Mi perfil · Benchify',
+    title: titulo('miPerfil'),
     canActivate: [authGuard],
+    runGuardsAndResolvers: 'always',
     loadComponent: () => import('./features/perfil/perfil-page').then((m) => m.PerfilPage),
   },
   {
     path: 'usuarios/:id',
-    title: 'Perfil · Benchify',
+    title: titulo('perfil'),
     loadComponent: () => import('./features/perfil/perfil-page').then((m) => m.PerfilPage),
   },
   {
@@ -44,19 +58,25 @@ export const routes: Routes = [
   },
   {
     path: 'login',
-    title: 'Iniciar sesión · Benchify',
+    title: titulo('login'),
     canActivate: [anonymousGuard],
     loadComponent: () => import('./features/auth/login-page').then((m) => m.LoginPage),
   },
   {
+    path: 'recuperar',
+    title: titulo('recuperar'),
+    canActivate: [anonymousGuard],
+    loadComponent: () => import('./features/auth/recuperar-page').then((m) => m.RecuperarPage),
+  },
+  {
     path: 'registro',
-    title: 'Crear cuenta · Benchify',
+    title: titulo('registro'),
     canActivate: [anonymousGuard],
     loadComponent: () => import('./features/auth/registro-page').then((m) => m.RegistroPage),
   },
   {
     path: '**',
-    title: 'Página no encontrada · Benchify',
+    title: titulo('noEncontrada'),
     loadComponent: () => import('./features/not-found/not-found-page').then((m) => m.NotFoundPage),
   },
 ];

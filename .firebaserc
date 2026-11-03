@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "benchify-prod",
+    "default": "benchify-86edd",
     "dev": "demo-benchify"
   }
 }

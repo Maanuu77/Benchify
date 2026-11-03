@@ -1,12 +1,12 @@
 import { Environment } from './environment.model';
 
 /**
- * Producción (Firebase Hosting). Sustituye los valores de Firebase por los de la app web de tu
- * proyecto (Consola de Firebase → Configuración del proyecto → Tus apps) y la URL de Cloud Run.
+ * Producción (Firebase Hosting + API en Render). No se edita a mano: deploy/configurar-frontend.mjs
+ * escribe la dirección de la API y la configuración web de Firebase antes de compilar.
  */
 export const environment: Environment = {
   production: true,
-  apiUrl: 'https://benchify-api-REPLACE_WITH_CLOUD_RUN_HASH-ew.a.run.app/api/v1',
+  apiUrl: '/api/v1',
   firebase: {
     projectId: 'REPLACE_WITH_FIREBASE_PROJECT_ID',
     apiKey: 'REPLACE_WITH_FIREBASE_WEB_API_KEY',

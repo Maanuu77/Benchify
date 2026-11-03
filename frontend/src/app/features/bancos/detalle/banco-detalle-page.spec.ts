@@ -4,23 +4,28 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { BancosApi } from '../../../core/api/bancos-api';
+import { API_URL } from '../../../core/config/api-url';
 import { Banco } from '../../../core/api/models';
 import { UsuariosApi } from '../../../core/api/usuarios-api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { FakeAuthService } from '../../../core/auth/testing/fake-auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { IDIOMA } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
+import { AvisosBanco } from './avisos-banco';
 import { BancoDetallePage } from './banco-detalle-page';
-import { GaleriaImagenes, validarImagen } from './galeria-imagenes';
+import { GaleriaImagenes, validarTamanoImagen, validarTipoImagen } from './galeria-imagenes';
 import { ResenasSection } from './resenas-section';
 
-@Component({ selector: 'bf-bench-map, bf-galeria-imagenes, bf-resenas-section', template: '' })
+@Component({ selector: 'bf-bench-map, bf-avisos-banco, bf-galeria-imagenes, bf-resenas-section', template: '' })
 class Stub {
   readonly bancos = input<unknown>();
   readonly centro = input<unknown>();
   readonly zoom = input<unknown>();
   readonly ariaLabel = input<unknown>();
+  readonly seleccionado = input<unknown>();
+  readonly interactivo = input<unknown>();
   readonly bancoId = input<unknown>();
   readonly tituloBanco = input<unknown>();
   readonly puedeSubir = input<unknown>();
@@ -40,7 +45,7 @@ describe('BancoDetallePage', () => {
   let fixture: ComponentFixture<BancoDetallePage>;
   let element: HTMLElement;
   let auth: FakeAuthService;
-  let bancos: { obtener: ReturnType<typeof vi.fn>; eliminar: ReturnType<typeof vi.fn> };
+  let bancos: Record<'obtener' | 'eliminar' | 'edicionPendiente', ReturnType<typeof vi.fn>>;
   let usuarios: Record<string, ReturnType<typeof vi.fn>>;
   let notifier: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let geo: { posicionActual: ReturnType<typeof vi.fn> };
@@ -54,7 +59,9 @@ describe('BancoDetallePage', () => {
 
   beforeEach(() => {
     auth = new FakeAuthService();
-    bancos = { obtener: vi.fn(() => of(BANCO)), eliminar: vi.fn(() => of(undefined)) };
+    bancos = {
+      obtener: vi.fn(() => of(BANCO)), eliminar: vi.fn(() => of(undefined)), edicionPendiente: vi.fn(() => of(null)),
+    };
     usuarios = {
       esFavorito: vi.fn(() => of(false)), totalCheckIns: vi.fn(() => of(2)),
       marcarFavorito: vi.fn(() => of(undefined)), desmarcarFavorito: vi.fn(() => of(undefined)),
@@ -65,6 +72,7 @@ describe('BancoDetallePage', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
+        { provide: API_URL, useValue: 'https://api.benchify.test/api/v1' },
         { provide: AuthService, useValue: auth },
         { provide: BancosApi, useValue: bancos },
         { provide: UsuariosApi, useValue: usuarios },
@@ -73,7 +81,7 @@ describe('BancoDetallePage', () => {
       ],
     });
     TestBed.overrideComponent(BancoDetallePage, {
-      remove: { imports: [BenchMap, GaleriaImagenes, ResenasSection] },
+      remove: { imports: [BenchMap, AvisosBanco, GaleriaImagenes, ResenasSection] },
       add: { imports: [Stub] },
     });
   });
@@ -88,6 +96,47 @@ describe('BancoDetallePage', () => {
     expect(element.textContent).toContain('Con sombra');
     expect(element.textContent).toContain('#sombra');
     expect(element.textContent).not.toContain('Eliminar');
+  });
+
+  it('shares the link that carries the preview and describes the page for search engines', async () => {
+    const share = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    try {
+      await crear();
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(BANCO.descripcion);
+
+      Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Compartir'))!.click();
+      await fixture.whenStable();
+
+      expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: `https://api.benchify.test/s/${BANCO.id}` }));
+    } finally {
+      delete (navigator as { share?: unknown }).share;
+    }
+  });
+
+  it('refreshes the bench without unmounting the page', async () => {
+    await crear();
+    const cabecera = element.querySelector('h1');
+    bancos.obtener.mockReturnValue(of({ ...BANCO, numResenas: 4 }));
+
+    fixture.componentInstance['recargar']();
+    await fixture.whenStable();
+
+    expect(element.querySelector('h1')).toBe(cabecera);
+    expect(element.textContent).toContain('4 reseñas');
+  });
+
+  it('reloads the bench and the favourite when the user signs in', async () => {
+    usuarios['esFavorito'].mockReturnValue(of(true));
+    await crear();
+    expect(usuarios['esFavorito']).not.toHaveBeenCalled();
+
+    auth.signIn();
+    await fixture.whenStable();
+
+    expect(bancos.obtener).toHaveBeenCalledTimes(2);
+    expect(usuarios['esFavorito']).toHaveBeenCalledWith('b1');
+    expect(element.querySelector('[aria-pressed]')?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('shows a not found page for a 404', async () => {
@@ -138,13 +187,48 @@ describe('BancoDetallePage', () => {
     expect(element.textContent).toContain('Editar');
     expect(element.textContent).toContain('Eliminar');
   });
+
+  it('tells the author their edit is waiting for moderation, and only them', async () => {
+    bancos['edicionPendiente'].mockReturnValue(of({ id: 'r1', fecha: '2026-11-01T09:30:00Z' }));
+    await crear();
+    expect(element.textContent).not.toContain('pendientes de revisión');
+    expect(bancos['edicionPendiente']).not.toHaveBeenCalled();
+
+    auth.signIn({ uid: 'autor' });
+    await fixture.whenStable();
+
+    expect(element.textContent).toContain('pendientes de revisión');
+    expect(bancos['edicionPendiente']).toHaveBeenCalledWith(BANCO.id);
+  });
+
+  it('speaks English when that is the chosen language', async () => {
+    TestBed.overrideProvider(IDIOMA, { useValue: 'en' });
+    auth.signIn({ uid: 'autor' });
+    await crear();
+
+    expect(element.textContent).toContain('3 reviews');
+    expect(element.textContent).toContain('2 check-ins');
+    expect(element.textContent).toContain('Shaded');
+    expect(element.textContent).toContain('Stone');
+    expect(element.textContent).toContain('Added by');
+    expect(element.textContent).toContain('Delete');
+    expect(element.textContent).not.toContain('Eliminar');
+
+    Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes("I'm here"))!.click();
+    await fixture.whenStable();
+    expect(notifier.success).toHaveBeenCalledWith('Checked in! You were 12 m away.');
+  });
 });
 
-describe('validarImagen', () => {
-  it('accepts supported images up to 5 MB and rejects the rest', () => {
-    expect(validarImagen(new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }))).toBeNull();
-    expect(validarImagen(new File(['x'], 'a.gif', { type: 'image/gif' }))).toContain('JPEG, PNG o WebP');
-    expect(validarImagen(new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'a.png', { type: 'image/png' })))
-      .toContain('5 MB');
+describe('validación de fotos', () => {
+  it('accepts supported types and rejects the rest', () => {
+    expect(validarTipoImagen(new File([new Uint8Array(10)], 'a.jpg', { type: 'image/jpeg' }))).toBeNull();
+    expect(validarTipoImagen(new File(['x'], 'a.gif', { type: 'image/gif' }))).toContain('JPEG, PNG o WebP');
+  });
+
+  it('accepts photos up to 10 MB, like the server', () => {
+    expect(validarTamanoImagen(new File([new Uint8Array(10 * 1024 * 1024)], 'a.png', { type: 'image/png' }))).toBeNull();
+    expect(validarTamanoImagen(new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'a.png', { type: 'image/png' })))
+      .toContain('10 MB');
   });
 });

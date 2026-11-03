@@ -10,6 +10,7 @@
 | [0006](0006-firebase-authentication.md) | Firebase Authentication en lugar de JWT propio | Aceptado |
 | [0007](0007-estrategia-de-tests-backend.md) | Estrategia de tests del backend | Aceptado |
 | [0008](0008-frontend-angular-21.md) | Frontend con Angular 21, AngularFire y Angular Material | Aceptado |
-| [0009](0009-despliegue-cloud-run-firebase-hosting.md) | Backend en Cloud Run y frontend en Firebase Hosting | Aceptado |
+| [0009](0009-despliegue-cloud-run-firebase-hosting.md) | Backend en Cloud Run y frontend en Firebase Hosting | Sustituido en parte por 0010 |
+| [0010](0010-neon-y-despliegue-continuo.md) | Despliegue gratuito con Firebase Spark, Render y Neon | Aceptado |
 
 Nuevo ADR: copia [`template.md`](template.md) con el siguiente número libre.

@@ -1,23 +1,43 @@
-import { Component, input, output } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, forwardRef, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { BancosApi } from '../../core/api/bancos-api';
-import { BancoResumen, BoundingBox } from '../../core/api/models';
+import { BancoResumen, BoundingBox, Lugar } from '../../core/api/models';
 import { GeolocationService } from '../../core/geo/geolocation.service';
+import { IDIOMA } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { BenchMap, Punto } from '../../shared/map/bench-map';
 import { MapaPage, RADIO_CERCANIA } from './mapa-page';
+import { leerUltimaZona } from './ultima-zona';
+import { BuscadorLugares } from './buscador-lugares';
 
-@Component({ selector: 'bf-bench-map', template: '' })
+// Se registra como BenchMap para que viewChild(BenchMap) de la página lo encuentre
+@Component({
+  selector: 'bf-bench-map',
+  template: '',
+  providers: [{ provide: BenchMap, useExisting: forwardRef(() => BenchMapStub) }],
+})
 class BenchMapStub {
   readonly bancos = input<BancoResumen[]>([]);
   readonly centro = input<Punto>();
   readonly zoom = input(14);
   readonly usuario = input<Punto | null>(null);
+  readonly seleccionado = input<string | null>(null);
   readonly areaChange = output<BoundingBox>();
+  readonly vistaChange = output<unknown>();
   readonly bancoSelect = output<BancoResumen>();
   volarA = vi.fn();
+  encuadrar = vi.fn();
+  acercar = vi.fn();
+  alejar = vi.fn();
+}
+
+@Component({ selector: 'bf-buscador-lugares', template: '' })
+class BuscadorStub {
+  readonly cerca = input<unknown>();
+  readonly lugarElegido = output<Lugar>();
 }
 
 const banco = (id: string, puntuacionMedia: number, extra: Partial<BancoResumen> = {}): BancoResumen => ({
@@ -51,13 +71,19 @@ describe('MapaPage', () => {
         { provide: Notifier, useValue: notifier },
       ],
     });
-    TestBed.overrideComponent(MapaPage, { remove: { imports: [BenchMap] }, add: { imports: [BenchMapStub] } });
+    TestBed.overrideComponent(MapaPage, {
+      remove: { imports: [BenchMap, BuscadorLugares] },
+      add: { imports: [BenchMapStub, BuscadorStub] },
+    });
     fixture = TestBed.createComponent(MapaPage);
     element = fixture.nativeElement;
     fixture.detectChanges();
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    localStorage.clear();
+  });
 
   async function moverMapa(area = AREA): Promise<void> {
     fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub)
@@ -71,7 +97,7 @@ describe('MapaPage', () => {
 
     expect(api.enArea).toHaveBeenCalledWith(AREA, {});
     expect(element.textContent).toContain('2 bancos en esta zona');
-    const titulos = Array.from(element.querySelectorAll('[matListItemTitle]')).map((e) => e.textContent?.trim());
+    const titulos = Array.from(element.querySelectorAll('.titulo')).map((e) => e.textContent?.trim());
     expect(titulos).toEqual(['Banco b', 'Banco a']);
   });
 
@@ -84,6 +110,31 @@ describe('MapaPage', () => {
 
   it('shows an error state when the API fails', async () => {
     api.enArea.mockReturnValue(throwError(() => new Error('down')));
+    await moverMapa();
+
+    expect(element.querySelector('[role=alert]')?.textContent).toContain('No hemos podido cargar');
+  });
+
+  it('keeps the last loaded area to show it without connection', async () => {
+    await moverMapa();
+    expect(leerUltimaZona()?.bancos.map((b) => b.id)).toEqual(['a', 'b']);
+
+    // Otra visita, ya sin conexión
+    fixture.destroy();
+    fixture = TestBed.createComponent(MapaPage);
+    element = fixture.nativeElement;
+    fixture.detectChanges();
+    api.enArea.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
+    await moverMapa();
+
+    expect(element.textContent).toContain('Sin conexión: se muestran los últimos bancos que cargaste.');
+    expect(element.textContent).toContain('2 bancos en esta zona');
+    expect(element.querySelector('[role=alert]')).toBeNull();
+  });
+
+  it('shows the error when offline with nothing saved', async () => {
+    localStorage.clear();
+    api.enArea.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
     await moverMapa();
 
     expect(element.querySelector('[role=alert]')?.textContent).toContain('No hemos podido cargar');
@@ -105,6 +156,65 @@ describe('MapaPage', () => {
     expect(element.textContent).toContain('230 m');
   });
 
+  it('retries the visible area after an error', async () => {
+    api.enArea.mockReturnValueOnce(throwError(() => new Error('down')));
+    await moverMapa();
+
+    (element.querySelector('[role=alert] button') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(300);
+    fixture.detectChanges();
+
+    expect(api.enArea).toHaveBeenCalledTimes(2);
+    expect(element.textContent).toContain('2 bancos en esta zona');
+  });
+
+  it('warns when the API result limit is reached', async () => {
+    api.enArea.mockReturnValue(of(Array.from({ length: 500 }, (_, i) => banco(String(i), 3))));
+    await moverMapa();
+
+    expect(element.textContent).toContain('Más de 500 bancos en esta zona');
+    expect(element.textContent).toContain('Acerca el mapa');
+  });
+
+  it('refreshes the nearby list when the filters change', async () => {
+    geo.posicionActual.mockResolvedValue({ lat: 37.38, lng: -5.99, precision: 10 });
+    api.cercanos.mockReturnValue(of({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }));
+    await moverMapa();
+    (element.querySelector('.panel-header button') as HTMLButtonElement).click();
+    await vi.runAllTimersAsync();
+
+    fixture.componentInstance['filtro'].set({ accesible: true });
+    await vi.runAllTimersAsync();
+
+    expect(api.cercanos).toHaveBeenLastCalledWith(37.38, -5.99, RADIO_CERCANIA, { accesible: true }, { size: 20 });
+  });
+
+  it('selects a bench from the list without moving the map', async () => {
+    await moverMapa();
+    const mapa = fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub).componentInstance;
+
+    (element.querySelector('.titulo')!.closest('a') as HTMLElement).dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+
+    expect(element.querySelector('.seleccionado h2')?.textContent).toBe('Banco b');
+    expect(mapa.volarA).not.toHaveBeenCalled();
+    expect(api.enArea).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves the map to the searched place, framing its area when known', async () => {
+    const mapa = fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub).componentInstance;
+    const buscador = fixture.debugElement.query((d) => d.componentInstance instanceof BuscadorStub).componentInstance;
+    const sitio: Lugar = {
+      nombre: 'Triana', direccion: 'Triana, Sevilla', lat: 37.38, lng: -6.0, sur: 37.37, oeste: -6.01, norte: 37.39, este: -5.99,
+    };
+
+    buscador.lugarElegido.emit(sitio);
+    expect(mapa.encuadrar).toHaveBeenCalledWith(37.37, -6.01, 37.39, -5.99);
+
+    buscador.lugarElegido.emit({ ...sitio, sur: null, oeste: null, norte: null, este: null });
+    expect(mapa.volarA).toHaveBeenCalledWith(expect.objectContaining({ lat: 37.38, lng: -6.0 }), 16);
+  });
+
   it('reports a denied geolocation without breaking the page', async () => {
     geo.posicionActual.mockRejectedValue(new Error('Necesitamos permiso para usar tu ubicación.'));
 
@@ -113,5 +223,41 @@ describe('MapaPage', () => {
 
     expect(notifier.error).toHaveBeenCalledWith('Necesitamos permiso para usar tu ubicación.');
     expect(api.cercanos).not.toHaveBeenCalled();
+  });
+});
+
+describe('MapaPage in English', () => {
+  it('describes the visible benches in English', async () => {
+    vi.useFakeTimers();
+    try {
+      TestBed.configureTestingModule({
+        providers: [
+          provideRouter([]),
+          { provide: IDIOMA, useValue: 'en' },
+          { provide: BancosApi, useValue: { enArea: vi.fn(() => of([banco('a', 3, { numResenas: 2 }), banco('b', 4.5)])), etiquetas: vi.fn(() => of([])) } },
+          { provide: GeolocationService, useValue: {} },
+          { provide: Notifier, useValue: {} },
+        ],
+      });
+      TestBed.overrideComponent(MapaPage, {
+        remove: { imports: [BenchMap, BuscadorLugares] },
+        add: { imports: [BenchMapStub, BuscadorStub] },
+      });
+      const fixture = TestBed.createComponent(MapaPage);
+      const element: HTMLElement = fixture.nativeElement;
+      fixture.detectChanges();
+      fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub).componentInstance.areaChange.emit(AREA);
+      await vi.advanceTimersByTimeAsync(300);
+      fixture.detectChanges();
+
+      expect(element.querySelector('h1')?.textContent).toContain('Benches on the map');
+      expect(element.textContent).toContain('2 benches in this area');
+      expect(element.textContent).toContain('2 reviews');
+      expect(element.textContent).toContain('Near me');
+      expect(element.textContent).toContain('Rating');
+    } finally {
+      vi.useRealTimers();
+      localStorage.clear();
+    }
   });
 });

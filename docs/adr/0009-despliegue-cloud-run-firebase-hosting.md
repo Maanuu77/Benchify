@@ -1,6 +1,6 @@
 # ADR-0009: Backend en Cloud Run y frontend en Firebase Hosting
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado; backend, base de datos, fotos y forma de desplegar sustituidos por [ADR-0010](0010-neon-y-despliegue-continuo.md)
 - **Fecha:** 2026-10-26
 
 ## Contexto
@@ -32,3 +32,5 @@ para el frontend.
 - Toda la configuración de producción son variables de entorno documentadas en `.env.example`.
 - La configuración web de Firebase del frontend se fija en `environment.prod.ts` en el build:
   cambiar de proyecto exige recompilar.
+- La API se sirve por el dominio de Hosting (`/api/**` → Cloud Run): sin CORS ni URL de Cloud Run
+  en el build, y el service worker de la PWA puede guardar sus respuestas.

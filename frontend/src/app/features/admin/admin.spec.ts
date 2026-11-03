@@ -4,15 +4,18 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
-import { BancoModeracion, Page, Usuario } from '../../core/api/models';
+import { BancoModeracion, EventoModeracion, Page, PageRequest, Usuario } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { FakeAuthService } from '../../core/auth/testing/fake-auth.service';
+import { IDIOMA } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { AdminDashboard } from './admin-dashboard';
+import { AdminLayout } from './admin-layout';
 import { AdminUsuarios } from './admin-usuarios';
 import { Cola } from './cola';
 import { ColaBancos } from './cola-bancos';
+import { HistorialModeracion } from './historial-moderacion';
 
 const pagina = <T>(content: T[], total = content.length): Page<T> =>
   ({ content, page: 0, size: 20, totalElements: total, totalPages: 1 });
@@ -40,6 +43,28 @@ describe('Cola', () => {
     expect(cola.total()).toBe(2);
   });
 
+  it('does not skip items when resolved ones leave the server queue', async () => {
+    // Cola del servidor: lo que se resuelve desaparece y el resto se desplaza
+    const servidor = ['a', 'b', 'c', 'd', 'e'].map(banco);
+    const fuente = vi.fn(({ page = 0, size = 20 }: PageRequest) =>
+      of(pagina(servidor.slice(page * size, page * size + size), servidor.length)));
+    const cola = new Cola<BancoModeracion>(fuente, 2);
+    const resolver = (id: string) => {
+      servidor.splice(servidor.findIndex((b) => b.id === id), 1);
+      cola.quitar(id);
+    };
+
+    await cola.cargar();
+    resolver('a');
+    await cola.cargarMas();
+    expect(cola.items().map((b) => b.id)).toEqual(['b', 'c']);
+
+    resolver('b');
+    resolver('c');
+    await vi.waitFor(() => expect(cola.items().map((b) => b.id)).toEqual(['d', 'e']));
+    expect(cola.hayMas()).toBe(false);
+  });
+
   it('keeps an error message when the API fails', async () => {
     const cola = new Cola<BancoModeracion>(() => throwError(() => new HttpErrorResponse({ status: 503 })));
 
@@ -53,14 +78,14 @@ describe('Cola', () => {
 describe('admin screens', () => {
   let api: Record<string, ReturnType<typeof vi.fn>>;
   let auth: FakeAuthService;
-  let confirmation: { ask: ReturnType<typeof vi.fn> };
+  let confirmation: { ask: ReturnType<typeof vi.fn>; pedirMotivo: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     auth = new FakeAuthService();
     auth.signIn({ uid: 'root', rol: 'ADMIN' });
     api = {
       estadisticas: vi.fn(() => of({ bancosPendientes: 3, bancosPublicados: 40, bancosOcultos: 1, resenasReportadas: 2,
-        imagenesPendientes: 5, totalResenas: 120, totalUsuarios: 33 })),
+        imagenesPendientes: 5, totalResenas: 120, totalUsuarios: 33, edicionesPendientes: 4 })),
       bancos: vi.fn(() => of(pagina([banco('a'), banco('b')]))),
       aprobarBanco: vi.fn(() => of(banco('a'))),
       rechazarBanco: vi.fn(() => of(banco('b'))),
@@ -69,8 +94,14 @@ describe('admin screens', () => {
         { id: 'ana', email: 'ana@x', nombre: 'Ana', avatarUrl: null, ciudad: null, rol: 'USER', fechaRegistro: '2026-02-01' },
       ]))),
       cambiarRol: vi.fn(),
+      eventos: vi.fn(() => of(pagina<EventoModeracion>([
+        { id: 'e1', moderadorId: 'root', accion: 'IMAGEN_RECHAZADA', recursoTipo: 'IMAGEN', recursoId: 'i1',
+          motivo: 'Foto borrosa u oscura', fecha: '2026-11-01T10:00:00Z' },
+        { id: 'e2', moderadorId: 'root', accion: 'BANCO_APROBADO', recursoTipo: 'BANCO', recursoId: 'b1',
+          motivo: null, fecha: '2026-11-01T09:00:00Z' },
+      ]))),
     };
-    confirmation = { ask: vi.fn(async () => true) };
+    confirmation = { ask: vi.fn(async () => true), pedirMotivo: vi.fn(async () => 'Ya existe en el mapa') };
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -92,6 +123,7 @@ describe('admin screens', () => {
     const element: HTMLElement = (await render(AdminDashboard)).nativeElement;
 
     expect(element.querySelector('a[href="/bancos"]')?.textContent).toContain('3');
+    expect(element.querySelector('a[href="/ediciones"]')?.textContent).toContain('4ediciones pendientes');
     expect(element.textContent).toContain('fotos pendientes');
     expect(element.textContent).toContain('33');
   });
@@ -109,11 +141,68 @@ describe('admin screens', () => {
     expect(element.textContent).not.toContain('Banco a');
   });
 
+  it('history lists decisions with their reasons', async () => {
+    const element: HTMLElement = (await render(HistorialModeracion)).nativeElement;
+
+    expect(element.textContent).toContain('Historial (2)');
+    expect(element.textContent).toContain('Foto rechazada');
+    expect(element.textContent).toContain('«Foto borrosa u oscura»');
+    expect(element.querySelector('a[href="/bancos/b1"]')).not.toBeNull();
+  });
+
+  it('rejecting a bench sends the reason, and cancelling keeps it', async () => {
+    const fixture = await render(ColaBancos);
+    const element: HTMLElement = fixture.nativeElement;
+    const rechazar = () => Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Rechazar'))!;
+
+    confirmation.pedirMotivo.mockResolvedValueOnce(undefined);
+    rechazar().click();
+    await fixture.whenStable();
+    expect(api['rechazarBanco']).not.toHaveBeenCalled();
+
+    rechazar().click();
+    await fixture.whenStable();
+    expect(api['rechazarBanco']).toHaveBeenCalledWith('a', 'Ya existe en el mapa');
+  });
+
   it('admins cannot change their own role from the table', async () => {
     const element: HTMLElement = (await render(AdminUsuarios)).nativeElement;
     const selects = element.querySelectorAll('mat-select');
 
     expect(selects[0].getAttribute('aria-disabled')).toBe('true');
     expect(selects[1].getAttribute('aria-disabled')).toBe('false');
+  });
+
+  describe('in English', () => {
+    beforeEach(() => TestBed.overrideProvider(IDIOMA, { useValue: 'en' }));
+
+    it('labels the sections, the overview and the queues', async () => {
+      const layout: HTMLElement = (await render(AdminLayout)).nativeElement;
+      expect(layout.querySelector('h1')?.textContent).toBe('Moderation');
+      expect(layout.querySelector('nav')?.getAttribute('aria-label')).toBe('Moderation sections');
+      expect(layout.textContent).toContain('Overview');
+
+      const dashboard: HTMLElement = (await render(AdminDashboard)).nativeElement;
+      expect(dashboard.querySelector('a[href="/ediciones"]')?.textContent).toContain('4pending edits');
+      expect(dashboard.textContent).toContain('Published benches');
+
+      const historial: HTMLElement = (await render(HistorialModeracion)).nativeElement;
+      expect(historial.textContent).toContain('History (2)');
+      expect(historial.textContent).toContain('Photo rejected');
+      expect(historial.textContent).toContain('by a moderator');
+    });
+
+    it('asks for the rejection reason in English', async () => {
+      const fixture = await render(ColaBancos);
+      const element: HTMLElement = fixture.nativeElement;
+      expect(element.textContent).toContain('Pending benches (2)');
+
+      Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Reject'))!.click();
+      await fixture.whenStable();
+
+      expect(confirmation.pedirMotivo).toHaveBeenCalledWith(expect.objectContaining({
+        titulo: 'Reject bench', confirmar: 'Reject', sugerencias: expect.arrayContaining(['Already on the map']),
+      }));
+    });
   });
 });

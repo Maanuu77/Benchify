@@ -67,17 +67,16 @@ class ResenaTest {
     }
 
     @Test
-    void thirdReportSendsTheReviewToModeration() {
-        Resena resena = resena().conReporteAdicional().conReporteAdicional();
-        assertThat(resena.reportada()).isFalse();
+    void editingKeepsTheReportCountersAndTheVersionTheEditWasBasedOn() {
+        Resena reportada = new Resena(UUID.randomUUID(), UUID.randomUUID(), "ana", "Ana", 4, null, AHORA, null, 2,
+                false, 7);
 
-        Resena reportada = resena.conReporteAdicional();
-        assertThat(reportada.numReportes()).isEqualTo(3);
-        assertThat(reportada.reportada()).isTrue();
+        Resena editada = reportada.editar(ANA, 1, "Ha empeorado", AHORA.plusSeconds(60));
 
-        Resena revisada = reportada.sinReportes();
-        assertThat(revisada.numReportes()).isZero();
-        assertThat(revisada.reportada()).isFalse();
+        assertThat(editada.numReportes()).isEqualTo(2);
+        assertThat(editada.reportada()).isFalse();
+        assertThat(editada.version()).isEqualTo(7);
+        assertThat(resena().version()).isZero();
     }
 
     @Test

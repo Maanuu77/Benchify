@@ -3,16 +3,21 @@ package com.benchify.banco.domain;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
 import com.benchify.shared.domain.ForbiddenException;
+import com.benchify.shared.domain.PreconditionFailedException;
 
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.LongSupplier;
 
 /**
  * Agregado raíz de la feature. Las reglas de visibilidad, edición y moderación viven aquí
  * para que ningún adaptador pueda saltárselas.
  */
 public class Banco {
+
+    /** Bancos que un usuario puede tener a la vez esperando moderación. */
+    public static final int MAX_PENDIENTES_POR_AUTOR = 5;
 
     private final UUID id;
     private final Autor autor;
@@ -46,6 +51,18 @@ public class Banco {
                 actor.isAdmin() ? ahora : null, 0);
     }
 
+    /**
+     * Nadie puede tener más de {@link #MAX_PENDIENTES_POR_AUTOR} propuestas pendientes a la vez, para
+     * que un usuario no pueda llenar la cola de moderación. Los administradores publican
+     * directamente: no tienen límite y sus pendientes ni se cuentan.
+     */
+    public static void exigirCupoDePropuestas(Actor actor, LongSupplier pendientesDelAutor) {
+        if (!actor.isAdmin() && pendientesDelAutor.getAsLong() >= MAX_PENDIENTES_POR_AUTOR) {
+            throw new BusinessRuleException("BANCO_LIMITE_PENDIENTES", "Ya tienes " + MAX_PENDIENTES_POR_AUTOR
+                    + " bancos pendientes de moderación; espera a que se revisen antes de proponer otro");
+        }
+    }
+
     /** Un banco publicado lo ve todo el mundo; el resto solo su autor y los administradores. */
     public boolean esVisiblePara(Actor actor) {
         if (estado == EstadoBanco.PUBLICADO) {
@@ -58,16 +75,45 @@ public class Banco {
     }
 
     /**
-     * Si edita el autor, el banco vuelve a moderación para que no se cuelen cambios sin revisar.
-     * Las ediciones de un administrador mantienen el estado.
+     * Si el autor edita un banco publicado, los cambios no se aplican aquí: se guardan como una
+     * {@link RevisionBanco} y el banco sigue en el mapa con sus datos hasta que se aprueben. Un banco
+     * aún no publicado se puede corregir directamente, y un administrador siempre edita directamente.
      */
-    public void editar(DatosBanco nuevosDatos, Actor actor) {
+    public boolean edicionRequiereRevision(Actor actor) {
+        return !actor.isAdmin() && estado == EstadoBanco.PUBLICADO;
+    }
+
+    /** El autor y los administradores. */
+    public boolean puedeGestionar(Actor actor) {
+        return actor != null && actor.canManage(autor.id());
+    }
+
+    /** Comprueba que el actor puede editar el banco ahora mismo (también antes de proponer una revisión). */
+    public void exigirEditable(Actor actor) {
         exigirGestion(actor);
         exigirNoEliminado();
+    }
+
+    /** Cambia los datos directamente; ver {@link #edicionRequiereRevision}. */
+    public void editar(DatosBanco nuevosDatos, Actor actor) {
+        exigirEditable(actor);
+        if (edicionRequiereRevision(actor)) {
+            throw new IllegalStateException("La edición del autor de un banco publicado pasa por una revisión");
+        }
         this.datos = Objects.requireNonNull(nuevosDatos, "nuevosDatos");
-        if (!actor.isAdmin() && estado == EstadoBanco.PUBLICADO) {
-            estado = EstadoBanco.PENDIENTE;
-            fechaVerificacion = null;
+    }
+
+    /**
+     * Quien edita debe partir de la versión actual: si no, otra edición se ha guardado entretanto y
+     * esta la pisaría. Los permisos se comprueban antes, para no responder con un conflicto de
+     * versión a quien de todos modos no podría editar.
+     */
+    public void exigirVersion(long versionEsperada, Actor actor) {
+        exigirGestion(actor);
+        exigirNoEliminado();
+        if (version != versionEsperada) {
+            throw new PreconditionFailedException("BANCO_VERSION_OBSOLETA",
+                    "El banco ha cambiado desde que lo cargaste; recárgalo y vuelve a intentarlo");
         }
     }
 
@@ -109,7 +155,8 @@ public class Banco {
         }
     }
 
-    private void exigirNoEliminado() {
+    /** Un banco eliminado no admite cambios ni contenido nuevo, aunque los administradores lo sigan viendo. */
+    public void exigirNoEliminado() {
         if (estado == EstadoBanco.ELIMINADO) {
             throw new BusinessRuleException("BANCO_ELIMINADO", "El banco está eliminado");
         }

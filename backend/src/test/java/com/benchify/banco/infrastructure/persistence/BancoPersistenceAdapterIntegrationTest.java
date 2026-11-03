@@ -8,6 +8,7 @@ import com.benchify.banco.domain.BoundingBox;
 import com.benchify.banco.domain.Caracteristicas;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.DireccionPostal;
+import com.benchify.banco.domain.EntradaSitemap;
 import com.benchify.banco.domain.EstadoBanco;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
@@ -193,7 +194,36 @@ class BancoPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
         assertThat(bancos.countByEstado(EstadoBanco.PENDIENTE)).isEqualTo(antes + 2);
         assertThat(bancos.findByEstado(EstadoBanco.PENDIENTE, PageQuery.first(1)).content())
                 .extracting(Banco::id).containsExactly(viejo.id());
-        assertThat(bancos.existsPublicado(viejo.id())).isFalse();
+    }
+
+    @Test
+    void sitemapListsOnlyPublishedBenchesMostRecentlyChangedFirst() {
+        Instant futuro = Instant.parse("2100-01-01T00:00:00Z");
+        Banco reciente = Banco.proponer(UUID.randomUUID(), datos("Reciente", GIRALDA, Set.of(), false), AUTOR, AHORA);
+        reciente.aprobar(futuro);
+        bancos.save(reciente);
+        Banco pendiente = bancos.save(Banco.proponer(UUID.randomUUID(), datos("Pendiente", GIRALDA, Set.of(), false),
+                AUTOR, futuro.plusSeconds(60)));
+
+        List<EntradaSitemap> entradas = bancos.findPublicadosParaSitemap(10);
+
+        assertThat(entradas.getFirst()).isEqualTo(new EntradaSitemap(reciente.id(), futuro));
+        assertThat(entradas).extracting(EntradaSitemap::bancoId).doesNotContain(pendiente.id());
+        assertThat(bancos.findPublicadosParaSitemap(1)).hasSize(1);
+    }
+
+    @Test
+    void countsOnlyThePendingBenchesOfTheAuthor() {
+        long antes = bancos.countPendientesByAutorForUpdate("autor-it");
+        bancos.save(Banco.proponer(UUID.randomUUID(), datos("Pendiente", GIRALDA, Set.of(), false), AUTOR, AHORA));
+        publicado("Publicado", GIRALDA, 0, false);
+        Banco oculto = Banco.proponer(UUID.randomUUID(), datos("Oculto", GIRALDA, Set.of(), false), AUTOR, AHORA);
+        oculto.rechazar();
+        bancos.save(oculto);
+        bancos.save(Banco.proponer(UUID.randomUUID(), datos("Ajeno", GIRALDA, Set.of(), false), Actor.user("otro-it"),
+                AHORA));
+
+        assertThat(bancos.countPendientesByAutorForUpdate("autor-it")).isEqualTo(antes + 1);
     }
 
     private Banco publicado(String titulo, Ubicacion ubicacion, double media, boolean accesible) {

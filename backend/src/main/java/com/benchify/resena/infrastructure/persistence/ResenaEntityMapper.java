@@ -10,5 +10,13 @@ interface ResenaEntityMapper {
     Resena toDomain(ResenaEntity entity);
 
     @Mapping(target = "autorNombre", ignore = true)
+    @Mapping(target = "estadoBanco", ignore = true)
     ResenaEntity toEntity(Resena resena);
+
+    /** Lo único que cambia al editar; contadores y versión los gestionan el adaptador e Hibernate. */
+    default void copiarEdicion(Resena resena, ResenaEntity entity) {
+        entity.setPuntuacion(resena.puntuacion());
+        entity.setComentario(resena.comentario());
+        entity.setFechaEdicion(resena.fechaEdicion());
+    }
 }

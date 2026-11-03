@@ -2,7 +2,9 @@ package com.benchify.support;
 
 import com.benchify.banco.application.port.out.AlmacenImagenesPort;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Sustituye a Cloud Storage en los tests de integración. */
@@ -19,11 +21,21 @@ public class InMemoryImageStorage implements AlmacenImagenesPort {
     }
 
     @Override
+    public Optional<byte[]> leer(String ruta) {
+        return Optional.ofNullable(ficheros.get(ruta));
+    }
+
+    @Override
     public void borrar(String ruta) {
         ficheros.remove(ruta);
     }
 
     public boolean contiene(String ruta) {
         return ficheros.containsKey(ruta);
+    }
+
+    /** Rutas guardadas bajo una carpeta, p. ej. la de un banco. */
+    public List<String> rutas(String prefijo) {
+        return ficheros.keySet().stream().filter(ruta -> ruta.startsWith(prefijo)).sorted().toList();
     }
 }

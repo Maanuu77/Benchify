@@ -44,6 +44,20 @@ class ResenaController {
         return PageResponse.from(resenas.deBanco(bancoId, actor, page.toQuery()), mapper::toResponse);
     }
 
+    @GetMapping("/api/v1/bancos/{bancoId}/resenas/mia")
+    @Operation(summary = "Mi reseña de un banco",
+            description = "404 con código RESENA_NO_ENCONTRADA si todavía no lo has reseñado.")
+    @SecurityRequirement(name = "firebase")
+    ResenaResponse mia(@CurrentActor Actor actor, @PathVariable UUID bancoId) {
+        return mapper.toResponse(resenas.mia(bancoId, actor));
+    }
+
+    @GetMapping("/api/v1/resenas/{id}")
+    @Operation(summary = "Una reseña", description = "404 si su banco no es visible para quien consulta.")
+    ResenaResponse obtener(@PathVariable UUID id, @CurrentActor(required = false) Actor actor) {
+        return mapper.toResponse(resenas.obtener(id, actor));
+    }
+
     @PostMapping("/api/v1/bancos/{bancoId}/resenas")
     @Operation(summary = "Reseñar un banco publicado", description = "Una reseña por usuario y banco.")
     @SecurityRequirement(name = "firebase")

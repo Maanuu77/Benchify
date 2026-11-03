@@ -3,6 +3,7 @@ package com.benchify.banco.infrastructure.web;
 import com.benchify.banco.application.port.in.BancoCommand;
 import com.benchify.banco.application.port.in.ConsultarBancosUseCase;
 import com.benchify.banco.application.port.in.GestionarBancoUseCase;
+import com.benchify.banco.application.port.in.GestionarBancoUseCase.ResultadoEdicion;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoCercano;
 import com.benchify.banco.domain.BancoNotFoundException;
@@ -13,10 +14,12 @@ import com.benchify.banco.domain.DireccionPostal;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
 import com.benchify.banco.domain.MaterialBanco;
+import com.benchify.banco.domain.RevisionBanco;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
+import com.benchify.shared.domain.PreconditionFailedException;
 import com.benchify.shared.domain.Ubicacion;
 import com.benchify.support.ApiControllerTest;
 import org.junit.jupiter.api.Test;
@@ -25,9 +28,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -35,6 +40,8 @@ import static com.benchify.support.StubIdTokenVerifier.bearer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -163,12 +170,75 @@ class BancoControllerTest {
 
     @Test
     void editingSomeoneElsesBenchIsForbidden() {
-        when(gestionarBanco.editar(eq(Actor.user("luis")), eq(BANCO.id()), any()))
+        when(gestionarBanco.editar(eq(Actor.user("luis")), eq(BANCO.id()), any(), isNull()))
                 .thenThrow(new ForbiddenException("BANCO_NO_AUTOR", "No eres el autor"));
 
         assertThat(mvc.put().uri("/api/v1/bancos/{id}", BANCO.id()).header("Authorization", bearer("luis"))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"titulo\":\"x\",\"lat\":1,\"lng\":1}"))
                 .hasStatus(403);
+    }
+
+    @Test
+    void theDetailCarriesTheVersionAsEtag() {
+        when(consultarBancos.obtener(BANCO.id(), null)).thenReturn(BANCO);
+
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}", BANCO.id())).hasStatusOk().hasHeader("ETag", "\"0\"");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}", BANCO.id()).header("If-None-Match", "\"0\"")).hasStatus(304);
+    }
+
+    @Test
+    void ifMatchIsPassedAsTheExpectedVersionAndTheNewEtagIsReturned() {
+        when(gestionarBanco.editar(eq(Actor.user("ana")), eq(BANCO.id()), any(), any()))
+                .thenReturn(new ResultadoEdicion(BANCO, null));
+
+        for (String ifMatch : List.of("\"0\"", "W/\"0\"", "0")) {
+            assertThat(editar(ifMatch)).hasStatusOk().hasHeader("ETag", "\"0\"");
+        }
+        verify(gestionarBanco, times(3)).editar(eq(Actor.user("ana")), eq(BANCO.id()), any(), eq(0L));
+
+        assertThat(editar("*")).hasStatusOk();
+        assertThat(editar(null)).hasStatusOk();
+        verify(gestionarBanco, times(2)).editar(eq(Actor.user("ana")), eq(BANCO.id()), any(), isNull());
+
+        assertThat(editar("\"no-es-una-version\"")).hasStatusOk();
+        verify(gestionarBanco).editar(eq(Actor.user("ana")), eq(BANCO.id()), any(), eq(-1L));
+    }
+
+    @Test
+    void anEditWaitingForModerationIs202AndThePendingEditCanBeQueried() {
+        RevisionBanco revision = RevisionBanco.proponer(BANCO.id(), Actor.user("ana"), BANCO.datos(), Instant.now());
+        when(gestionarBanco.editar(eq(Actor.user("ana")), eq(BANCO.id()), any(), any()))
+                .thenReturn(new ResultadoEdicion(BANCO, revision));
+        when(gestionarBanco.revisionPendiente(Actor.user("ana"), BANCO.id())).thenReturn(Optional.of(revision));
+        when(gestionarBanco.revisionPendiente(Actor.user("luis"), BANCO.id())).thenReturn(Optional.empty());
+
+        assertThat(editar(null)).hasStatus(202).hasHeader("ETag", "\"0\"");
+        String ruta = "/api/v1/bancos/{id}/edicion-pendiente";
+        assertThat(mvc.get().uri(ruta, BANCO.id()).header("Authorization", bearer("ana")))
+                .hasStatusOk()
+                .bodyJson().extractingPath("$.id").isEqualTo(revision.id().toString());
+        assertThat(mvc.get().uri(ruta, BANCO.id()).header("Authorization", bearer("luis"))).hasStatus(204);
+        assertThat(mvc.get().uri(ruta, BANCO.id())).hasStatus(401);
+    }
+
+    @Test
+    void aStaleIfMatchIs412() {
+        when(gestionarBanco.editar(eq(Actor.user("ana")), eq(BANCO.id()), any(), eq(2L)))
+                .thenThrow(new PreconditionFailedException("BANCO_VERSION_OBSOLETA", "El banco ha cambiado"));
+
+        assertThat(editar("\"2\""))
+                .hasStatus(412)
+                .bodyJson().extractingPath("$.code").isEqualTo("BANCO_VERSION_OBSOLETA");
+    }
+
+    private MvcTestResult editar(String ifMatch) {
+        MockMvcTester.MockMvcRequestBuilder put = mvc.put().uri("/api/v1/bancos/{id}", BANCO.id())
+                .header("Authorization", bearer("ana"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"titulo\":\"x\",\"lat\":1,\"lng\":1}");
+        if (ifMatch != null) {
+            put = put.header("If-Match", ifMatch);
+        }
+        return put.exchange();
     }
 
     @Test

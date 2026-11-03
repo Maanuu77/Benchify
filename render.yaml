@@ -1,0 +1,37 @@
+# Blueprint de Render: el backend como servicio web gratuito, construido con backend/Dockerfile y
+# desplegado de nuevo con cada cambio del backend que llega a main.
+# Render pide al crearlo los valores marcados con sync: false (no se guardan en el repositorio).
+services:
+  - type: web
+    name: benchify-api
+    runtime: docker
+    plan: free
+    # Junto a Neon (AWS eu-central-1, Fráncfort)
+    region: frankfurt
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    branch: main
+    autoDeploy: true
+    buildFilter:
+      paths: ["backend/**"]
+    healthCheckPath: /actuator/health/readiness
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # JDBC del endpoint directo de Neon: jdbc:postgresql://ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: benchify-86edd
+      # Clave de la cuenta de servicio de Firebase, subida como "Secret File" con este nombre
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: /etc/secrets/firebase-admin.json
+      - key: WEB_URL
+        value: https://benchify-86edd.web.app
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://benchify-86edd.web.app,https://benchify-86edd.firebaseapp.com

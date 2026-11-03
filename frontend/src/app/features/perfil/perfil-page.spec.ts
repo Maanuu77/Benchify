@@ -1,5 +1,8 @@
+import { registerLocaleData } from '@angular/common';
+import localeEnGb from '@angular/common/locales/en-GB';
+import { LOCALE_ID } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { BancosApi } from '../../core/api/bancos-api';
 import { Page } from '../../core/api/models';
@@ -7,8 +10,12 @@ import { ResenasApi } from '../../core/api/resenas-api';
 import { UsuariosApi } from '../../core/api/usuarios-api';
 import { AuthService } from '../../core/auth/auth.service';
 import { FakeAuthService } from '../../core/auth/testing/fake-auth.service';
+import { IDIOMA } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
+import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { PerfilPage } from './perfil-page';
+
+registerLocaleData(localeEnGb);
 
 const vacia = <T>(): Page<T> => ({ content: [], page: 0, size: 50, totalElements: 0, totalPages: 0 });
 
@@ -17,6 +24,7 @@ describe('PerfilPage', () => {
   let element: HTMLElement;
   let auth: FakeAuthService;
   let usuarios: Record<string, ReturnType<typeof vi.fn>>;
+  let confirmation: { ask: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     auth = new FakeAuthService();
@@ -26,7 +34,9 @@ describe('PerfilPage', () => {
       misFavoritos: vi.fn(() => of(vacia())),
       misCheckIns: vi.fn(() => of(vacia())),
       actualizarPerfil: vi.fn(() => of({})),
+      eliminarCuenta: vi.fn(() => of(undefined)),
     };
+    confirmation = { ask: vi.fn(async () => true) };
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -35,6 +45,7 @@ describe('PerfilPage', () => {
         { provide: BancosApi, useValue: { deUsuario: vi.fn(() => of(vacia())) } },
         { provide: ResenasApi, useValue: { deUsuario: vi.fn(() => of(vacia())) } },
         { provide: Notifier, useValue: { success: vi.fn(), error: vi.fn() } },
+        { provide: Confirmation, useValue: confirmation },
       ],
     });
   });
@@ -56,6 +67,19 @@ describe('PerfilPage', () => {
     expect(element.textContent).toContain('Favoritos');
     expect(element.textContent).toContain('Editar perfil');
     expect(usuarios['misFavoritos']).toHaveBeenCalled();
+  });
+
+  it('is shown in English with English dates when that is the chosen language', async () => {
+    TestBed.overrideProvider(IDIOMA, { useValue: 'en' });
+    TestBed.overrideProvider(LOCALE_ID, { useValue: 'en-GB' });
+    auth.signIn({ uid: 'ana' });
+    await crear();
+
+    expect(element.textContent).toContain('On Benchify since January 2026');
+    expect(element.textContent).toContain('Edit profile');
+    expect(Array.from(element.querySelectorAll('[role=tab]')).map((t) => t.textContent?.trim()))
+      .toEqual(['Benches added', 'Reviews', 'Favourites', 'Check-ins']);
+    expect(element.textContent).toContain('Delete my account');
   });
 
   it('shows public profiles without private tabs or editing', async () => {
@@ -84,5 +108,29 @@ describe('PerfilPage', () => {
     await fixture.whenStable();
 
     expect(usuarios['actualizarPerfil']).toHaveBeenCalledWith('Ana María', 'Triana');
+    expect(auth.actualizarNombre).toHaveBeenCalledWith('Ana María');
+    // Se refresca sin volver a 'cargando': el formulario de edición se cierra sobre la misma página
+    expect(element.querySelector('h1')).not.toBeNull();
+  });
+
+  it('lets users delete their own account after confirmation', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    auth.signIn({ uid: 'ana' });
+    await crear();
+
+    (element.querySelector('.boton-peligro') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(confirmation.ask).toHaveBeenCalledWith(expect.objectContaining({ peligroso: true }));
+    expect(usuarios['eliminarCuenta']).toHaveBeenCalled();
+    expect(auth.logout).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/mapa');
+  });
+
+  it('does not offer account deletion on other profiles', async () => {
+    auth.signIn({ uid: 'ana' });
+    await crear('luis');
+
+    expect(element.querySelector('.boton-peligro')).toBeNull();
   });
 });

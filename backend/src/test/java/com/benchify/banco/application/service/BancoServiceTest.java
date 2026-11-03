@@ -1,19 +1,30 @@
 package com.benchify.banco.application.service;
 
 import com.benchify.banco.application.port.in.BancoCommand;
+import com.benchify.banco.application.port.in.GestionarBancoUseCase.ResultadoEdicion;
 import com.benchify.banco.application.port.out.BancoRepository;
 import com.benchify.banco.application.port.out.EtiquetaRepository;
+import com.benchify.banco.application.port.out.ImagenRepository;
+import com.benchify.banco.application.port.out.RevisionBancoRepository;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.BancoNotFoundException;
 import com.benchify.banco.domain.BoundingBox;
+import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
+import com.benchify.banco.domain.EstadoImagen;
+import com.benchify.banco.domain.EstadoRevision;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.FiltroBancos;
+import com.benchify.banco.domain.Imagen;
 import com.benchify.banco.domain.MaterialBanco;
+import com.benchify.banco.domain.RevisionBanco;
 import com.benchify.shared.domain.Actor;
 import com.benchify.shared.domain.BusinessRuleException;
+import com.benchify.shared.domain.ForbiddenException;
 import com.benchify.shared.domain.PageQuery;
 import com.benchify.shared.domain.PageResult;
+import com.benchify.shared.domain.PreconditionFailedException;
+import com.benchify.shared.domain.Rol;
 import com.benchify.shared.domain.Ubicacion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +50,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,12 +64,18 @@ class BancoServiceTest {
     private BancoRepository bancos;
     @Mock
     private EtiquetaRepository etiquetas;
+    @Mock
+    private ImagenRepository imagenes;
+    @Mock
+    private RevisionBancoRepository revisiones;
+    @Mock
+    private BorradoFicherosImagen ficheros;
 
     private BancoService service;
 
     @BeforeEach
     void setUp() {
-        service = new BancoService(bancos, etiquetas, Clock.fixed(AHORA, ZoneOffset.UTC));
+        service = new BancoService(bancos, etiquetas, imagenes, revisiones, ficheros, Clock.fixed(AHORA, ZoneOffset.UTC));
         lenient().when(bancos.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -78,6 +96,31 @@ class BancoServiceTest {
         assertThat(banco.datos().direccion().pais()).isEqualTo("España");
         assertThat(banco.datos().caracteristicas().conRespaldo()).isTrue();
         verify(bancos).save(banco);
+    }
+
+    @Test
+    void aUserMustVerifyTheEmailBeforeProposingABench() {
+        assertThatThrownBy(() -> service.proponer(new Actor("ana", Rol.USER, false), command(null)))
+                .isInstanceOf(ForbiddenException.class).hasMessageContaining("Verifica tu email");
+        verify(bancos, never()).save(any());
+    }
+
+    @Test
+    void aUserWithFivePendingBenchesCannotProposeAnother() {
+        when(bancos.countPendientesByAutorForUpdate("ana")).thenReturn(5L);
+
+        assertThatThrownBy(() -> service.proponer(ANA, command(null)))
+                .isInstanceOf(BusinessRuleException.class)
+                .extracting("code").isEqualTo("BANCO_LIMITE_PENDIENTES");
+        verify(bancos, never()).save(any());
+    }
+
+    @Test
+    void adminProposalsAreNotLimited() {
+        Banco banco = service.proponer(Actor.admin("root"), command(null));
+
+        assertThat(banco.estado()).isEqualTo(EstadoBanco.PUBLICADO);
+        verify(bancos, never()).countPendientesByAutorForUpdate(any());
     }
 
     @Test
@@ -108,13 +151,31 @@ class BancoServiceTest {
         when(bancos.findById(banco.id())).thenReturn(Optional.of(banco));
 
         Banco editado = service.editar(ANA, banco.id(), new BancoCommand("Otro título", null, 37.38, -6.0,
-                null, null, null, null, false, true, false, null, Set.of()));
+                null, null, null, null, false, true, false, null, Set.of()), null).banco();
         assertThat(editado.datos().titulo()).isEqualTo("Otro título");
+
+        Imagen foto = new Imagen(UUID.randomUUID(), banco.id(), "bancos/b/f.jpg", "https://storage.test/f.jpg",
+                "bancos/b/f_thumb.jpg", "https://storage.test/f_thumb.jpg", "image/jpeg", 10, "ana",
+                EstadoImagen.APROBADA, AHORA);
+        when(bancos.findByIdForUpdate(banco.id())).thenReturn(Optional.of(banco));
+        when(imagenes.deleteByBanco(banco.id())).thenReturn(List.of(foto));
 
         service.eliminar(ANA, banco.id());
         ArgumentCaptor<Banco> saved = ArgumentCaptor.forClass(Banco.class);
         verify(bancos, atLeastOnce()).save(saved.capture());
         assertThat(saved.getValue().estado()).isEqualTo(EstadoBanco.ELIMINADO);
+        // Las fotos dejan de ser accesibles: filas fuera ya y ficheros fuera tras el commit
+        verify(ficheros).borrarTrasCommit(List.of("bancos/b/f.jpg", "bancos/b/f_thumb.jpg"));
+    }
+
+    @Test
+    void deletingABenchSomeoneElseCannotSeeIs404AndKeepsItsPhotos() {
+        Banco banco = service.proponer(ANA, command(null));
+        when(bancos.findByIdForUpdate(banco.id())).thenReturn(Optional.of(banco));
+
+        assertThatThrownBy(() -> service.eliminar(Actor.user("luis"), banco.id()))
+                .isInstanceOf(BancoNotFoundException.class);
+        verifyNoInteractions(imagenes, ficheros);
     }
 
     @Test
@@ -122,7 +183,97 @@ class BancoServiceTest {
         UUID id = UUID.randomUUID();
         when(bancos.findById(id)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.editar(ANA, id, command(null))).isInstanceOf(BancoNotFoundException.class);
+        assertThatThrownBy(() -> service.editar(ANA, id, command(null), null))
+                .isInstanceOf(BancoNotFoundException.class);
+    }
+
+    @Test
+    void anEditWithTheCurrentVersionLocksTheBenchAndSavesIt() {
+        Banco banco = conVersion(3);
+        when(bancos.findByIdForUpdate(banco.id())).thenReturn(Optional.of(banco));
+
+        assertThat(service.editar(ANA, banco.id(), command(null), 3L).banco().datos().titulo()).isEqualTo("Banco del Betis");
+        verify(bancos, never()).findById(any());
+        verify(bancos).save(banco);
+    }
+
+    @Test
+    void anEditBasedOnAnOldVersionFailsWithoutSaving() {
+        Banco banco = conVersion(3);
+        when(bancos.findByIdForUpdate(banco.id())).thenReturn(Optional.of(banco));
+
+        assertThatThrownBy(() -> service.editar(ANA, banco.id(), command(null), 2L))
+                .isInstanceOf(PreconditionFailedException.class)
+                .extracting("code").isEqualTo("BANCO_VERSION_OBSOLETA");
+        verify(bancos, never()).save(any());
+    }
+
+    @Test
+    void theVersionOfAnInvisibleBenchIsNeverCompared() {
+        Banco banco = conVersion(3);
+        when(bancos.findByIdForUpdate(banco.id())).thenReturn(Optional.of(banco));
+
+        assertThatThrownBy(() -> service.editar(Actor.user("luis"), banco.id(), command(null), 2L))
+                .isInstanceOf(BancoNotFoundException.class);
+    }
+
+    @Test
+    void editingAPublishedBenchProposesARevisionAndLeavesItOnTheMap() {
+        Banco banco = publicado();
+        when(bancos.findById(banco.id())).thenReturn(Optional.of(banco));
+        when(revisiones.findPendienteByBanco(banco.id())).thenReturn(Optional.empty());
+
+        ResultadoEdicion resultado = service.editar(ANA, banco.id(), command(null), null);
+
+        assertThat(resultado.aplicada()).isFalse();
+        assertThat(resultado.banco().datos().titulo()).isEqualTo("Viejo");
+        assertThat(resultado.banco().estaPublicado()).isTrue();
+        RevisionBanco revision = resultado.revisionPendiente();
+        assertThat(revision.datos().titulo()).isEqualTo("Banco del Betis");
+        assertThat(revision.autorId()).isEqualTo("ana");
+        assertThat(revision.estado()).isEqualTo(EstadoRevision.PENDIENTE);
+        verify(revisiones).guardar(revision);
+        verify(bancos, never()).save(any());
+    }
+
+    @Test
+    void aNewEditReplacesThePendingOne() {
+        Banco banco = publicado();
+        RevisionBanco anterior = RevisionBanco.proponer(banco.id(), ANA, banco.datos(), AHORA.minusSeconds(3600));
+        when(bancos.findById(banco.id())).thenReturn(Optional.of(banco));
+        when(revisiones.findPendienteByBanco(banco.id())).thenReturn(Optional.of(anterior));
+
+        RevisionBanco revision = service.editar(ANA, banco.id(), command(null), null).revisionPendiente();
+
+        assertThat(revision.id()).isEqualTo(anterior.id());
+        assertThat(revision.datos().titulo()).isEqualTo("Banco del Betis");
+        assertThat(revision.fecha()).isEqualTo(AHORA);
+    }
+
+    @Test
+    void onlyTheAuthorAndAdminsSeeThePendingEdit() {
+        Banco banco = publicado();
+        RevisionBanco pendiente = RevisionBanco.proponer(banco.id(), ANA, banco.datos(), AHORA);
+        when(bancos.findById(banco.id())).thenReturn(Optional.of(banco));
+        when(revisiones.findPendienteByBanco(banco.id())).thenReturn(Optional.of(pendiente));
+
+        assertThat(service.revisionPendiente(ANA, banco.id())).contains(pendiente);
+        assertThat(service.revisionPendiente(Actor.admin("root"), banco.id())).contains(pendiente);
+        assertThatThrownBy(() -> service.revisionPendiente(Actor.user("luis"), banco.id()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    private static Banco publicado() {
+        Banco banco = conVersion(1);
+        banco.aprobar(AHORA);
+        return banco;
+    }
+
+    private static Banco conVersion(long version) {
+        Banco propuesto = Banco.proponer(UUID.randomUUID(), new DatosBanco("Viejo", null, new Ubicacion(37.38, -6.0),
+                null, null, null), ANA, AHORA);
+        return new Banco(propuesto.id(), propuesto.datos(), propuesto.estado(), propuesto.autor(),
+                propuesto.valoracion(), propuesto.fechaSubida(), propuesto.fechaVerificacion(), version);
     }
 
     @Test

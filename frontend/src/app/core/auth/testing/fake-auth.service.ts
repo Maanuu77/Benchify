@@ -17,9 +17,15 @@ export class FakeAuthService {
   readonly register = vi.fn(async () => undefined);
   readonly logout = vi.fn(async () => this.signOut());
   readonly refreshClaims = vi.fn(async () => undefined);
+  readonly recuperarPassword = vi.fn(async () => undefined);
+  readonly enviarVerificacion = vi.fn(async () => undefined);
+  readonly comprobarVerificacion = vi.fn(async () => true);
 
   signIn(partial: Partial<Session> = {}): void {
-    this.current.set({ uid: 'ana', email: 'ana@benchify.dev', displayName: 'Ana', photoURL: null, rol: 'USER', ...partial });
+    this.current.set({
+      uid: 'ana', email: 'ana@benchify.dev', displayName: 'Ana', photoURL: null, rol: 'USER', emailVerificado: true,
+      ...partial,
+    });
     this.token = 'token-' + (partial.uid ?? 'ana');
   }
 
@@ -28,7 +34,15 @@ export class FakeAuthService {
     this.token = null;
   }
 
-  async idToken(): Promise<string | null> {
+  /** Veces que se ha pedido un token nuevo a la fuerza. */
+  forcedRefreshes = 0;
+
+  readonly actualizarNombre = vi.fn(async () => undefined);
+
+  async idToken(forceRefresh = false): Promise<string | null> {
+    if (forceRefresh) {
+      this.forcedRefreshes++;
+    }
     return this.token;
   }
 }

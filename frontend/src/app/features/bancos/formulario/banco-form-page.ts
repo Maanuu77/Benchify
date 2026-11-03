@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
@@ -16,20 +17,24 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInput } from '@angular/material/input';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { toApiError } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
-import { Banco, BancoRequest, MaterialBanco } from '../../../core/api/models';
+import { Banco, BancoRequest, EdicionPendiente, MaterialBanco } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { textos } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
 import { Punto } from '../../../shared/map/bench-map';
 import { LocationPicker, redondear } from '../../../shared/map/location-picker';
+import { Confirmation } from '../../../shared/ui/confirm-dialog';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { GaleriaImagenes } from '../detalle/galeria-imagenes';
 import { MATERIALES } from '../detalle/banco-detalle-page';
+import { BANCO_FORM } from './banco-form-page.i18n';
+import { ConCambiosSinGuardar } from './cambios-sin-guardar.guard';
 
 export const MAX_ETIQUETAS = 5;
 
@@ -41,25 +46,30 @@ export const maxEtiquetasValidator: ValidatorFn = (control: AbstractControl<numb
   imports: [
     ReactiveFormsModule, RouterLink, LocationPicker, GaleriaImagenes, LoadingState, ErrorState,
     MatFormField, MatLabel, MatInput, MatError, MatHint, MatSelect, MatOption, MatCheckbox,
-    MatChipListbox, MatChipOption, MatButton, MatIcon,
+    MatChipListbox, MatChipOption, MatButton, MatIcon, DatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './banco-form-page.html',
   styleUrl: './banco-form-page.scss',
+  host: { '(window:beforeunload)': 'avisarAlCerrar($event)' },
 })
-export class BancoFormPage {
+export class BancoFormPage implements ConCambiosSinGuardar {
   private readonly api = inject(BancosApi);
   private readonly geo = inject(GeolocationService);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly confirmation = inject(Confirmation);
+  private readonly destroyRef = inject(DestroyRef);
 
   /** Presente al editar (/bancos/:id/editar). */
   readonly id = input<string>();
 
+  protected readonly t = textos(BANCO_FORM);
   protected readonly materiales = Object.entries(MATERIALES) as [MaterialBanco, string][];
   protected readonly maxEtiquetas = MAX_ETIQUETAS;
-  protected readonly etiquetas = toSignal(this.api.etiquetas(), { initialValue: [] });
+  // Sin catálogo (p. ej. sin conexión) el formulario sigue funcionando, solo que sin etiquetas que elegir
+  protected readonly etiquetas = toSignal(this.api.etiquetas().pipe(catchError(() => of([]))), { initialValue: [] });
   protected readonly centro: Punto = { lat: environment.map.center[0], lng: environment.map.center[1] };
 
   protected readonly ubicacion = signal<Punto | null>(null);
@@ -70,6 +80,12 @@ export class BancoFormPage {
   /** Tras crear el banco se ofrece subir fotos antes de ir a la ficha. */
   protected readonly creado = signal<Banco | null>(null);
   protected readonly editando = computed(() => !!this.id());
+  /** El autor edita un banco publicado: los cambios esperan moderación y el banco sigue igual mientras. */
+  protected readonly conRevision = signal(false);
+  /** Edición anterior aún sin revisar; la que se guarde ahora la sustituye. */
+  protected readonly edicionPendiente = signal<EdicionPendiente | null>(null);
+  /** Versión del banco al cargarlo (ETag): si otra persona lo cambia antes de guardar, el backend avisa. */
+  private etag: string | null = null;
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     titulo: ['', [Validators.required, Validators.maxLength(150)]],
@@ -117,7 +133,7 @@ export class BancoFormPage {
     try {
       this.ubicacion.set(redondear(await this.geo.posicionActual()));
     } catch (error) {
-      this.notifier.error(error instanceof Error ? error.message : 'No hemos podido obtener tu ubicación.');
+      this.notifier.error(error instanceof Error ? error.message : this.t.sinUbicacion);
     } finally {
       this.localizando.set(false);
     }
@@ -127,8 +143,8 @@ export class BancoFormPage {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.notifier.error(this.form.controls.lat.invalid
-        ? 'Marca en el mapa dónde está el banco.'
-        : 'Revisa los campos marcados.');
+        ? this.t.marcaEnMapa
+        : this.t.revisaCampos);
       return;
     }
     this.guardando.set(true);
@@ -136,15 +152,19 @@ export class BancoFormPage {
     try {
       const id = this.id();
       if (id) {
-        await firstValueFrom(this.api.editar(id, request));
-        this.notifier.success(this.auth.isAdmin() ? 'Cambios guardados' : 'Cambios enviados: el banco vuelve a revisión');
+        const { pendienteDeRevision } = await firstValueFrom(this.api.editar(id, request, this.etag));
+        this.form.markAsPristine();
+        this.notifier.success(pendienteDeRevision
+          ? this.t.cambiosEnviados
+          : this.t.cambiosGuardados);
         await this.router.navigate(['/bancos', id]);
       } else {
         const banco = await firstValueFrom(this.api.proponer(request));
+        this.form.markAsPristine();
         this.creado.set(banco);
         this.notifier.success(banco.estado === 'PUBLICADO'
-          ? 'Banco publicado'
-          : 'Banco enviado: lo publicaremos cuando lo revise un moderador');
+          ? this.t.bancoPublicado
+          : this.t.bancoEnviado);
       }
     } catch (error) {
       this.aplicarErroresDeCampo(error);
@@ -154,10 +174,41 @@ export class BancoFormPage {
     }
   }
 
+  /** Pregunta antes de abandonar el formulario con cambios sin guardar (guard de la ruta). */
+  puedeSalir(): boolean | Promise<boolean> {
+    if (!this.form.dirty || this.guardando()) {
+      return true;
+    }
+    return this.confirmation.ask({
+      titulo: this.t.salirTitulo,
+      mensaje: this.t.salirMensaje,
+      confirmar: this.t.salir,
+      peligroso: true,
+    });
+  }
+
+  /** Al cerrar o recargar la pestaña el navegador pregunta si hay cambios sin guardar. */
+  protected avisarAlCerrar(event: BeforeUnloadEvent): void {
+    if (this.form.dirty) {
+      event.preventDefault();
+    }
+  }
+
   private async cargar(id: string): Promise<void> {
     this.cargando.set(true);
     try {
-      const banco = await firstValueFrom(this.api.obtener(id));
+      const { banco, etag } = await firstValueFrom(this.api.obtenerParaEditar(id));
+      if (!this.auth.isAdmin() && banco.autor.id !== this.auth.session()?.uid) {
+        this.errorCarga.set(this.t.sinPermiso);
+        return;
+      }
+      this.etag = etag;
+      if (!this.auth.isAdmin() && banco.estado === 'PUBLICADO') {
+        this.conRevision.set(true);
+        // Sin esperar: el aviso de una edición anterior no debe retrasar el formulario
+        this.api.edicionPendiente(id).pipe(catchError(() => of(null)), takeUntilDestroyed(this.destroyRef))
+          .subscribe((pendiente) => this.edicionPendiente.set(pendiente));
+      }
       this.form.patchValue({
         titulo: banco.titulo,
         descripcion: banco.descripcion ?? '',
@@ -173,6 +224,7 @@ export class BancoFormPage {
         etiquetaIds: banco.etiquetas.map((e) => e.id),
       });
       this.ubicacion.set({ lat: banco.lat, lng: banco.lng });
+      this.form.markAsPristine();
     } catch (error) {
       this.errorCarga.set(toApiError(error).message);
     } finally {

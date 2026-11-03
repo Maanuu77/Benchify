@@ -19,9 +19,12 @@ test.describe('anonymous visitor', () => {
     await page.goto('/mapa');
     await expect(page.getByRole('heading', { name: '2 bancos en esta zona' })).toBeVisible();
 
-    await page.getByRole('option', { name: 'Accesible' }).click();
+    await page.getByRole('button', { name: 'Accesible', pressed: false }).click();
 
     await expect(page.getByRole('heading', { name: '1 banco en esta zona' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accesible', pressed: true })).toBeVisible();
+    // El filtro queda en la URL para poder volver o compartir el enlace
+    await expect(page).toHaveURL(/accesible=1/);
     expect(peticiones.some((p) => p.startsWith('/api/v1/bancos?') && p.includes('accesible=true'))).toBe(true);
   });
 
@@ -90,12 +93,18 @@ test.describe('forms and accessibility', () => {
 });
 
 test.describe('mobile layout', () => {
-  test('navigation lives in a drawer behind the menu button', async ({ page, isMobile }) => {
+  test('navigation lives in a bottom bar and the map has no header', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'Solo en el proyecto móvil');
     await mockApi(page);
     await page.goto('/mapa');
 
-    await page.getByRole('button', { name: 'Abrir menú' }).click();
-    await expect(page.getByRole('dialog', { name: 'Menú principal' }).getByRole('link', { name: 'Mapa' })).toBeVisible();
+    const barra = page.getByRole('navigation', { name: 'Principal' });
+    await expect(barra.getByRole('link', { name: 'Mapa' })).toBeVisible();
+    await expect(barra.getByRole('link', { name: 'Entrar' })).toBeVisible();
+    await expect(page.getByRole('banner')).toHaveCount(0);
+
+    await barra.getByRole('link', { name: 'Entrar' }).click();
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole('banner')).toBeVisible();
   });
 });

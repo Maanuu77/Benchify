@@ -32,8 +32,18 @@ class ImagenPersistenceAdapter implements ImagenRepository {
     }
 
     @Override
+    public Imagen saveAndFlush(Imagen imagen) {
+        return mapper.toDomain(repository.saveAndFlush(mapper.toEntity(imagen)));
+    }
+
+    @Override
     public Optional<Imagen> findById(UUID id) {
         return repository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Imagen> findByIdForUpdate(UUID id) {
+        return repository.findByIdForUpdate(id).map(mapper::toDomain);
     }
 
     @Override
@@ -53,6 +63,13 @@ class ImagenPersistenceAdapter implements ImagenRepository {
     }
 
     @Override
+    public List<Imagen> deleteByBanco(UUID bancoId) {
+        List<ImagenEntity> borradas = repository.findByBancoIdForUpdate(bancoId);
+        repository.deleteAll(borradas);
+        return borradas.stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
     public PageResult<Imagen> findByEstado(EstadoImagen estado, PageQuery page) {
         return SpringDataPages.result(repository.findByEstado(estado, SpringDataPages.pageable(page, MAS_ANTIGUAS)),
                 mapper::toDomain);
@@ -61,5 +78,15 @@ class ImagenPersistenceAdapter implements ImagenRepository {
     @Override
     public long countByEstado(EstadoImagen estado) {
         return repository.countByEstado(estado);
+    }
+
+    @Override
+    public void guardarHuella(UUID imagenId, long huella) {
+        repository.guardarHuella(imagenId, huella);
+    }
+
+    @Override
+    public List<Imagen> findParecidas(UUID imagenId, int distanciaMaxima, int limite) {
+        return repository.findParecidas(imagenId, distanciaMaxima, limite).stream().map(mapper::toDomain).toList();
     }
 }

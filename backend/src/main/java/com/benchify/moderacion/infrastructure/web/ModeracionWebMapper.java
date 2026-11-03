@@ -4,14 +4,22 @@ import com.benchify.banco.domain.Autor;
 import com.benchify.banco.domain.Banco;
 import com.benchify.banco.domain.DatosBanco;
 import com.benchify.banco.domain.EstadoBanco;
+import com.benchify.banco.domain.EstadoImagen;
 import com.benchify.banco.domain.Etiqueta;
 import com.benchify.banco.domain.Imagen;
+import com.benchify.banco.domain.RevisionBanco;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.EdicionPendiente;
+import com.benchify.moderacion.application.port.in.ModeracionUseCase.ImagenPendiente;
 import com.benchify.moderacion.infrastructure.web.dto.BancoModeracionResponse;
+import com.benchify.moderacion.infrastructure.web.dto.DatosBancoResponse;
+import com.benchify.moderacion.infrastructure.web.dto.EdicionModeracionResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ImagenModeracionResponse;
+import com.benchify.moderacion.infrastructure.web.dto.ImagenParecidaResponse;
 import com.benchify.moderacion.infrastructure.web.dto.ResenaModeracionResponse;
 import com.benchify.resena.domain.Resena;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,7 +31,43 @@ interface ModeracionWebMapper {
 
     ResenaModeracionResponse toResponse(Resena resena);
 
-    ImagenModeracionResponse toResponse(Imagen imagen);
+    /**
+     * Las pendientes no son públicas en el almacenamiento: se descargan de la API (mismas rutas que
+     * {@code ImagenController}, en la feature de bancos) con la cabecera {@code Authorization}.
+     */
+    default ImagenModeracionResponse toResponse(Imagen imagen) {
+        return toResponse(imagen, List.of());
+    }
+
+    default ImagenModeracionResponse toResponse(ImagenPendiente pendiente) {
+        Imagen imagen = pendiente.imagen();
+        return toResponse(imagen, pendiente.parecidas().stream()
+                .map(parecida -> new ImagenParecidaResponse(parecida.id(), parecida.bancoId(),
+                        parecida.estado() == EstadoImagen.RECHAZADA ? null : thumbUrl(parecida),
+                        requiereAutenticacion(parecida), parecida.estado(), parecida.bancoId().equals(imagen.bancoId())))
+                .toList());
+    }
+
+    private ImagenModeracionResponse toResponse(Imagen imagen, List<ImagenParecidaResponse> parecidas) {
+        String url = requiereAutenticacion(imagen) ? urlApi("/api/v1/imagenes/{id}/archivo", imagen) : imagen.url();
+        return new ImagenModeracionResponse(imagen.id(), imagen.bancoId(), url, thumbUrl(imagen),
+                requiereAutenticacion(imagen), imagen.estado(), imagen.subidaPor(), imagen.tamanoBytes(),
+                imagen.fechaSubida(), parecidas);
+    }
+
+    private static boolean requiereAutenticacion(Imagen imagen) {
+        return imagen.estado() != EstadoImagen.APROBADA;
+    }
+
+    private static String thumbUrl(Imagen imagen) {
+        return requiereAutenticacion(imagen) ? urlApi("/api/v1/imagenes/{id}/miniatura", imagen)
+                : imagen.urlMiniatura() != null ? imagen.urlMiniatura() : imagen.url();
+    }
+
+    private static String urlApi(String plantilla, Imagen imagen) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path(plantilla)
+                .buildAndExpand(imagen.id()).toUriString();
+    }
 
     default BancoModeracionResponse toResponse(Banco banco) {
         return toResponse(banco.id(), banco.datos(), banco.estado(), banco.autor(), banco.fechaSubida());
@@ -41,6 +85,22 @@ interface ModeracionWebMapper {
     @Mapping(target = "etiquetas", source = "datos.etiquetas")
     BancoModeracionResponse toResponse(UUID id, DatosBanco datos, EstadoBanco estado, Autor autor,
             Instant fechaSubida);
+
+    default EdicionModeracionResponse toResponse(EdicionPendiente edicion) {
+        RevisionBanco revision = edicion.revision();
+        Banco banco = edicion.banco();
+        String autorNombre = banco.autor().id().equals(revision.autorId()) ? banco.autor().nombre() : null;
+        return new EdicionModeracionResponse(revision.id(), banco.id(), revision.autorId(), autorNombre,
+                revision.fecha(), toDatosResponse(banco.datos()), toDatosResponse(revision.datos()));
+    }
+
+    default DatosBancoResponse toDatosResponse(DatosBanco datos) {
+        return new DatosBancoResponse(datos.titulo(), datos.descripcion(), datos.ubicacion().lat(),
+                datos.ubicacion().lng(), datos.direccion().direccion(), datos.direccion().ciudad(),
+                datos.direccion().provincia(), datos.direccion().pais(), datos.caracteristicas().conSombra(),
+                datos.caracteristicas().accesible(), datos.caracteristicas().conRespaldo(),
+                datos.caracteristicas().material(), nombres(datos.etiquetas()));
+    }
 
     default List<String> nombres(Set<Etiqueta> etiquetas) {
         return etiquetas.stream().map(Etiqueta::nombre).sorted().toList();

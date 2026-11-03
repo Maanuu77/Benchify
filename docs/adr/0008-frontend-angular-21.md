@@ -1,6 +1,6 @@
 # ADR-0008: Frontend con Angular 21, AngularFire y Angular Material
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado. Actualizado en 2026-11: Angular 22 y, en lugar de AngularFire, el SDK de Firebase directamente (#68)
 - **Fecha:** 2026-10-26
 
 ## Contexto

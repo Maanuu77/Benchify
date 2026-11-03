@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +40,18 @@ class EstadisticasUsuarioJdbcAdapterIntegrationTest extends AbstractIntegrationT
 
         assertThat(estadisticas.contar("est-ana")).isEqualTo(new EstadisticasUsuario(1, 1, 2, 1));
         assertThat(estadisticas.contar("est-luis")).isEqualTo(new EstadisticasUsuario(1, 0, 0, 0));
+    }
+
+    @Test
+    void onlyCountsReviewsOfPublishedBenches() {
+        testData.usuario("est-autor");
+        testData.usuario("est-critica");
+        for (String estado : List.of("PUBLICADO", "PENDIENTE", "OCULTO", "ELIMINADO")) {
+            jdbc.update("INSERT INTO resenas (id, banco_id, usuario_id, puntuacion) VALUES (?, ?, 'est-critica', 3)",
+                    UUID.randomUUID(), banco("est-autor", estado));
+        }
+
+        assertThat(estadisticas.contar("est-critica").resenas()).isEqualTo(1);
     }
 
     private UUID banco(String autor, String estado) {

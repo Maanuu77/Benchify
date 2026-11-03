@@ -6,10 +6,13 @@ import { firstValueFrom } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
 import { Rol, Usuario } from '../../core/api/models';
 import { AuthService } from '../../core/auth/auth.service';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
+import { COLA } from './admin.i18n';
+import { ADMIN_USUARIOS } from './admin-usuarios.i18n';
 import { Cola } from './cola';
 
 @Component({
@@ -17,14 +20,14 @@ import { Cola } from './cola';
   imports: [DatePipe, MatSelect, MatOption, MatButton, LoadingState, ErrorState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2>Usuarios ({{ cola.total() }})</h2>
+    <h2>{{ t.titulo }} ({{ cola.total() }})</h2>
     @if (cola.error(); as mensaje) {
       <bf-error-state [message]="mensaje" (retry)="cola.cargar()" />
     } @else {
       <table class="tabla">
-        <caption class="sr-only">Usuarios registrados y su rol</caption>
+        <caption class="sr-only">{{ t.leyenda }}</caption>
         <thead>
-          <tr><th scope="col">Nombre</th><th scope="col">Email</th><th scope="col">Alta</th><th scope="col">Rol</th></tr>
+          <tr><th scope="col">{{ t.nombre }}</th><th scope="col">{{ t.email }}</th><th scope="col">{{ t.alta }}</th><th scope="col">{{ t.rol }}</th></tr>
         </thead>
         <tbody>
           @for (usuario of cola.items(); track usuario.id) {
@@ -34,9 +37,9 @@ import { Cola } from './cola';
               <td>{{ usuario.fechaRegistro | date: 'shortDate' }}</td>
               <td>
                 <mat-select [value]="usuario.rol" [disabled]="usuario.id === miUid() || ocupado() === usuario.id"
-                            [attr.aria-label]="'Rol de ' + usuario.nombre" (selectionChange)="cambiarRol(usuario, $event)">
-                  <mat-option value="USER">Usuario</mat-option>
-                  <mat-option value="ADMIN">Administrador</mat-option>
+                            [attr.aria-label]="t.rolDe(usuario.nombre)" (selectionChange)="cambiarRol(usuario, $event)">
+                  <mat-option value="USER">{{ t.usuario }}</mat-option>
+                  <mat-option value="ADMIN">{{ t.administrador }}</mat-option>
                 </mat-select>
               </td>
             </tr>
@@ -46,9 +49,9 @@ import { Cola } from './cola';
       @if (cola.cargando()) {
         <bf-loading-state />
       } @else if (cola.hayMas()) {
-        <button mat-stroked-button type="button" (click)="cola.cargarMas()">Cargar más</button>
+        <button mat-stroked-button type="button" (click)="cola.cargarMas()">{{ tc.cargarMas }}</button>
       }
-      <p class="nota">El usuario verá su nuevo rol la próxima vez que se renueve su sesión (como mucho, en una hora).</p>
+      <p class="nota">{{ t.nota }}</p>
     }
   `,
   styles: `
@@ -75,13 +78,6 @@ import { Cola } from './cola';
       color: var(--mat-sys-on-surface-variant);
       font: var(--mat-sys-body-small);
     }
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-    }
   `,
 })
 export class AdminUsuarios implements OnInit {
@@ -89,6 +85,8 @@ export class AdminUsuarios implements OnInit {
   private readonly notifier = inject(Notifier);
   private readonly confirmation = inject(Confirmation);
   private readonly auth = inject(AuthService);
+  protected readonly t = textos(ADMIN_USUARIOS);
+  protected readonly tc = textos(COLA);
 
   protected readonly cola = new Cola<Usuario>((page) => this.api.usuarios(page), 50);
   protected readonly ocupado = signal<string | null>(null);
@@ -101,11 +99,9 @@ export class AdminUsuarios implements OnInit {
   protected async cambiarRol(usuario: Usuario, event: MatSelectChange): Promise<void> {
     const rol = event.value as Rol;
     const ok = await this.confirmation.ask({
-      titulo: 'Cambiar rol',
-      mensaje: rol === 'ADMIN'
-        ? `${usuario.nombre} podrá moderar todo el contenido y gestionar usuarios.`
-        : `${usuario.nombre} dejará de ser administrador.`,
-      confirmar: 'Cambiar',
+      titulo: this.t.cambiarRol,
+      mensaje: rol === 'ADMIN' ? this.t.seraAdmin(usuario.nombre) : this.t.dejaraDeSerAdmin(usuario.nombre),
+      confirmar: this.t.cambiar,
     });
     if (!ok) {
       event.source.value = usuario.rol;
@@ -114,7 +110,7 @@ export class AdminUsuarios implements OnInit {
     this.ocupado.set(usuario.id);
     try {
       this.cola.reemplazar(await firstValueFrom(this.api.cambiarRol(usuario.id, rol)));
-      this.notifier.success(`Rol de ${usuario.nombre} actualizado`);
+      this.notifier.success(this.t.rolActualizado(usuario.nombre));
     } catch (error) {
       event.source.value = usuario.rol;
       this.notifier.error(error);

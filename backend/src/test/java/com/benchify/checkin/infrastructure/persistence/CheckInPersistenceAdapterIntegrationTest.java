@@ -46,12 +46,12 @@ class CheckInPersistenceAdapterIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void storesCheckInsAndFindsTheLatestDate() {
-        assertThat(checkIns.findUltimaFecha("chk-ana", bancoId)).isEmpty();
+        assertThat(checkIns.findUltimaFechaForUpdate("chk-ana", bancoId)).isEmpty();
 
         checkIns.save(checkIn(AHORA.minusSeconds(3600)));
         CheckIn ultimo = checkIns.save(checkIn(AHORA));
 
-        assertThat(checkIns.findUltimaFecha("chk-ana", bancoId)).contains(AHORA);
+        assertThat(checkIns.findUltimaFechaForUpdate("chk-ana", bancoId)).contains(AHORA);
         assertThat(checkIns.countByBanco(bancoId)).isEqualTo(2);
         PageResult<CheckIn> pagina = checkIns.findByUsuario("chk-ana", PageQuery.first(1));
         assertThat(pagina.content()).containsExactly(ultimo);

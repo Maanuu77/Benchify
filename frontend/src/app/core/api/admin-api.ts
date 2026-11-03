@@ -1,12 +1,14 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from '../config/api-url';
 import { params } from './http-params';
 import {
   BancoModeracion,
+  EdicionModeracion,
   EstadisticasModeracion,
   EstadoBanco,
+  EventoModeracion,
   ImagenModeracion,
   Page,
   PageRequest,
@@ -33,16 +35,30 @@ export class AdminApi {
     return this.http.post<BancoModeracion>(`${this.url}/admin/bancos/${id}/aprobacion`, null);
   }
 
-  rechazarBanco(id: string): Observable<BancoModeracion> {
-    return this.http.post<BancoModeracion>(`${this.url}/admin/bancos/${id}/rechazo`, null);
+  /** @param motivo se guarda en el historial y le llega al autor en su notificación */
+  rechazarBanco(id: string, motivo?: string): Observable<BancoModeracion> {
+    return this.http.post<BancoModeracion>(`${this.url}/admin/bancos/${id}/rechazo`, null, { params: conMotivo(motivo) });
+  }
+
+  /** Ediciones de bancos publicados que esperan moderación, con lo publicado y lo propuesto. */
+  ediciones(page: PageRequest = {}): Observable<Page<EdicionModeracion>> {
+    return this.http.get<Page<EdicionModeracion>>(`${this.url}/admin/ediciones`, { params: params({ ...page }) });
+  }
+
+  aprobarEdicion(id: string): Observable<BancoModeracion> {
+    return this.http.post<BancoModeracion>(`${this.url}/admin/ediciones/${id}/aprobacion`, null);
+  }
+
+  rechazarEdicion(id: string, motivo?: string): Observable<void> {
+    return this.http.post<void>(`${this.url}/admin/ediciones/${id}/rechazo`, null, { params: conMotivo(motivo) });
   }
 
   resenasReportadas(page: PageRequest = {}): Observable<Page<ResenaModeracion>> {
     return this.http.get<Page<ResenaModeracion>>(`${this.url}/admin/resenas/reportadas`, { params: params({ ...page }) });
   }
 
-  eliminarResena(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.url}/admin/resenas/${id}`);
+  eliminarResena(id: string, motivo?: string): Observable<void> {
+    return this.http.delete<void>(`${this.url}/admin/resenas/${id}`, { params: conMotivo(motivo) });
   }
 
   mantenerResena(id: string): Observable<ResenaModeracion> {
@@ -57,8 +73,13 @@ export class AdminApi {
     return this.http.post<ImagenModeracion>(`${this.url}/admin/imagenes/${id}/aprobacion`, null);
   }
 
-  rechazarImagen(id: string): Observable<void> {
-    return this.http.post<void>(`${this.url}/admin/imagenes/${id}/rechazo`, null);
+  rechazarImagen(id: string, motivo?: string): Observable<void> {
+    return this.http.post<void>(`${this.url}/admin/imagenes/${id}/rechazo`, null, { params: conMotivo(motivo) });
+  }
+
+  /** Historial de decisiones de moderación, de la más reciente a la más antigua. */
+  eventos(page: PageRequest = {}): Observable<Page<EventoModeracion>> {
+    return this.http.get<Page<EventoModeracion>>(`${this.url}/admin/eventos`, { params: params({ ...page }) });
   }
 
   usuarios(page: PageRequest = {}): Observable<Page<Usuario>> {
@@ -68,4 +89,10 @@ export class AdminApi {
   cambiarRol(usuarioId: string, rol: Rol): Observable<Usuario> {
     return this.http.put<Usuario>(`${this.url}/admin/usuarios/${usuarioId}/rol`, { rol });
   }
+}
+
+/** Sin motivo no se envía el parámetro. */
+function conMotivo(motivo?: string): HttpParams {
+  const limpio = motivo?.trim();
+  return limpio ? new HttpParams().set('motivo', limpio) : new HttpParams();
 }

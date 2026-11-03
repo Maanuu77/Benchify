@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { MatTabLink, MatTabNav, MatTabNavPanel } from '@angular/material/tabs';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { textos } from '../../core/i18n/idioma';
+import { ADMIN_LAYOUT } from './admin-layout.i18n';
 
 @Component({
   selector: 'bf-admin-layout',
@@ -8,8 +10,8 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="pagina">
-      <h1>Moderación</h1>
-      <nav mat-tab-nav-bar [tabPanel]="panel" aria-label="Secciones de moderación">
+      <h1>{{ t.moderacion }}</h1>
+      <nav mat-tab-nav-bar [tabPanel]="panel" [attr.aria-label]="t.secciones">
         @for (link of links; track link.path) {
           <a mat-tab-link [routerLink]="link.path" routerLinkActive #rla="routerLinkActive"
              [routerLinkActiveOptions]="{ exact: link.path === '.' }" [active]="rla.isActive">
@@ -39,11 +41,16 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   `,
 })
 export class AdminLayout {
+  protected readonly t = textos(ADMIN_LAYOUT);
+
   protected readonly links = [
-    { path: '.', label: 'Resumen' },
-    { path: 'bancos', label: 'Bancos' },
-    { path: 'resenas', label: 'Reseñas' },
-    { path: 'imagenes', label: 'Fotos' },
-    { path: 'usuarios', label: 'Usuarios' },
+    { path: '.', label: this.t.resumen },
+    { path: 'bancos', label: this.t.bancos },
+    { path: 'ediciones', label: this.t.ediciones },
+    { path: 'resenas', label: this.t.resenas },
+    { path: 'imagenes', label: this.t.fotos },
+    { path: 'incidencias', label: this.t.avisos },
+    { path: 'usuarios', label: this.t.usuarios },
+    { path: 'historial', label: this.t.historial },
   ];
 }

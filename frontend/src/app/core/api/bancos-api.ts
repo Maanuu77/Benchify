@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, shareReplay } from 'rxjs';
+import { map, Observable, shareReplay } from 'rxjs';
 import { API_URL } from '../config/api-url';
 import { params } from './http-params';
 import {
@@ -9,12 +9,16 @@ import {
   BancoRequest,
   BancoResumen,
   BoundingBox,
+  EdicionPendiente,
   Etiqueta,
   FiltroBancos,
   Imagen,
   Page,
   PageRequest,
 } from './models';
+
+/** Máximo de bancos que devuelve la API para un área del mapa (ConsultarBancosUseCase en el backend). */
+export const MAX_RESULTADOS_MAPA = 500;
 
 @Injectable({ providedIn: 'root' })
 export class BancosApi {
@@ -43,8 +47,31 @@ export class BancosApi {
     return this.http.post<Banco>(`${this.url}/bancos`, request);
   }
 
-  editar(id: string, request: BancoRequest): Observable<Banco> {
-    return this.http.put<Banco>(`${this.url}/bancos/${id}`, request);
+  /** Banco y su versión (cabecera ETag), para editarlo sin pisar cambios ajenos. */
+  obtenerParaEditar(id: string): Observable<{ banco: Banco; etag: string | null }> {
+    return this.http
+      .get<Banco>(`${this.url}/bancos/${id}`, { observe: 'response' })
+      .pipe(map((response) => ({ banco: response.body!, etag: response.headers.get('ETag') })));
+  }
+
+  /**
+   * Con `etag`, el backend rechaza la edición (412 BANCO_VERSION_OBSOLETA) si otra persona lo ha cambiado.
+   * Si el autor edita un banco publicado, el backend responde 202: la edición espera moderación y el
+   * banco devuelto sigue como estaba.
+   */
+  editar(id: string, request: BancoRequest, etag: string | null = null):
+      Observable<{ banco: Banco; pendienteDeRevision: boolean }> {
+    return this.http
+      .put<Banco>(`${this.url}/bancos/${id}`, request, {
+        observe: 'response',
+        ...(etag ? { headers: { 'If-Match': etag } } : {}),
+      })
+      .pipe(map((response) => ({ banco: response.body!, pendienteDeRevision: response.status === 202 })));
+  }
+
+  /** La edición del banco que espera moderación, o null si no hay ninguna (204). */
+  edicionPendiente(id: string): Observable<EdicionPendiente | null> {
+    return this.http.get<EdicionPendiente | null>(`${this.url}/bancos/${id}/edicion-pendiente`);
   }
 
   eliminar(id: string): Observable<void> {

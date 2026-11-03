@@ -27,6 +27,8 @@ class OpenApiDocsIntegrationTest extends AbstractIntegrationTest {
                     assertThat(json).hasPath("$.paths['/api/v1/admin/estadisticas'].get");
                     assertThat(json).hasPath("$.paths['/api/v1/usuarios/me/favoritos'].get");
                     assertThat(json).hasPath("$.paths['/api/v1/bancos/{bancoId}/checkins'].post.responses['422']");
+                    assertThat(json).hasPath("$.paths['/api/v1/bancos/{bancoId}/checkins'].post.responses['429']");
+                    assertThat(json).doesNotHavePath("$.paths['/api/v1/bancos/cercanos'].get.responses['429']");
                     assertThat(json).hasPath("$.paths['/api/v1/usuarios/me'].get.responses['401']");
                     // El actor autenticado no aparece como parámetro de la API
                     assertThat(json).doesNotHavePath("$.paths['/api/v1/usuarios/me'].get.parameters");

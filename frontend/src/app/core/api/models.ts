@@ -103,6 +103,10 @@ export interface Imagen {
   id: string;
   bancoId: string;
   url: string;
+  /** Miniatura para galerías; en las fotos antiguas es la misma url. */
+  thumbUrl: string;
+  /** Las fotos pendientes no son públicas: url y thumbUrl se piden a la API con el token. */
+  requiereAutenticacion: boolean;
   estado: EstadoImagen;
   subidaPor: string;
   fechaSubida: string;
@@ -176,6 +180,7 @@ export interface EstadisticasModeracion {
   imagenesPendientes: number;
   totalResenas: number;
   totalUsuarios: number;
+  edicionesPendientes: number;
 }
 
 export interface BancoModeracion {
@@ -208,8 +213,114 @@ export interface ImagenModeracion {
   id: string;
   bancoId: string;
   url: string;
+  thumbUrl: string;
+  requiereAutenticacion: boolean;
   estado: EstadoImagen;
   subidaPor: string;
   tamanoBytes: number;
   fechaSubida: string;
+  /** Fotos ya subidas que se le parecen (posibles duplicados); solo en la cola de pendientes. */
+  parecidas: ImagenParecida[];
+}
+
+/** Las rechazadas ya no tienen fichero: thumbUrl es null. */
+export interface ImagenParecida {
+  id: string;
+  bancoId: string;
+  thumbUrl: string | null;
+  requiereAutenticacion: boolean;
+  estado: EstadoImagen;
+  mismoBanco: boolean;
+}
+
+export type TipoNotificacion =
+  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'FOTO_APROBADA' | 'FOTO_RECHAZADA' | 'RESENA_RETIRADA' | 'INCIDENCIA_REVISADA'
+  | 'EDICION_APROBADA' | 'EDICION_RECHAZADA';
+
+export interface Notificacion {
+  id: string;
+  tipo: TipoNotificacion;
+  titulo: string;
+  mensaje: string | null;
+  /** Ruta de la aplicación a la que lleva, p. ej. /bancos/{id}. */
+  enlace: string | null;
+  leida: boolean;
+  fecha: string;
+}
+
+export type AccionModeracion =
+  | 'BANCO_APROBADO' | 'BANCO_RECHAZADO' | 'RESENA_ELIMINADA' | 'RESENA_MANTENIDA' | 'IMAGEN_APROBADA' | 'IMAGEN_RECHAZADA'
+  | 'EDICION_APROBADA' | 'EDICION_RECHAZADA';
+
+export interface EventoModeracion {
+  id: string;
+  moderadorId: string;
+  accion: AccionModeracion;
+  recursoTipo: 'BANCO' | 'IMAGEN' | 'RESENA';
+  recursoId: string;
+  motivo: string | null;
+  fecha: string;
+}
+
+export type TipoIncidencia = 'ROTO' | 'SUCIO' | 'DESAPARECIDO' | 'OTRO';
+export type EstadoIncidencia = 'ABIERTA' | 'RESUELTA' | 'DESCARTADA';
+
+export interface Incidencia {
+  id: string;
+  bancoId: string;
+  usuarioId: string;
+  tipo: TipoIncidencia;
+  comentario: string | null;
+  estado: EstadoIncidencia;
+  fecha: string;
+}
+
+export interface ResumenIncidencias {
+  tipo: TipoIncidencia;
+  total: number;
+}
+
+/** Dirección o sitio encontrado por el buscador; el encuadre falta si solo se conoce el punto. */
+export interface Lugar {
+  nombre: string;
+  direccion: string;
+  lat: number;
+  lng: number;
+  sur: number | null;
+  oeste: number | null;
+  norte: number | null;
+  este: number | null;
+}
+
+/** Hay una edición del banco esperando moderación (solo la ven su autor y los administradores). */
+export interface EdicionPendiente {
+  id: string;
+  fecha: string;
+}
+
+/** Campos editables de un banco, para comparar lo publicado con lo propuesto. */
+export interface DatosBancoModeracion {
+  titulo: string;
+  descripcion: string | null;
+  lat: number;
+  lng: number;
+  direccion: string | null;
+  ciudad: string | null;
+  provincia: string | null;
+  pais: string | null;
+  conSombra: boolean;
+  accesible: boolean;
+  conRespaldo: boolean;
+  material: MaterialBanco | null;
+  etiquetas: string[];
+}
+
+export interface EdicionModeracion {
+  id: string;
+  bancoId: string;
+  autorId: string;
+  autorNombre: string | null;
+  fecha: string;
+  actual: DatosBancoModeracion;
+  propuesta: DatosBancoModeracion;
 }

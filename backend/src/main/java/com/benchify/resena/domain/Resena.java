@@ -11,6 +11,10 @@ import java.util.UUID;
 /**
  * Valoración de 1 a 5 de un banco con comentario opcional. Al llegar a
  * {@link #UMBRAL_REPORTES} reportes de usuarios distintos pasa a la cola de moderación.
+ *
+ * <p>Los contadores de reportes solo los cambia la persistencia, con actualizaciones atómicas,
+ * para que un reporte simultáneo a una edición no se pierda. {@code version} detecta dos
+ * ediciones concurrentes de la misma reseña.
  */
 public record Resena(
         UUID id,
@@ -22,7 +26,8 @@ public record Resena(
         Instant fecha,
         Instant fechaEdicion,
         int numReportes,
-        boolean reportada) {
+        boolean reportada,
+        long version) {
 
     public static final int MAX_COMENTARIO = 1000;
     public static final int UMBRAL_REPORTES = 3;
@@ -38,7 +43,7 @@ public record Resena(
 
     public static Resena publicar(UUID id, UUID bancoId, Actor actor, int puntuacion, String comentario,
             Instant ahora) {
-        return new Resena(id, bancoId, actor.userId(), null, puntuacion, comentario, ahora, null, 0, false);
+        return new Resena(id, bancoId, actor.userId(), null, puntuacion, comentario, ahora, null, 0, false, 0);
     }
 
     /** Solo el autor puede editar su reseña. */
@@ -47,7 +52,7 @@ public record Resena(
             throw new ForbiddenException("RESENA_NO_AUTOR", "Solo el autor puede editar su reseña");
         }
         return new Resena(id, bancoId, autorId, autorNombre, nuevaPuntuacion, nuevoComentario, fecha, ahora,
-                numReportes, reportada);
+                numReportes, reportada, version);
     }
 
     /** El autor o un administrador pueden borrarla. */
@@ -61,17 +66,6 @@ public record Resena(
         if (actor.userId().equals(autorId)) {
             throw new BusinessRuleException("RESENA_PROPIA", "No puedes reportar tu propia reseña");
         }
-    }
-
-    public Resena conReporteAdicional() {
-        int total = numReportes + 1;
-        return new Resena(id, bancoId, autorId, autorNombre, puntuacion, comentario, fecha, fechaEdicion, total,
-                reportada || total >= UMBRAL_REPORTES);
-    }
-
-    /** Un administrador revisa la reseña y decide mantenerla. */
-    public Resena sinReportes() {
-        return new Resena(id, bancoId, autorId, autorNombre, puntuacion, comentario, fecha, fechaEdicion, 0, false);
     }
 
     private static void validarPuntuacion(int puntuacion) {

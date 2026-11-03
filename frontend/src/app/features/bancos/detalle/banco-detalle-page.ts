@@ -1,18 +1,22 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, linkedSignal, signal,
+} from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { MatButton } from '@angular/material/button';
-import { MatChip, MatChipSet } from '@angular/material/chips';
 import { MatIcon } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
-import { combineLatest, firstValueFrom, switchMap } from 'rxjs';
+import { catchError, combineLatest, filter, firstValueFrom, of, startWith, switchMap } from 'rxjs';
 import { Loadable, loadable } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
+import { API_URL } from '../../../core/config/api-url';
 import { Banco, BancoResumen } from '../../../core/api/models';
 import { UsuariosApi } from '../../../core/api/usuarios-api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { textos, textosActuales } from '../../../core/i18n/idioma';
+import { Seo } from '../../../core/seo/seo';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
 import { Confirmation } from '../../../shared/ui/confirm-dialog';
@@ -20,24 +24,20 @@ import { DistanciaPipe } from '../../../shared/ui/distancia.pipe';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { StarRating } from '../../../shared/ui/star-rating';
+import { AvisosBanco } from './avisos-banco';
 import { GaleriaImagenes } from './galeria-imagenes';
+import { BANCO_DETALLE } from './banco-detalle-page.i18n';
 import { ResenasSection } from './resenas-section';
 
-export const ESTADOS: Record<string, string> = {
-  PENDIENTE: 'Pendiente de revisión',
-  OCULTO: 'Rechazado por moderación',
-  ELIMINADO: 'Eliminado',
-};
+export const ESTADOS: Record<string, string> = textosActuales(BANCO_DETALLE).estados;
 
-export const MATERIALES: Record<string, string> = {
-  MADERA: 'Madera', METAL: 'Metal', PIEDRA: 'Piedra', HORMIGON: 'Hormigón', PLASTICO: 'Plástico', OTRO: 'Otro',
-};
+export const MATERIALES: Record<string, string> = textosActuales(BANCO_DETALLE).materiales;
 
 @Component({
   selector: 'bf-banco-detalle-page',
   imports: [
-    RouterLink, DatePipe, DecimalPipe, MatButton, MatIcon, MatChipSet, MatChip,
-    StarRating, LoadingState, ErrorState, BenchMap, GaleriaImagenes, ResenasSection,
+    RouterLink, DatePipe, DecimalPipe, MatButton, MatIcon,
+    StarRating, LoadingState, ErrorState, BenchMap, AvisosBanco, GaleriaImagenes, ResenasSection,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './banco-detalle-page.html',
@@ -51,20 +51,42 @@ export class BancoDetallePage {
   private readonly confirmation = inject(Confirmation);
   private readonly router = inject(Router);
   private readonly title = inject(Title);
+  private readonly seo = inject(Seo);
+  private readonly apiUrl = inject(API_URL);
   protected readonly auth = inject(AuthService);
+  protected readonly t = textos(BANCO_DETALLE);
 
   /** Parámetro de ruta :id. */
   readonly id = input.required<string>();
 
   private readonly recarga = signal(0);
-  protected readonly estados = ESTADOS;
-  protected readonly materiales = MATERIALES;
+  protected readonly estados: Record<string, string> = this.t.estados;
+  protected readonly materiales: Record<string, string> = this.t.materiales;
 
-  protected readonly estado = toSignal(
-    combineLatest([toObservable(this.id), toObservable(this.recarga)])
+  /**
+   * Cambia al iniciar o cerrar sesión: el autor ve su banco pendiente y el resto no. Vale undefined
+   * mientras Firebase restaura la sesión, para no pedir nada que habría que volver a pedir enseguida.
+   */
+  private readonly uid = computed(() => (this.auth.isLoading() ? undefined : (this.auth.session()?.uid ?? null)));
+  private readonly uid$ = toObservable(this.uid).pipe(filter((uid) => uid !== undefined));
+
+  private readonly carga = toSignal(
+    combineLatest([toObservable(this.id), this.uid$, toObservable(this.recarga)])
       .pipe(switchMap(([id]) => loadable(this.bancosApi.obtener(id)))),
     { initialValue: { status: 'loading' } as Loadable<Banco> },
   );
+
+  /**
+   * Al recargar el mismo banco (p. ej. tras publicar una reseña) se sigue mostrando el anterior:
+   * volver a "cargando" desmontaría la página entera, con su mapa, galería y reseñas.
+   */
+  protected readonly estado = linkedSignal<Loadable<Banco>, Loadable<Banco>>({
+    source: this.carga,
+    computation: (nuevo, anterior) =>
+      nuevo.status === 'loading' && anterior?.value.status === 'success' && anterior.value.value.id === this.id()
+        ? anterior.value
+        : nuevo,
+  });
   protected readonly banco = computed(() => {
     const estado = this.estado();
     return estado.status === 'success' ? estado.value : null;
@@ -90,8 +112,35 @@ export class BancoDetallePage {
     return !!b && (this.auth.isAdmin() || this.auth.session()?.uid === b.autor.id);
   });
 
-  protected readonly favorito = signal(false);
-  protected readonly totalCheckIns = signal<number | null>(null);
+  /** Edición del autor que espera moderación (solo se pregunta si quien mira puede gestionar el banco). */
+  protected readonly edicionPendiente = toSignal(
+    combineLatest([toObservable(this.id), toObservable(this.esGestor), toObservable(this.recarga)]).pipe(
+      switchMap(([id, gestor]) =>
+        gestor ? this.bancosApi.edicionPendiente(id).pipe(catchError(() => of(null))) : of(null),
+      ),
+    ),
+    { initialValue: null },
+  );
+
+  /** Lo que dice la API para el banco y el usuario actuales; al cambiar cualquiera se descarta la respuesta anterior. */
+  private readonly favoritoRemoto = toSignal(
+    combineLatest([toObservable(this.id), this.uid$]).pipe(
+      switchMap(([id, uid]) => (uid ? this.usuariosApi.esFavorito(id).pipe(catchError(() => of(false))) : of(false))),
+    ),
+    { initialValue: false },
+  );
+  private readonly totalRemoto = toSignal(
+    combineLatest([toObservable(this.id), this.uid$]).pipe(
+      switchMap(([id]) =>
+        this.usuariosApi.totalCheckIns(id).pipe(startWith(null), catchError(() => of(null))),
+      ),
+    ),
+    { initialValue: null },
+  );
+
+  /** Se pueden cambiar en local (favorito optimista, check-in recién hecho) hasta la siguiente respuesta. */
+  protected readonly favorito = linkedSignal(() => this.favoritoRemoto());
+  protected readonly totalCheckIns = linkedSignal(() => this.totalRemoto());
   protected readonly haciendoCheckIn = signal(false);
 
   constructor() {
@@ -99,23 +148,47 @@ export class BancoDetallePage {
       const banco = this.banco();
       if (banco) {
         this.title.setTitle(`${banco.titulo} · Benchify`);
+        this.seo.describir({
+          titulo: `${banco.titulo} · Benchify`,
+          descripcion: banco.descripcion ?? (banco.ciudad ? this.t.bancoEn(banco.ciudad) : this.t.bancoPublico),
+          url: location.origin + this.router.serializeUrl(this.router.createUrlTree(['/bancos', banco.id])),
+          imagen: `${location.origin}/og.png`,
+        });
       }
     });
-    effect(() => {
-      const id = this.id();
-      if (this.auth.isAuthenticated()) {
-        firstValueFrom(this.usuariosApi.esFavorito(id)).then((f) => this.favorito.set(f), () => undefined);
-      } else {
-        this.favorito.set(false);
-      }
-    });
-    effect(() => {
-      firstValueFrom(this.usuariosApi.totalCheckIns(this.id())).then((t) => this.totalCheckIns.set(t), () => undefined);
-    });
+    inject(DestroyRef).onDestroy(() => this.seo.restablecer());
   }
 
   protected recargar(): void {
     this.recarga.update((n) => n + 1);
+  }
+
+  protected comoLlegar(): string {
+    const b = this.banco();
+    return b ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}` : '';
+  }
+
+  /** Comparte la ficha con el menú nativo del sistema o, si no lo hay, copia el enlace. */
+  protected async compartir(): Promise<void> {
+    const b = this.banco();
+    if (!b) return;
+    // /s/{id} lo sirve el backend con las etiquetas Open Graph para que el enlace se vea bien al compartirlo:
+    // se enlaza en el dominio de la API, que es quien responde a esa ruta
+    const origenApi = new URL(this.apiUrl, location.origin).origin;
+    const url = origenApi + this.router.serializeUrl(this.router.createUrlTree(['/s', b.id]));
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: b.titulo, text: this.t.compartirTexto(b.titulo), url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        this.notifier.success(this.t.enlaceCopiado);
+      }
+    } catch (error) {
+      // Cerrar el menú de compartir no es un error
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        this.notifier.error(this.t.noCompartido);
+      }
+    }
   }
 
   protected async alternarFavorito(): Promise<void> {
@@ -127,7 +200,7 @@ export class BancoDetallePage {
     this.favorito.set(nuevo);
     try {
       await firstValueFrom(nuevo ? this.usuariosApi.marcarFavorito(this.id()) : this.usuariosApi.desmarcarFavorito(this.id()));
-      this.notifier.success(nuevo ? 'Guardado en favoritos' : 'Quitado de favoritos');
+      this.notifier.success(nuevo ? this.t.guardadoEnFavoritos : this.t.quitadoDeFavoritos);
     } catch (error) {
       this.favorito.set(!nuevo);
       this.notifier.error(error);
@@ -144,7 +217,7 @@ export class BancoDetallePage {
       const posicion = await this.geo.posicionActual();
       const checkIn = await firstValueFrom(this.usuariosApi.checkIn(this.id(), posicion.lat, posicion.lng));
       this.totalCheckIns.update((t) => (t ?? 0) + 1);
-      this.notifier.success(`¡Check-in hecho! Estabas a ${new DistanciaPipe().transform(checkIn.distanciaMetros)}.`);
+      this.notifier.success(this.t.checkInHecho(new DistanciaPipe().transform(checkIn.distanciaMetros)));
     } catch (error) {
       this.notifier.error(error instanceof Error && !('status' in error) ? error.message : error);
     } finally {
@@ -154,15 +227,15 @@ export class BancoDetallePage {
 
   protected async eliminar(): Promise<void> {
     const ok = await this.confirmation.ask({
-      titulo: 'Eliminar banco',
-      mensaje: 'Dejará de aparecer en el mapa. Las reseñas y fotos se conservan para moderación.',
-      confirmar: 'Eliminar',
+      titulo: this.t.eliminarTitulo,
+      mensaje: this.t.eliminarMensaje,
+      confirmar: this.t.eliminar,
       peligroso: true,
     });
     if (!ok) return;
     try {
       await firstValueFrom(this.bancosApi.eliminar(this.id()));
-      this.notifier.success('Banco eliminado');
+      this.notifier.success(this.t.bancoEliminado);
       await this.router.navigateByUrl('/mapa');
     } catch (error) {
       this.notifier.error(error);

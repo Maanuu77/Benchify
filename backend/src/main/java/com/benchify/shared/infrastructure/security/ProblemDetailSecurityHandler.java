@@ -41,7 +41,11 @@ public class ProblemDetailSecurityHandler implements AuthenticationEntryPoint, A
                 "No tienes permisos para realizar esta operación");
     }
 
-    private void write(HttpServletRequest request, HttpServletResponse response, HttpStatus status,
+    /**
+     * Escribe un {@code application/problem+json} con {@code code}. Lo usan también los filtros que
+     * responden antes de llegar a los controladores (y a {@code GlobalExceptionHandler}).
+     */
+    public void write(HttpServletRequest request, HttpServletResponse response, HttpStatus status,
             String code, String detail) throws IOException {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("type", "about:blank");

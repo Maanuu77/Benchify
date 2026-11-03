@@ -1,9 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
+import { IDIOMA, LOCALES, textos } from '../../core/i18n/idioma';
+import { STAR_RATING } from './star-rating.i18n';
 
 /**
  * Puntuación de 1 a 5 estrellas. En modo lectura muestra medias estrellas; en modo edición es
- * un grupo de radio accesible con teclado (flechas) y lectores de pantalla.
+ * un grupo de radio accesible con teclado (flechas, Inicio y Fin) y lectores de pantalla.
  */
 @Component({
   selector: 'bf-star-rating',
@@ -11,14 +13,15 @@ import { MatIcon } from '@angular/material/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (editable()) {
-      <div class="stars" role="radiogroup" [attr.aria-label]="label()">
+      <div class="stars" role="radiogroup" [attr.aria-label]="label()"
+           [attr.aria-invalid]="invalido() || null" [attr.aria-describedby]="describedBy()">
         @for (star of stars; track star) {
           <button
             type="button"
             role="radio"
             class="star"
             [attr.aria-checked]="value() === star"
-            [attr.aria-label]="star + (star === 1 ? ' estrella' : ' estrellas')"
+            [attr.aria-label]="t.estrellas(star)"
             [attr.tabindex]="value() === star || (value() === 0 && star === 1) ? 0 : -1"
             (click)="value.set(star)"
             (keydown)="onKeydown($event)"
@@ -39,7 +42,7 @@ import { MatIcon } from '@angular/material/icon';
     .stars {
       display: inline-flex;
       align-items: center;
-      color: var(--mat-sys-tertiary);
+      color: var(--bf-ink);
     }
     .star {
       border: 0;
@@ -50,14 +53,21 @@ import { MatIcon } from '@angular/material/icon';
       border-radius: 50%;
     }
     .star:focus-visible {
-      outline: 2px solid var(--mat-sys-primary);
+      outline: 2px solid var(--bf-accent-ink);
     }
   `,
 })
 export class StarRating {
+  protected readonly t = textos(STAR_RATING);
+  private readonly locale = LOCALES[inject(IDIOMA)];
+
   readonly value = model(0);
   readonly editable = input(false);
-  readonly label = input('Puntuación');
+  readonly label = input(this.t.puntuacion);
+  /** Marca el grupo como inválido (p. ej. al enviar sin puntuación). */
+  readonly invalido = input(false);
+  /** Id del mensaje de error o ayuda asociado. */
+  readonly describedBy = input<string | null>(null);
 
   protected readonly stars = [1, 2, 3, 4, 5];
 
@@ -70,14 +80,18 @@ export class StarRating {
     }),
   );
 
-  protected readonly readLabel = computed(() => `${this.value().toLocaleString('es-ES')} de 5 estrellas`);
+  protected readonly readLabel = computed(
+    () => this.t.deCinco(this.value().toLocaleString(this.locale, { maximumFractionDigits: 1 })),
+  );
 
   protected onKeydown(event: KeyboardEvent): void {
-    const delta = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1
-      : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
-    if (delta === 0) return;
+    const actual = this.value() || 0;
+    const next = event.key === 'Home' ? 1
+      : event.key === 'End' ? 5
+      : event.key === 'ArrowRight' || event.key === 'ArrowUp' ? Math.min(5, Math.max(1, actual + 1))
+      : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? Math.max(1, actual - 1) : 0;
+    if (next === 0) return;
     event.preventDefault();
-    const next = Math.min(5, Math.max(1, (this.value() || 0) + delta));
     this.value.set(next);
     const group = (event.currentTarget as HTMLElement).closest('[role="radiogroup"]');
     group?.querySelectorAll<HTMLButtonElement>('button')[next - 1]?.focus();

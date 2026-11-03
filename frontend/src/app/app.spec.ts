@@ -1,15 +1,24 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { AuthService } from './core/auth/auth.service';
 import { FakeAuthService } from './core/auth/testing/fake-auth.service';
+import { IDIOMA } from './core/i18n/idioma';
+import { NotificacionesService } from './core/notificaciones/notificaciones.service';
 
 describe('App', () => {
   let auth: FakeAuthService;
 
   beforeEach(() => {
     auth = new FakeAuthService();
-    TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: AuthService, useValue: auth }] });
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: auth },
+        { provide: NotificacionesService, useValue: { noLeidas: signal(0) } },
+      ],
+    });
   });
 
   it('renders the shell with brand, skip link and main landmark', async () => {
@@ -17,7 +26,7 @@ describe('App', () => {
     await fixture.whenStable();
     const element: HTMLElement = fixture.nativeElement;
 
-    expect(element.querySelector('.brand')?.textContent).toContain('Benchify');
+    expect(element.querySelector('.marca')?.textContent).toContain('Benchify');
     expect(element.querySelector('a.skip-link')?.getAttribute('href')).toBe('#contenido');
     expect(element.querySelector('main#contenido')).not.toBeNull();
   });
@@ -35,5 +44,35 @@ describe('App', () => {
     expect(element.textContent).toContain('Añadir banco');
     expect(element.textContent).toContain('Moderación');
     expect(element.querySelector('[aria-label="Menú de Ana"]')).not.toBeNull();
+  });
+
+  it('asks unverified users to confirm their email', async () => {
+    auth.signIn({ emailVerificado: false });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element: HTMLElement = fixture.nativeElement;
+
+    expect(element.querySelector('.aviso-verificacion')?.textContent).toContain('Confirma tu email');
+    (Array.from(element.querySelectorAll<HTMLButtonElement>('.aviso-verificacion button'))
+      .find((b) => b.textContent?.includes('Reenviar')))!.click();
+    await fixture.whenStable();
+    expect(auth.enviarVerificacion).toHaveBeenCalled();
+
+    auth.signIn({ emailVerificado: true });
+    await fixture.whenStable();
+    expect(element.querySelector('.aviso-verificacion')).toBeNull();
+  });
+
+  it('speaks English when that is the chosen language, and offers to switch back', async () => {
+    TestBed.overrideProvider(IDIOMA, { useValue: 'en' });
+    auth.signIn({ rol: 'ADMIN' });
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const element: HTMLElement = fixture.nativeElement;
+
+    expect(element.textContent).toContain('Add a bench');
+    expect(element.textContent).toContain('Moderation');
+    expect(element.querySelector('[aria-label="Ana\'s menu"]')).not.toBeNull();
+    expect(element.querySelector('bf-selector-idioma button')?.getAttribute('aria-label')).toBe('Cambiar a español');
   });
 });

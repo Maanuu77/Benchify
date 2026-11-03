@@ -53,6 +53,40 @@ describe('authInterceptor', () => {
     await response;
   });
 
+  it('retries once with a fresh token when the API rejects the current one', async () => {
+    auth.signIn();
+    const response = firstValueFrom(http.get('http://api.test/api/v1/admin/estadisticas'));
+
+    (await flushNext('http://api.test/api/v1/admin/estadisticas')).flush(null, { status: 403, statusText: 'Forbidden' });
+    const retry = await flushNext('http://api.test/api/v1/admin/estadisticas');
+    expect(auth.forcedRefreshes).toBe(1);
+    expect(retry.request.headers.get('Authorization')).toBe('Bearer token-ana');
+    retry.flush({ ok: true });
+    await expect(response).resolves.toEqual({ ok: true });
+  });
+
+  it('gives up after the single retry', async () => {
+    auth.signIn();
+    const response = firstValueFrom(http.delete('http://api.test/api/v1/imagenes/1'));
+
+    (await flushNext('http://api.test/api/v1/imagenes/1')).flush(null, { status: 403, statusText: 'Forbidden' });
+    (await flushNext('http://api.test/api/v1/imagenes/1')).flush(null, { status: 403, statusText: 'Forbidden' });
+    await expect(response).rejects.toMatchObject({ status: 403 });
+    expect(auth.forcedRefreshes).toBe(1);
+  });
+
+  it('does not retry anonymous calls or other errors', async () => {
+    const anonymous = firstValueFrom(http.get('http://api.test/api/v1/usuarios/me'));
+    (await flushNext('http://api.test/api/v1/usuarios/me')).flush(null, { status: 401, statusText: 'Unauthorized' });
+    await expect(anonymous).rejects.toMatchObject({ status: 401 });
+
+    auth.signIn();
+    const missing = firstValueFrom(http.get('http://api.test/api/v1/bancos/x'));
+    (await flushNext('http://api.test/api/v1/bancos/x')).flush(null, { status: 404, statusText: 'Not Found' });
+    await expect(missing).rejects.toMatchObject({ status: 404 });
+    expect(auth.forcedRefreshes).toBe(0);
+  });
+
   it('never leaks the token to other hosts', async () => {
     auth.signIn();
     const response = firstValueFrom(http.get('https://tile.openstreetmap.org/1/1/1.png'));

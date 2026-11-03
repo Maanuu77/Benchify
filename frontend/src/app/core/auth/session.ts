@@ -7,6 +7,8 @@ export interface Session {
   displayName: string | null;
   photoURL: string | null;
   rol: Rol;
+  /** Sin email verificado no se puede publicar contenido (el backend responde 403 EMAIL_NO_VERIFICADO). */
+  emailVerificado: boolean;
 }
 
 interface FirebaseUserLike {
@@ -14,6 +16,7 @@ interface FirebaseUserLike {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
+  emailVerified?: boolean;
 }
 
 /** El rol llega en el custom claim `role` del ID token; sin claim, el usuario es USER. */
@@ -25,5 +28,6 @@ export function toSession(user: FirebaseUserLike, claims: Record<string, unknown
     displayName: user.displayName,
     photoURL: user.photoURL,
     rol: role === 'ADMIN' ? 'ADMIN' : 'USER',
+    emailVerificado: user.emailVerified ?? false,
   };
 }

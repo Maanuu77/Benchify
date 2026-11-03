@@ -1,33 +1,45 @@
-import { DecimalPipe } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatListItem, MatListItemLine, MatListItemTitle, MatNavList } from '@angular/material/list';
-import { RouterLink } from '@angular/router';
-import { combineLatest, debounceTime, filter, switchMap } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { combineLatest, debounceTime, filter, map, of, skip, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Loadable, loadable } from '../../core/api/api-error';
-import { BancosApi } from '../../core/api/bancos-api';
-import { BancoCercano, BancoResumen, BoundingBox, FiltroBancos, Page } from '../../core/api/models';
+import { BancosApi, MAX_RESULTADOS_MAPA } from '../../core/api/bancos-api';
+import { BancoCercano, BancoResumen, BoundingBox, FiltroBancos, Lugar, Page } from '../../core/api/models';
 import { GeolocationService } from '../../core/geo/geolocation.service';
+import { BREAKPOINT_MOVIL } from '../../core/layout/shell';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
-import { BenchMap, Punto } from '../../shared/map/bench-map';
+import { BenchMap, Punto, Vista } from '../../shared/map/bench-map';
+import { distanciaMetros } from '../../shared/map/distancia';
 import { DistanciaPipe } from '../../shared/ui/distancia.pipe';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
-import { StarRating } from '../../shared/ui/star-rating';
+import { BuscadorLugares } from './buscador-lugares';
+import { aQueryParams, leerEstadoMapa } from './estado-mapa';
+import { guardarUltimaZona, leerUltimaZona } from './ultima-zona';
 import { FiltrosBancos } from './filtros-bancos';
+import { MAPA_PAGE } from './mapa-page.i18n';
 
 /** Radio de la búsqueda "cerca de mí", en metros. */
 export const RADIO_CERCANIA = 1500;
 
+/** Banco de la lista con la distancia al usuario, si se conoce. */
+export interface ElementoLista {
+  banco: BancoResumen;
+  distancia: number | null;
+}
+
 @Component({
   selector: 'bf-mapa-page',
   imports: [
-    BenchMap, FiltrosBancos, StarRating, LoadingState, ErrorState, EmptyState, DistanciaPipe, DecimalPipe,
-    RouterLink, MatButton, MatIcon, MatNavList, MatListItem, MatListItemTitle, MatListItemLine,
+    BenchMap, BuscadorLugares, FiltrosBancos, LoadingState, ErrorState, EmptyState, DistanciaPipe, DecimalPipe,
+    NgTemplateOutlet, RouterLink, MatButton, MatIcon,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './mapa-page.html',
@@ -37,36 +49,113 @@ export class MapaPage {
   private readonly api = inject(BancosApi);
   private readonly geo = inject(GeolocationService);
   private readonly notifier = inject(Notifier);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly mapa = viewChild(BenchMap);
+  protected readonly t = textos(MAPA_PAGE);
 
-  protected readonly centroInicial: Punto = { lat: environment.map.center[0], lng: environment.map.center[1] };
-  protected readonly zoomInicial = environment.map.zoom;
+  private readonly inicial = leerEstadoMapa(this.route.snapshot.queryParams);
+  protected readonly centroInicial: Punto = this.inicial.vista ?? { lat: environment.map.center[0], lng: environment.map.center[1] };
+  protected readonly zoomInicial = this.inicial.vista?.zoom ?? environment.map.zoom;
+
+  protected readonly movil = toSignal(
+    inject(BreakpointObserver).observe(BREAKPOINT_MOVIL).pipe(map((state) => state.matches)),
+    { initialValue: false },
+  );
 
   protected readonly area = signal<BoundingBox | null>(null);
-  protected readonly filtro = signal<FiltroBancos>({});
+  protected readonly vista = signal<Vista | null>(this.inicial.vista);
+  protected readonly filtro = signal<FiltroBancos>(this.inicial.filtro);
   protected readonly usuario = signal<Punto | null>(null);
   protected readonly seleccionado = signal<BancoResumen | null>(null);
   protected readonly localizando = signal(false);
-  protected readonly cercanos = signal<Loadable<Page<BancoCercano>> | null>(null);
+  /** Hoja inferior desplegada (solo móvil). */
+  protected readonly hojaAbierta = signal(false);
+  /** Punto de la búsqueda "cerca de mí"; null cuando la lista de cercanos está cerrada. */
+  private readonly origenCercanos = signal<Punto | null>(null);
 
   /** Bancos del área visible; se vuelve a pedir al mover el mapa o cambiar filtros. */
   protected readonly estado = toSignal(
     combineLatest([
       toObservable(this.area).pipe(filter((a): a is BoundingBox => a !== null), debounceTime(250)),
       toObservable(this.filtro),
-    ]).pipe(switchMap(([area, filtro]) => loadable(this.api.enArea(area, filtro)))),
+    ]).pipe(switchMap(([area, filtro]) =>
+      loadable(this.api.enArea(area, filtro).pipe(tap((bancos) => guardarUltimaZona(bancos)))),
+    )),
     { initialValue: { status: 'loading' } as Loadable<BancoResumen[]> },
   );
 
-  /** Conserva los últimos marcadores mientras carga la siguiente área para que no parpadeen. */
-  protected readonly bancos = linkedSignal<Loadable<BancoResumen[]>, BancoResumen[]>({
-    source: this.estado,
-    computation: (estado, anterior) => (estado.status === 'success' ? estado.value : (anterior?.value ?? [])),
+  /** Sin conexión con la API: se siguen mostrando los últimos bancos cargados. */
+  protected readonly sinConexion = computed(() => {
+    const estado = this.estado();
+    return estado.status === 'error' && estado.error.code === 'NETWORK';
+  });
+  /** Última zona guardada en el navegador; solo se lee al perder la conexión. */
+  private readonly copiaSinConexion = computed(() => (this.sinConexion() ? leerUltimaZona() : null));
+
+  /**
+   * Conserva los últimos marcadores mientras carga la siguiente área para que no parpadeen. Si no hay
+   * conexión y aún no se ha cargado nada, recurre a la última zona guardada.
+   */
+  protected readonly bancos = linkedSignal({
+    source: () => ({ estado: this.estado(), copia: this.copiaSinConexion() }),
+    computation: ({ estado, copia }, anterior?: { value: BancoResumen[] }): BancoResumen[] => {
+      if (estado.status === 'success') {
+        return estado.value;
+      }
+      const actuales = anterior?.value ?? [];
+      return actuales.length === 0 && copia ? copia.bancos : actuales;
+    },
   });
 
-  protected readonly mejorValorados = computed(() =>
-    [...this.bancos()].sort((a, b) => b.puntuacionMedia - a.puntuacionMedia || b.numResenas - a.numResenas).slice(0, 20),
+  /** El error solo se enseña si no hay nada que mostrar en su lugar. */
+  protected readonly mostrarError = computed(() =>
+    this.estado().status === 'error' && !(this.sinConexion() && this.bancos().length > 0));
+
+  /** Bancos cercanos: se vuelven a pedir al cambiar los filtros y solo cuenta la última respuesta. */
+  protected readonly cercanos = toSignal(
+    combineLatest([toObservable(this.origenCercanos), toObservable(this.filtro)]).pipe(
+      switchMap(([origen, filtro]) =>
+        origen ? loadable(this.api.cercanos(origen.lat, origen.lng, RADIO_CERCANIA, filtro, { size: 20 })) : of(null),
+      ),
+    ),
+    { initialValue: null as Loadable<Page<BancoCercano>> | null },
   );
+
+  /** La API devuelve como mucho este número de bancos por área: si se llega, hay más sin mostrar. */
+  protected readonly enLimite = computed(() => this.bancos().length >= MAX_RESULTADOS_MAPA);
+
+  /** Los del área, mejor valorados primero, con la distancia si el usuario ha compartido su posición. */
+  protected readonly mejorValorados = computed<ElementoLista[]>(() => {
+    const usuario = this.usuario();
+    return [...this.bancos()]
+      .sort((a, b) => b.puntuacionMedia - a.puntuacionMedia || b.numResenas - a.numResenas)
+      .slice(0, 20)
+      .map((banco) => ({ banco, distancia: usuario ? distanciaMetros(usuario, banco) : null }));
+  });
+
+  constructor() {
+    // Vista y filtros a la URL (sin crear entradas de historial) para poder volver y compartir
+    combineLatest([toObservable(this.vista), toObservable(this.filtro)])
+      .pipe(skip(1), debounceTime(400), takeUntilDestroyed())
+      .subscribe(([vista, filtro]) => {
+        // Si el usuario ya está yendo a otra página (p. ej. ha pulsado un enlace mientras el mapa se
+        // movía), una navegación aquí cancelaría la suya
+        if (this.router.currentNavigation()) {
+          return;
+        }
+        void this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: aQueryParams({ vista, filtro }),
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+      });
+  }
+
+  protected cambiarVista(vista: Vista): void {
+    this.vista.set(vista);
+  }
 
   protected async buscarCerca(): Promise<void> {
     this.localizando.set(true);
@@ -75,24 +164,78 @@ export class MapaPage {
       this.usuario.set(posicion);
       this.mapa()?.volarA(posicion, 15);
       this.cargarCercanos(posicion);
+      this.hojaAbierta.set(true);
     } catch (error) {
-      this.notifier.error(error instanceof Error ? error.message : 'No hemos podido obtener tu ubicación.');
+      this.notifier.error(error instanceof Error ? error.message : this.t.sinUbicacion);
     } finally {
       this.localizando.set(false);
     }
   }
 
+  /** Lleva el mapa a la dirección buscada; al moverse se cargan los bancos de esa zona. */
+  protected irALugar(lugar: Lugar): void {
+    const mapa = this.mapa();
+    if (lugar.sur !== null && lugar.oeste !== null && lugar.norte !== null && lugar.este !== null) {
+      mapa?.encuadrar(lugar.sur, lugar.oeste, lugar.norte, lugar.este);
+    } else {
+      mapa?.volarA(lugar, 16);
+    }
+    this.seleccionado.set(null);
+    this.origenCercanos.set(null);
+  }
+
   protected cargarCercanos(posicion: Punto): void {
-    loadable(this.api.cercanos(posicion.lat, posicion.lng, RADIO_CERCANIA, this.filtro(), { size: 20 }))
-      .subscribe((estado) => this.cercanos.set(estado));
+    // Un objeto nuevo aunque sea el mismo punto: así "reintentar" vuelve a pedir la lista
+    this.origenCercanos.set({ ...posicion });
   }
 
   protected cerrarCercanos(): void {
-    this.cercanos.set(null);
+    this.origenCercanos.set(null);
   }
 
+  /** Vuelve a pedir los bancos del área visible tras un error. */
+  protected reintentarArea(): void {
+    const area = this.area();
+    if (area) {
+      this.area.set({ ...area });
+    }
+  }
+
+  /**
+   * Al recorrer la lista con el teclado solo se selecciona el banco: mover el mapa cambiaría el
+   * área y con ella la propia lista que se está recorriendo.
+   */
   protected enfocar(banco: BancoResumen): void {
     this.seleccionado.set(banco);
-    this.mapa()?.volarA(banco);
+  }
+
+  /** Al tocar un marcador se muestra su tarjeta; en móvil, con la hoja plegada para seguir viendo el mapa. */
+  protected elegirEnMapa(banco: BancoResumen): void {
+    this.seleccionado.set(banco);
+  }
+
+  protected cerrarSeleccion(): void {
+    this.seleccionado.set(null);
+  }
+
+  protected alternarHoja(): void {
+    this.hojaAbierta.update((abierta) => !abierta);
+  }
+
+  protected acercar(): void {
+    this.mapa()?.acercar();
+  }
+
+  protected alejar(): void {
+    this.mapa()?.alejar();
+  }
+
+  protected comoLlegar(banco: BancoResumen): string {
+    return `https://www.google.com/maps/dir/?api=1&destination=${banco.lat},${banco.lng}`;
+  }
+
+  protected distanciaA(banco: BancoResumen): number | null {
+    const usuario = this.usuario();
+    return usuario ? distanciaMetros(usuario, banco) : null;
   }
 }

@@ -2,6 +2,7 @@ package com.benchify;
 
 import com.benchify.support.AbstractIntegrationTest;
 import com.benchify.support.InMemoryImageStorage;
+import com.benchify.support.TestImages;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,25 +139,119 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void anEditWithAnOldEtagDoesNotOverwriteANewerOne() {
+        String bancoId = proponerBanco();
+        String leida = mvc.get().uri("/api/v1/bancos/{id}", bancoId).header("Authorization", bearer(autora))
+                .exchange().getResponse().getHeader("ETag");
+        assertThat(leida).isEqualTo("\"0\"");
+
+        MvcTestResult primera = editarBanco(bancoId, leida, "Primera edición");
+        assertThat(primera).hasStatusOk().hasHeader("ETag", "\"1\"");
+        assertThat(editarBanco(bancoId, leida, "Edición sobre una copia vieja"))
+                .hasStatus(412).bodyJson().extractingPath("$.code").isEqualTo("BANCO_VERSION_OBSOLETA");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}", bancoId).header("Authorization", bearer(autora)))
+                .hasHeader("ETag", "\"1\"").bodyJson().extractingPath("$.titulo").isEqualTo("Primera edición");
+
+        // Sin If-Match se mantiene el comportamiento anterior: gana la última edición
+        assertThat(editarBanco(bancoId, null, "Sin comprobar")).hasStatusOk().hasHeader("ETag", "\"2\"");
+    }
+
+    @Test
+    void theAuthorOfAnOldReviewFindsItBeyondTheFirstPage() {
+        String bancoId = bancoPublicado();
+        MvcTestResult publicada = mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId)
+                .header("Authorization", bearer(visitante))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":3}").exchange();
+        String resenaId = json(publicada).get("id").asString();
+        for (int i = 0; i < 20; i++) {
+            assertThat(mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId)
+                    .header("Authorization", bearer("critico-" + i + "-" + visitante))
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":5}")).hasStatus(201);
+        }
+
+        // La cabecera Location apunta a un recurso que existe
+        assertThat(mvc.get().uri(publicada.getResponse().getHeader("Location")))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas", bancoId))
+                .bodyJson().extractingPath("$.content[*].id").asArray().doesNotContain(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", bancoId).header("Authorization", bearer(visitante)))
+                .hasStatusOk().bodyJson().extractingPath("$.id").isEqualTo(resenaId);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/resenas/mia", bancoId).header("Authorization", bearer(autora)))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("RESENA_NO_ENCONTRADA");
+    }
+
+    @Test
+    void aHiddenBenchDisappearsFromPublicProfilesAndCounters() {
+        String bancoId = bancoPublicado();
+        assertThat(mvc.post().uri("/api/v1/bancos/{id}/resenas", bancoId).header("Authorization", bearer(visitante))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"puntuacion\":4}")).hasStatus(201);
+        assertThat(checkIn(bancoId, LAT, LNG)).hasStatus(201);
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/resenas", visitante))
+                .bodyJson().extractingPath("$.totalElements").isEqualTo(1);
+
+        assertThat(mvc.post().uri("/api/v1/admin/bancos/{id}/rechazo", bancoId)
+                .header("Authorization", bearerAdmin(admin))).hasStatusOk();
+
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/resenas", visitante))
+                .bodyJson().extractingPath("$.totalElements").isEqualTo(0);
+        assertThat(mvc.get().uri("/api/v1/usuarios/{id}/estadisticas", visitante))
+                .bodyJson().extractingPath("$.resenas").isEqualTo(0);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId))
+                .hasStatus(404).bodyJson().extractingPath("$.code").isEqualTo("BANCO_NOT_FOUND");
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId).header("Authorization", bearer(visitante)))
+                .hasStatus(404);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", bancoId).header("Authorization", bearer(autora)))
+                .hasStatusOk().bodyJson().extractingPath("$.total").isEqualTo(1);
+        assertThat(mvc.get().uri("/api/v1/bancos/{id}/checkins/total", UUID.randomUUID())).hasStatus(404);
+    }
+
+    @Test
     void photosAreModeratedBeforeBecomingPublic() {
         String bancoId = bancoPublicado();
-        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 1, 2};
+        byte[] png = TestImages.png(64, 48);
 
-        JsonNode subida = json(mvc.post().uri("/api/v1/bancos/{id}/imagenes", bancoId)
+        MvcTestResult resultado = mvc.post().uri("/api/v1/bancos/{id}/imagenes", bancoId)
                 .header("Authorization", bearer(visitante))
-                .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", png)));
+                .multipart().file(new MockMultipartFile("archivo", "foto.png", "image/png", png)).exchange();
+        JsonNode subida = json(resultado);
         String imagenId = subida.get("id").asString();
-        String ruta = subida.get("url").asString().substring(InMemoryImageStorage.BASE_URL.length());
-        assertThat(storage.contiene(ruta)).isTrue();
+        String recurso = "http://localhost/api/v1/imagenes/" + imagenId;
+        assertThat(resultado).hasHeader("Location", recurso);
+        assertThat(mvc.get().uri(recurso).header("Authorization", bearer(visitante)))
+                .hasStatusOk().bodyJson().extractingPath("$.estado").isEqualTo("PENDIENTE");
+        assertThat(mvc.get().uri(recurso)).hasStatus(404);
 
+        // Pendiente: sus ficheros no están en la carpeta pública y la API solo se los sirve a quien la subió
+        assertThat(subida.get("requiereAutenticacion").asBoolean()).isTrue();
+        assertThat(subida.get("url").asString())
+                .isEqualTo("http://localhost/api/v1/imagenes/" + imagenId + "/archivo");
+        assertThat(storage.rutas("pendientes/" + bancoId + "/")).hasSize(2);
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).isEmpty();
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}/miniatura", imagenId)
+                .header("Authorization", bearer(visitante)))
+                .hasStatusOk().hasContentType("image/jpeg").hasHeader("Cache-Control", "max-age=300, private");
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}/archivo", imagenId)).hasStatus(404);
+        assertThat(mvc.get().uri("/api/v1/imagenes/{id}/archivo", imagenId).header("Authorization", bearer(autora)))
+                .hasStatus(404);
         assertThat(json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId)).size()).isZero();
-        assertThat(mvc.post().uri("/api/v1/admin/imagenes/{id}/aprobacion", imagenId)
-                .header("Authorization", bearerAdmin(admin))).hasStatusOk();
-        assertThat(json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId)).size()).isEqualTo(1);
+
+        // Aprobada: los ficheros pasan a la carpeta pública y la API devuelve la URL nueva
+        JsonNode aprobada = json(mvc.post().uri("/api/v1/admin/imagenes/{id}/aprobacion", imagenId)
+                .header("Authorization", bearerAdmin(admin)));
+        String publica = InMemoryImageStorage.BASE_URL + "bancos/" + bancoId + "/" + imagenId + ".jpg";
+        assertThat(aprobada.get("requiereAutenticacion").asBoolean()).isFalse();
+        assertThat(aprobada.get("url").asString()).isEqualTo(publica);
+        assertThat(storage.rutas("bancos/" + bancoId + "/")).hasSize(2);
+        JsonNode publicas = json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId));
+        assertThat(publicas.size()).isEqualTo(1);
+        assertThat(publicas.get(0).get("url").asString()).isEqualTo(publica);
+        assertThat(publicas.get(0).get("thumbUrl").asString()).endsWith(imagenId + "_thumb.jpg");
 
         assertThat(mvc.delete().uri("/api/v1/imagenes/{id}", imagenId).header("Authorization", bearer(autora)))
                 .hasStatus(204);
-        assertThat(storage.contiene(ruta)).isFalse();
+        assertThat(json(mvc.get().uri("/api/v1/bancos/{id}/imagenes", bancoId)).size()).isZero();
+        // Los ficheros se borran al confirmar cada transacción, y este test las deshace todas
+        // (los borrados tras el commit se prueban en ImagenBancoServiceIntegrationTest)
     }
 
     @Test
@@ -189,6 +284,17 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
         return id;
     }
 
+    private MvcTestResult editarBanco(String bancoId, String ifMatch, String titulo) {
+        MockMvcTester.MockMvcRequestBuilder put = mvc.put().uri("/api/v1/bancos/{id}", bancoId)
+                .header("Authorization", bearer(autora))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\":\"%s\",\"lat\":%s,\"lng\":%s}".formatted(titulo, LAT, LNG));
+        if (ifMatch != null) {
+            put = put.header("If-Match", ifMatch);
+        }
+        return put.exchange();
+    }
+
     private MvcTestResult checkIn(String bancoId, double lat, double lng) {
         return mvc.post().uri("/api/v1/bancos/{id}/checkins", bancoId).header("Authorization", bearer(visitante))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"lat\":%s,\"lng\":%s}".formatted(lat, lng))
@@ -201,10 +307,6 @@ class BenchifyApiFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     private JsonNode json(MockMvcTester.MockMvcRequestBuilder request) {
-        return json(request.exchange());
-    }
-
-    private JsonNode json(MockMvcTester.MockMultipartMvcRequestBuilder request) {
         return json(request.exchange());
     }
 

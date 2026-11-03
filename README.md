@@ -39,23 +39,18 @@ favoritos, haz check-in cuando te sientes en uno y comparte fotos. Cada aportaci
 ```mermaid
 flowchart LR
   subgraph Cliente
-    SPA["Angular 21 SPA<br/>signals · Material · Leaflet"]
+    SPA["Angular 22 SPA<br/>signals · Material · Leaflet"]
   end
   subgraph Firebase
     AUTH[Authentication]
-    ST[(Cloud Storage<br/>fotos)]
     HOST[Hosting]
   end
-  subgraph "Google Cloud"
-    API["Cloud Run<br/>Spring Boot 4 · API REST /api/v1"]
-    DB[("Cloud SQL<br/>PostgreSQL 17 + PostGIS")]
-  end
+  API["Render<br/>Spring Boot 4 · API REST /api/v1"]
+  DB[("Neon<br/>PostgreSQL 17 + PostGIS<br/>datos y fotos")]
   HOST -- sirve --> SPA
   SPA -- login --> AUTH
-  SPA -- "REST + ID token" --> API
-  SPA -- "descarga fotos" --> ST
+  SPA -- "REST + ID token · fotos" --> API
   API -- "verifyIdToken · custom claims" --> AUTH
-  API -- "Admin SDK" --> ST
   API -- "JPA · Flyway · ST_DWithin" --> DB
 ```
 
@@ -93,7 +88,7 @@ Flyway, Firebase Auth, estrategia de tests, Angular 21 y despliegue.
 | Datos | PostgreSQL 17 + PostGIS 3.5 (`geography`, índices GIST, `ST_DWithin`) |
 | Frontend | Angular 21 (standalone, zoneless, signals, control flow), Angular Material 3, AngularFire 21, Leaflet + markercluster |
 | Tests | JUnit 5, Mockito, Testcontainers, ArchUnit, JaCoCo · Vitest, Playwright |
-| DevOps | Docker, docker compose, GitHub Actions, Dependabot, Cloud Run, Cloud SQL, Firebase Hosting |
+| DevOps | Docker, docker compose, GitHub Actions, Dependabot, Render, Neon, Firebase Hosting |
 
 ## Puesta en marcha local
 
@@ -133,7 +128,7 @@ Todas están descritas en [`.env.example`](.env.example). Las principales:
 
 | Variable | Perfil | Descripción |
 |----------|--------|-------------|
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | dev / prod | Conexión JDBC (en prod, con el conector de Cloud SQL) |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | dev / prod | Conexión JDBC (en prod, Neon con `sslmode=require`) |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET` | dev / prod | Proyecto de Firebase y bucket de fotos |
 | `FIREBASE_AUTH_EMULATOR_HOST`, `FIREBASE_STORAGE_EMULATOR_URL` | dev | Emuladores locales |
 | `CORS_ALLOWED_ORIGINS` | prod | Orígenes del frontend, separados por comas |
@@ -141,8 +136,8 @@ Todas están descritas en [`.env.example`](.env.example). Las principales:
 | `SEED_USERS_PASSWORD` | dev | Contraseña de los usuarios de prueba del emulador |
 | `IT_DATABASE_URL` | test | PostGIS externo para los tests de integración si no hay Docker |
 
-Las credenciales nunca se guardan en el repositorio: en producción el backend usa la cuenta de
-servicio de Cloud Run y la contraseña de la base de datos llega desde Secret Manager.
+Las credenciales nunca se guardan en el repositorio: en producción la contraseña de la base de
+datos es una variable del servicio de Render y la clave de Firebase Admin, un *Secret File*.
 
 ## Tests
 
@@ -174,8 +169,9 @@ siguen [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) con un `code` estable:
 
 ## Despliegue
 
-Backend en **Cloud Run** con Cloud SQL y frontend en **Firebase Hosting**: guía paso a paso en
-[`deploy/README.md`](deploy/README.md) ([ADR-0009](docs/adr/0009-despliegue-cloud-run-firebase-hosting.md)).
+Todo en planes gratuitos sin tarjeta: frontend en **Firebase Hosting**, backend en **Render** y
+base de datos (con las fotos) en **Neon**. Guía paso a paso en [`deploy/README.md`](deploy/README.md)
+([ADR-0010](docs/adr/0010-neon-y-despliegue-continuo.md)).
 
 ## Forma de trabajo
 
@@ -190,6 +186,6 @@ Backend en **Cloud Run** con Cloud SQL y frontend en **Firebase Hosting**: guía
 |---------|-----------|
 | [`backend/`](backend) | API REST Spring Boot (Maven) |
 | [`frontend/`](frontend) | SPA Angular ([README](frontend/README.md)) |
-| [`deploy/`](deploy) | Cloud Run y guía de despliegue |
+| [`deploy/`](deploy) | Scripts y guía de despliegue (Render, Neon, Firebase) |
 | [`docker/`](docker) | Imagen de Firebase Emulator Suite |
 | [`docs/`](docs) | Roadmap, ADRs, documento de producto y capturas |

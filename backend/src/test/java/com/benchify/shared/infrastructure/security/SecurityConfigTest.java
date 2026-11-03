@@ -67,6 +67,21 @@ class SecurityConfigTest {
                 .hasStatus(403);
     }
 
+    @Test
+    void theFrontendCanSendIfMatchAndReadTheEtag() {
+        assertThat(mvc.options().uri("/api/v1/bancos")
+                .header("Origin", "http://localhost:4200")
+                .header("Access-Control-Request-Method", "PUT")
+                .header("Access-Control-Request-Headers", "authorization,if-match"))
+                .hasStatusOk()
+                .satisfies(result -> assertThat(result.getResponse().getHeader("Access-Control-Allow-Headers"))
+                        .containsIgnoringCase("if-match"));
+        assertThat(mvc.get().uri("/api/v1/bancos").header("Origin", "http://localhost:4200"))
+                .hasStatusOk()
+                .satisfies(result -> assertThat(result.getResponse().getHeader("Access-Control-Expose-Headers"))
+                        .contains("ETag"));
+    }
+
     @RestController
     static class ProbeController {
 

@@ -1,0 +1,64 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "navigationUrls": [
+    "/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**",
+    "!/s/**",
+    "!/sitemap.xml",
+    "!/robots.txt"
+  ],
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "resources": {
+        "files": [
+          "/favicon.ico",
+          "/favicon.svg",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/*.css",
+          "/*.js"
+        ]
+      }
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/**/*.(svg|png|webp|woff2)"
+        ]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "teselas",
+      "urls": [
+        "https://tile.openstreetmap.org/**"
+      ],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 2000,
+        "maxAge": "7d"
+      }
+    },
+    {
+      "name": "catalogo",
+      "urls": [
+        "/api/v1/etiquetas"
+      ],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "timeout": "4s",
+        "maxSize": 1,
+        "maxAge": "7d"
+      }
+    }
+  ]
+}

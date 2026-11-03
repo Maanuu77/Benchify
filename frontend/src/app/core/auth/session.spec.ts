@@ -16,7 +16,10 @@ describe('toSession', () => {
   });
 
   it('keeps the profile fields of the Firebase user', () => {
-    expect(toSession(user, {})).toEqual({ uid: 'u1', email: 'a@x.com', displayName: 'Ana', photoURL: null, rol: 'USER' });
+    expect(toSession(user, {})).toEqual({
+      uid: 'u1', email: 'a@x.com', displayName: 'Ana', photoURL: null, rol: 'USER', emailVerificado: false,
+    });
+    expect(toSession({ ...user, emailVerified: true }, {}).emailVerificado).toBe(true);
   });
 });
 

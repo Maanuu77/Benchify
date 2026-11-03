@@ -1,94 +1,98 @@
-# Despliegue en Google Cloud y Firebase
+# Despliegue gratuito: Firebase, Render y Neon
+
+Todo cabe en planes gratuitos que no piden tarjeta.
 
 ```mermaid
 flowchart LR
-  U[Navegador] -->|HTTPS| H[Firebase Hosting<br/>Angular SPA]
+  U[Navegador] -->|HTTPS| H[Firebase Hosting<br/>Angular SPA + PWA]
   U -->|ID token| A[Firebase Authentication]
-  U -->|REST + Bearer| R[Cloud Run<br/>benchify-api]
-  U -->|descarga fotos| S[(Cloud Storage)]
+  U -->|REST + Bearer, fotos| R[Render<br/>benchify-api]
   R -->|verifyIdToken / custom claims| A
-  R -->|Admin SDK| S
-  R -->|Cloud SQL connector| DB[(Cloud SQL<br/>PostgreSQL 17 + PostGIS)]
-  R -.->|DB_PASSWORD| SM[Secret Manager]
+  R -->|JDBC + TLS| DB[(Neon<br/>PostgreSQL 17 + PostGIS<br/>datos y fotos)]
+  GA[GitHub Actions] -.->|Workload Identity Federation| H
+  GA -.->|aviso cada 10 min| R
+  GH[GitHub main] -.->|autodeploy| R
 ```
 
-## 1. Preparación (una vez por proyecto)
+| Pieza | Servicio (plan gratuito) | Qué conviene saber |
+|---|---|---|
+| Web y PWA | Firebase Hosting (Spark) | `https://benchify-86edd.web.app` |
+| Inicio de sesión | Firebase Authentication (Spark) | Email/contraseña y Google, hasta 50 000 usuarios al mes |
+| API | Render, servicio web gratuito (Fráncfort) | 512 MB. Duerme tras 15 min sin peticiones; un aviso cada 10 min desde GitHub Actions lo mantiene despierto (cabe en las 750 h gratuitas al mes) |
+| Datos y fotos | Neon, PostgreSQL 17 + PostGIS (AWS eu-central-1) | 0,5 GB en total. Se suspende sin uso y se despierta solo con la siguiente consulta |
 
-Sustituye `benchify-prod` por el ID de tu proyecto de Firebase (también en `.firebaserc`).
+Firebase Storage necesita el plan de pago, así que las fotos se guardan en la base de datos
+(`benchify.almacen.tipo=postgres`). Con fotos de 1600 px caben unas mil. Las aprobadas se sirven
+desde la API con caché de un año; las pendientes, solo a quien puede verlas.
+
+La API vive en el dominio de Render. Los enlaces para compartir con vista previa (`/s/{id}`) y el
+`sitemap.xml` también, y el `robots.txt` de la web apunta a ese sitemap.
+
+## 1. Preparación (una vez)
+
+1. **Firebase** (consola, proyecto `benchify-86edd`):
+   - **Authentication**: proveedores *Email/contraseña* y *Google*.
+   - **Clave de la cuenta de servicio**: *Configuración del proyecto → Cuentas de servicio →
+     Generar nueva clave privada*. El backend la usa para verificar tokens y asignar roles. No la
+     subas al repositorio.
+2. **Neon** ([neon.tech](https://neon.tech)): proyecto en *AWS eu-central-1* con PostgreSQL 17.
+   - Apunta el host del endpoint **directo** (sin `-pooler`: Flyway usa bloqueos de sesión), la base
+     de datos, el usuario y la contraseña.
+   - PostGIS lo crea la primera migración.
+3. **Render** ([render.com](https://render.com), con la cuenta de GitHub): *New → Blueprint* sobre este
+   repositorio. Lee [`render.yaml`](../render.yaml) y pide:
+   - `DB_URL`: `jdbc:postgresql://<host>/<base de datos>?sslmode=require`;
+   - `DB_USERNAME` y `DB_PASSWORD`.
+
+   Después, en el servicio, *Environment → Secret Files*: añade `firebase-admin.json` con el contenido
+   de la clave del paso 1. Render despliega el backend cada vez que un cambio del backend llega a `main`.
+4. **GitHub Actions** (despliegue del frontend sin claves): en Cloud Shell, con el proyecto de Firebase,
+   ejecuta `PROJECT_ID=benchify-86edd ./deploy/preparar-proyecto.sh`. No necesita facturación. Después
+   define las variables del repositorio (*Settings → Secrets and variables → Actions → Variables*):
+
+   | Variable | Valor |
+   |---|---|
+   | `API_URL` | URL del servicio de Render, p. ej. `https://benchify-api.onrender.com` |
+   | `FIREBASE_PROJECT_ID` | `benchify-86edd` |
+   | `FIREBASE_API_KEY`, `FIREBASE_APP_ID` | Los de la app web (`firebase apps:sdkconfig`) |
+   | `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA` | Los que muestra `preparar-proyecto.sh` |
+
+## 2. Despliegue continuo
+
+- **Backend**: Render, al llegar a `main` un cambio en `backend/`.
+- **Frontend**: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml).
+  - Al llegar a `main`, escribe la configuración (`configurar-frontend.mjs`) y publica Hosting.
+  - En los PRs del frontend publica un canal de vista previa (`pr-<número>`, caduca a los 7 días).
+  - Sin las variables, no hace nada.
+- **Backend despierto**: [`despertar-backend.yml`](../.github/workflows/despertar-backend.yml) avisa a
+  la API cada 10 minutos.
+
+## 3. Frontend a mano (opcional)
 
 ```bash
-export PROJECT_ID=benchify-prod REGION=europe-southwest1
-gcloud config set project $PROJECT_ID
-
-gcloud services enable run.googleapis.com sqladmin.googleapis.com artifactregistry.googleapis.com \
-  cloudbuild.googleapis.com secretmanager.googleapis.com
-
-# Registro de imágenes
-gcloud artifacts repositories create benchify --repository-format=docker --location=$REGION
-
-# Base de datos (PostGIS viene incluido en Cloud SQL para PostgreSQL)
-gcloud sql instances create benchify --database-version=POSTGRES_17 --region=$REGION \
-  --tier=db-custom-1-3840 --storage-auto-increase
-gcloud sql databases create benchify --instance=benchify
-openssl rand -base64 24 | tr -d '\n' > db-password.txt
-gcloud sql users create benchify --instance=benchify --password="$(cat db-password.txt)"
-gcloud secrets create benchify-db-password --data-file=db-password.txt && rm db-password.txt
-
-# PostGIS debe crearlo un usuario con rol cloudsqlsuperuser (el usuario "postgres"):
-#   gcloud sql connect benchify --user=postgres --database=benchify
-#   CREATE EXTENSION IF NOT EXISTS postgis;  GRANT ALL ON SCHEMA public TO benchify;
-
-# Cuenta de servicio del backend con los permisos mínimos
-gcloud iam service-accounts create benchify-api
-SA=benchify-api@$PROJECT_ID.iam.gserviceaccount.com
-for role in roles/cloudsql.client roles/secretmanager.secretAccessor roles/firebaseauth.admin; do
-  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SA --role=$role
-done
-gsutil iam ch serviceAccount:$SA:roles/storage.objectAdmin gs://$PROJECT_ID.appspot.com
+API_URL=https://benchify-api.onrender.com FIREBASE_PROJECT_ID=benchify-86edd \
+FIREBASE_API_KEY=... FIREBASE_APP_ID=... node deploy/configurar-frontend.mjs
+npx firebase-tools deploy --only hosting --project benchify-86edd
 ```
 
-En la consola de Firebase: activa **Authentication** (proveedores *Email/contraseña* y *Google*,
-y añade el dominio de Hosting a los dominios autorizados) y **Storage**.
-
-## 2. Backend en Cloud Run
-
-```bash
-PROJECT_ID=benchify-prod \
-CLOUD_SQL_INSTANCE=benchify-prod:europe-southwest1:benchify \
-CORS_ALLOWED_ORIGINS=https://benchify-prod.web.app,https://benchify-prod.firebaseapp.com \
-./deploy/cloudrun/deploy.sh
-```
-
-El script construye la imagen con Cloud Build, la sube a Artifact Registry y aplica
-[`cloudrun/service.yaml`](cloudrun/service.yaml): perfil `prod`, conexión a Cloud SQL con el
-conector oficial (TLS autorizado por IAM), contraseña desde Secret Manager y probes de
-arranque y vida sobre `/actuator/health`. Flyway aplica las migraciones al arrancar.
-
-Ninguna credencial entra en la imagen: el Admin SDK de Firebase usa la cuenta de servicio de
-Cloud Run (Application Default Credentials).
-
-## 3. Frontend en Firebase Hosting
-
-1. En `frontend/src/environments/environment.prod.ts` pon la configuración web de Firebase
-   (Consola → Configuración del proyecto → Tus apps) y la URL de Cloud Run que imprimió el paso 2.
-2. Despliega Hosting y las reglas de Storage:
-
-```bash
-npx firebase-tools deploy --only hosting,storage --project benchify-prod
-```
-
-`firebase.json` compila el frontend antes de subirlo (`predeploy`), reescribe todas las rutas a
-`index.html` (SPA), sirve los ficheros con hash con caché inmutable de un año, `index.html` sin
-caché y añade cabeceras de seguridad.
+`firebase.json` compila antes de subir y reescribe las rutas de la SPA a `index.html`. Solo los
+ficheros con hash se cachean un año; `index.html`, el service worker y el manifest van sin caché. También
+añade las cabeceras de seguridad (CSP incluida, con la API de Render permitida).
 
 ## 4. Primer administrador
 
-Los roles son custom claims de Firebase. Para el primer ADMIN (después, desde el panel):
+Los roles son custom claims de Firebase. Para el primer ADMIN (después, desde el panel), con la clave
+de la cuenta de servicio del paso 1:
 
 ```bash
-# Con credenciales de administrador del proyecto (gcloud auth application-default login)
-node -e "
-const admin=require('firebase-admin'); admin.initializeApp({projectId:'benchify-prod'});
+GOOGLE_APPLICATION_CREDENTIALS=firebase-admin.json node -e "
+const admin=require('firebase-admin'); admin.initializeApp({projectId:'benchify-86edd'});
 admin.auth().getUserByEmail(process.argv[1]).then(u=>admin.auth().setCustomUserClaims(u.uid,{role:'ADMIN'}))
   .then(()=>console.log('ok'));" tu-email@ejemplo.com
 ```
+
+## Si algún día se pasa a un plan de pago
+
+Con el plan Blaze de Firebase se puede volver a Cloud Run y Cloud Storage (fotos fuera de la base de
+datos y API en el mismo dominio): `benchify.almacen.tipo=firebase` y una reescritura `/api/**` en
+`firebase.json`. El historial de esta carpeta y el ADR-0010 explican cómo estaba montado.

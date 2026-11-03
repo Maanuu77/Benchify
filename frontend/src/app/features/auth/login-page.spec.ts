@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { FakeAuthService } from '../../core/auth/testing/fake-auth.service';
+import { IDIOMA } from '../../core/i18n/idioma';
 import { LoginPage } from './login-page';
 
 describe('LoginPage', () => {
@@ -66,5 +67,37 @@ describe('LoginPage', () => {
 
     expect(element.querySelector('[role=alert]')?.textContent).toContain('Email o contraseña incorrectos');
     expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('shows and hides the password', async () => {
+    const password = element.querySelector<HTMLInputElement>('[formcontrolname=password]')!;
+    const boton = element.querySelector<HTMLButtonElement>('button[aria-label="Mostrar contraseña"]')!;
+    expect(password.type).toBe('password');
+
+    boton.click();
+    await fixture.whenStable();
+
+    expect(password.type).toBe('text');
+    expect(boton.getAttribute('aria-label')).toBe('Ocultar contraseña');
+  });
+});
+
+describe('LoginPage in English', () => {
+  it('shows the form, its errors and the password toggle in English', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: AuthService, useValue: new FakeAuthService() }, { provide: IDIOMA, useValue: 'en' }],
+    });
+    const fixture = TestBed.createComponent(LoginPage);
+    const element: HTMLElement = fixture.nativeElement;
+    await fixture.whenStable();
+
+    expect(element.querySelector('h1')?.textContent).toContain('Sign in');
+    expect(element.textContent).toContain('Continue with Google');
+    expect(element.querySelector('button[aria-label="Show password"]')).not.toBeNull();
+
+    element.querySelector('form')!.dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+    expect(element.textContent).toContain('Email is required');
+    expect(element.textContent).toContain('Password is required');
   });
 });
