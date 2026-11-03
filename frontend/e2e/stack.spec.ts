@@ -10,7 +10,7 @@ const PASSWORD = process.env['SEED_USERS_PASSWORD'] ?? 'benchify-dev';
 async function login(page: Page, email: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Contraseña').fill(PASSWORD);
+  await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).toHaveURL(/\/mapa$/);
 }
