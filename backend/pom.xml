@@ -33,7 +33,7 @@
 		<twelvemonkeys.version>3.15.3</twelvemonkeys.version>
 		<cloud-sql-socket-factory.version>1.30.2</cloud-sql-socket-factory.version>
 		<bucket4j.version>8.21.0</bucket4j.version>
-		<jacoco.version>0.8.15</jacoco.version>
+		<jacoco.version>0.8.16</jacoco.version>
 		<jacoco.minimum.line>0.70</jacoco.minimum.line>
 		<jacoco.minimum.branch>0.60</jacoco.minimum.branch>
 	</properties>
