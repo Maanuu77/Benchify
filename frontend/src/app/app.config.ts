@@ -5,12 +5,9 @@ import localeEs from '@angular/common/locales/es';
 import {
   ApplicationConfig, inject, isDevMode, LOCALE_ID, provideAppInitializer, provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { initializeApp, provideFirebaseApp } from '@angular/fire/app';
-import { connectAuthEmulator, getAuth, provideAuth } from '@angular/fire/auth';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withNavigationErrorHandler } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 
-import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { revalidarRutaAlPerderAcceso } from './core/auth/guards';
@@ -34,14 +31,6 @@ export const appConfig: ApplicationConfig = {
       withNavigationErrorHandler(recargarTrasDespliegue),
     ),
     provideHttpClient(withFetch(), withInterceptors([idiomaInterceptor, authInterceptor])),
-    provideFirebaseApp(() => initializeApp(environment.firebase)),
-    provideAuth(() => {
-      const auth = getAuth();
-      if (environment.emulators) {
-        connectAuthEmulator(auth, environment.emulators.auth, { disableWarnings: true });
-      }
-      return auth;
-    }),
     // Fechas y números en el idioma de la visita; el atributo lang permite a lectores de pantalla y
     // traductores saber en qué idioma está la página
     { provide: LOCALE_ID, useFactory: () => LOCALES[inject(IDIOMA)] },

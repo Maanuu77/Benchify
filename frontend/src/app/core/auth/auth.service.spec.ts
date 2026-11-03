@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { Auth, User } from '@angular/fire/auth';
+import { User } from 'firebase/auth';
 import { AuthService } from './auth.service';
+import { FIREBASE_AUTH } from './firebase-auth';
 
 /** Auth de Firebase mínimo: guarda el listener de onIdTokenChanged para dispararlo a mano. */
 class FakeFirebaseAuth {
@@ -35,7 +36,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     firebase = new FakeFirebaseAuth();
-    TestBed.configureTestingModule({ providers: [{ provide: Auth, useValue: firebase }] });
+    TestBed.configureTestingModule({ providers: [{ provide: FIREBASE_AUTH, useValue: firebase }] });
     service = TestBed.inject(AuthService);
   });
 

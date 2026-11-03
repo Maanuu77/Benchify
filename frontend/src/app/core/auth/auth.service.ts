@@ -1,6 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import {
-  Auth,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onIdTokenChanged,
@@ -12,7 +11,8 @@ import {
   signOut,
   updateProfile,
   User,
-} from '@angular/fire/auth';
+} from 'firebase/auth';
+import { FIREBASE_AUTH } from './firebase-auth';
 import { Session, toSession } from './session';
 
 type AuthState =
@@ -26,7 +26,7 @@ type AuthState =
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly auth = inject(Auth);
+  private readonly auth = inject(FIREBASE_AUTH);
   private readonly state = signal<AuthState>({ status: 'loading' });
   private resolveReady!: () => void;
   private version = 0;
