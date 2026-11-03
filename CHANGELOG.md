@@ -7,6 +7,12 @@ Todos los cambios relevantes de Benchify. Formato basado en
 
 ## [Sin publicar]
 
+## [2.0.0] - 2026-11-03
+
+Interfaz rediseñada, en español e inglés y como PWA, revisiones de seguridad, nuevas funciones
+(incidencias, búsqueda de direcciones, enlaces para compartir, ediciones moderadas) y despliegue
+gratuito en Firebase Hosting, Render y Neon.
+
 Desde la 1.0.1 los números `#n` son issues de GitHub
 ([tablero](https://github.com/users/Maanuu77/projects/1)); los de versiones anteriores son del roadmap antiguo.
 
@@ -219,5 +225,7 @@ con una API REST hexagonal y una SPA Angular, con Firebase y PostGIS.
 - Reglas de Storage: lectura pública de fotos de bancos y ninguna escritura desde el cliente.
 - Respuestas 401/403 sin filtrar detalles internos; los errores inesperados no exponen mensajes.
 
+[Sin publicar]: https://github.com/Maanuu77/Benchify/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Maanuu77/Benchify/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/Maanuu77/Benchify/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Maanuu77/Benchify/releases/tag/v1.0.0
