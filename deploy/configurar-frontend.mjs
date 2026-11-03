@@ -34,14 +34,15 @@ const config = {
 };
 
 const frontend = join(dirname(fileURLToPath(import.meta.url)), '..', 'frontend');
-const texto = (v) => `'${v.replace(/'/g, "\\'")}'`;
+const texto = (v) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
 const ruta = join(frontend, 'src', 'environments', 'environment.prod.ts');
 const original = readFileSync(ruta, 'utf8');
 const bloque = `firebase: {\n${Object.entries(config).map(([k, v]) => `    ${k}: ${texto(v)},`).join('\n')}\n  },`;
 const actualizado = original
-  .replace(/apiUrl: '[^']*',/, `apiUrl: ${texto(`${api}/api/v1`)},`)
-  .replace(/firebase: \{[\s\S]*?\n {2}\},/, bloque);
+  // Funciones como reemplazo: un "$" en los valores no se interpreta como patrón
+  .replace(/apiUrl: '[^']*',/, () => `apiUrl: ${texto(`${api}/api/v1`)},`)
+  .replace(/firebase: \{[\s\S]*?\n {2}\},/, () => bloque);
 if (!actualizado.includes(bloque) || !actualizado.includes(`${api}/api/v1`)) {
   console.error(`No se han encontrado "apiUrl" y el bloque "firebase: { ... }" en ${ruta}`);
   process.exit(1);
