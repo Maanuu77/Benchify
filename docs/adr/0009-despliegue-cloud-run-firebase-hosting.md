@@ -1,6 +1,6 @@
 # ADR-0009: Backend en Cloud Run y frontend en Firebase Hosting
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado; base de datos, región y forma de desplegar sustituidas por [ADR-0010](0010-neon-y-despliegue-continuo.md)
 - **Fecha:** 2026-10-26
 
 ## Contexto

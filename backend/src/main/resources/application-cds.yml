@@ -1,0 +1,32 @@
+# Only for the CDS training run while building the Docker image (see Dockerfile): the context starts
+# without a database or Google credentials so the JVM can record the classes Spring loads, and the
+# process exits as soon as the context is refreshed (-Dspring.context.exit=onRefresh).
+spring:
+  datasource:
+    # Never contacted: Hikari opens connections lazily and nothing below needs one
+    url: jdbc:postgresql://localhost:5432/cds
+    username: cds
+    password: cds
+  flyway:
+    enabled: false
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        boot:
+          allow_jdbc_metadata_access: false
+
+benchify:
+  web:
+    url: http://localhost
+  firebase:
+    project-id: benchify-cds
+    storage-bucket: benchify-cds.appspot.com
+    # The emulator path needs no credentials; the Admin SDK makes no calls at startup either way
+    emulator:
+      auth-host: localhost:9099
+      storage-host: http://localhost:9199
+  seed:
+    enabled: false

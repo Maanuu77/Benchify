@@ -8,19 +8,19 @@
     "rewrites": [
       {
         "source": "/api/**",
-        "run": { "serviceId": "benchify-api", "region": "europe-southwest1" }
+        "run": { "serviceId": "benchify-api", "region": "europe-west1" }
       },
       {
         "source": "/s/**",
-        "run": { "serviceId": "benchify-api", "region": "europe-southwest1" }
+        "run": { "serviceId": "benchify-api", "region": "europe-west1" }
       },
       {
         "source": "/sitemap.xml",
-        "run": { "serviceId": "benchify-api", "region": "europe-southwest1" }
+        "run": { "serviceId": "benchify-api", "region": "europe-west1" }
       },
       {
         "source": "/robots.txt",
-        "run": { "serviceId": "benchify-api", "region": "europe-southwest1" }
+        "run": { "serviceId": "benchify-api", "region": "europe-west1" }
       },
       {
         "source": "**",

@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+// Escribe la configuración web de Firebase en frontend/src/environments/environment.prod.ts antes de
+// compilar para producción. La usan el despliegue continuo (con las variables del repositorio) y el
+// despliegue a mano. Estos valores no son secretos: acaban en el JavaScript que descarga el navegador.
+//
+//   FIREBASE_PROJECT_ID=mi-proyecto FIREBASE_API_KEY=AIza... FIREBASE_APP_ID=1:123:web:abc \
+//   node deploy/configurar-frontend.mjs
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const requerida = (nombre) => {
+  const valor = process.env[nombre]?.trim();
+  if (!valor) {
+    console.error(`Falta la variable ${nombre}`);
+    process.exit(1);
+  }
+  return valor;
+};
+
+const proyecto = requerida('FIREBASE_PROJECT_ID');
+const config = {
+  projectId: proyecto,
+  apiKey: requerida('FIREBASE_API_KEY'),
+  // El propio dominio de Hosting: el inicio de sesión con Google por redirección no depende así de
+  // cookies de terceros (Hosting sirve el gestor de /__/auth en cualquiera de sus dominios)
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN?.trim() || `${proyecto}.web.app`,
+  // Los proyectos nuevos usan <id>.firebasestorage.app; los antiguos, <id>.appspot.com
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET?.trim() || `${proyecto}.firebasestorage.app`,
+  appId: requerida('FIREBASE_APP_ID'),
+};
+
+const ruta = join(dirname(fileURLToPath(import.meta.url)), '..', 'frontend', 'src', 'environments', 'environment.prod.ts');
+const original = readFileSync(ruta, 'utf8');
+const bloque = `firebase: {\n${Object.entries(config).map(([k, v]) => `    ${k}: '${v.replace(/'/g, "\\'")}',`).join('\n')}\n  },`;
+const actualizado = original.replace(/firebase: \{[\s\S]*?\n {2}\},/, bloque);
+if (actualizado === original && !original.includes(bloque)) {
+  console.error(`No se ha encontrado el bloque "firebase: { ... }" en ${ruta}`);
+  process.exit(1);
+}
+writeFileSync(ruta, actualizado);
+console.log(`Configuración de Firebase del proyecto "${proyecto}" escrita en environment.prod.ts`);

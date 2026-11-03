@@ -32,11 +32,19 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: prod
-            # Conector de Cloud SQL: TLS autorizado por IAM, sin IP pública en la lista blanca
+            # Neon (PostgreSQL + PostGIS gestionado): la conexión llega entera desde Secret Manager.
+            # DB_URL es la JDBC del endpoint directo (no el -pooler: Flyway usa bloqueos de sesión)
+            # con sslmode=require
             - name: DB_URL
-              value: jdbc:postgresql:///benchify?cloudSqlInstance=${CLOUD_SQL_INSTANCE}&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+              valueFrom:
+                secretKeyRef:
+                  name: benchify-db-url
+                  key: latest
             - name: DB_USERNAME
-              value: benchify
+              valueFrom:
+                secretKeyRef:
+                  name: benchify-db-username
+                  key: latest
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:

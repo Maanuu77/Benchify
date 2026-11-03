@@ -124,6 +124,12 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 
 ### Cambiado
 
+- Despliegue: la base de datos pasa de Cloud SQL a Neon (PostgreSQL 17 con PostGIS, capa gratuita), Cloud
+  Run a `europe-west1` y la API al dominio de Hosting. Despliegue continuo con GitHub Actions y
+  Workload Identity Federation, sin claves: backend y frontend al llegar a `main` y canal de vista
+  previa en los PRs del frontend. `deploy/preparar-proyecto.sh` prepara el proyecto una vez (#67).
+- Arranque en frío del backend más corto con Class Data Sharing en la imagen: de ~7 s a ~4,5 s en las
+  pruebas locales (#66).
 - Frontend en Angular 22 y TypeScript 6. AngularFire se sustituye por el SDK de Firebase: la app es
   zoneless y solo usa autenticación, así que el envoltorio sobraba y era lo que impedía actualizar (#68).
 - En producción la API va por el dominio de Firebase Hosting (`/api/**` → Cloud Run): sin CORS ni
