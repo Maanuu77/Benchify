@@ -68,7 +68,8 @@ export class BancoFormPage implements ConCambiosSinGuardar {
   protected readonly t = textos(BANCO_FORM);
   protected readonly materiales = Object.entries(MATERIALES) as [MaterialBanco, string][];
   protected readonly maxEtiquetas = MAX_ETIQUETAS;
-  protected readonly etiquetas = toSignal(this.api.etiquetas(), { initialValue: [] });
+  // Sin catálogo (p. ej. sin conexión) el formulario sigue funcionando, solo que sin etiquetas que elegir
+  protected readonly etiquetas = toSignal(this.api.etiquetas().pipe(catchError(() => of([]))), { initialValue: [] });
   protected readonly centro: Punto = { lat: environment.map.center[0], lng: environment.map.center[1] };
 
   protected readonly ubicacion = signal<Punto | null>(null);

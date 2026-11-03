@@ -9,6 +9,8 @@
 // El mapa hace de foto de cabecera; la tarjeta con el título se monta encima
 .hero {
   position: relative;
+  // Contexto de apilamiento propio: las capas de Leaflet usan z-index 400 y, sin él, taparían la tarjeta
+  isolation: isolate;
   height: 280px;
 
   @media (max-width: 767.98px) {
