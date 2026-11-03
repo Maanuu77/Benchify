@@ -149,14 +149,16 @@ public class UsuarioService implements SincronizarUsuarioUseCase, PerfilUsuarioU
         if (usuario.rol() == rol) {
             return usuario;
         }
-        usuarios.actualizarRol(usuarioId, rol);
-        log.info("Role of user {} changed to {} by {}", usuarioId, rol, actor.userId());
+        // A partir de aquí, el id guardado y no el de la URL: es el que se registra en el log
+        String id = usuario.id();
+        usuarios.actualizarRol(id, rol);
+        log.info("Role of user {} changed to {} by {}", id, rol, actor.userId());
         despuesDelCommit(() -> {
             // En esta instancia se aplica ya; en las demás, cuando caduque su caché
-            cacheRoles.invalidar(usuarioId);
-            enProveedorIdentidad(usuarioId, () -> proveedorIdentidad.asignarRol(usuarioId, rol));
+            cacheRoles.invalidar(id);
+            enProveedorIdentidad(id, () -> proveedorIdentidad.asignarRol(id, rol));
             // Sus sesiones abiertas no podrán renovar el ID token: al volver a entrar llevará el rol nuevo
-            enProveedorIdentidad(usuarioId, () -> proveedorIdentidad.revocarSesiones(usuarioId));
+            enProveedorIdentidad(id, () -> proveedorIdentidad.revocarSesiones(id));
         });
         return usuario.conRol(rol);
     }
