@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { textos } from '../../core/i18n/idioma';
+import { LOADING_STATE } from './loading-state.i18n';
 
 /** Indicador de carga accesible: los lectores de pantalla anuncian el mensaje. */
 @Component({
@@ -82,7 +84,8 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
   `,
 })
 export class LoadingState {
-  readonly message = input('Cargando…');
+  private readonly t = textos(LOADING_STATE);
+  readonly message = input(this.t.cargando);
   readonly diameter = input(40);
   /** Número de filas de esqueleto; 0 muestra el spinner. */
   readonly esqueleto = input(0);

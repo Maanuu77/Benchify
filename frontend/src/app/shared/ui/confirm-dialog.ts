@@ -12,6 +12,8 @@ import {
 import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { firstValueFrom } from 'rxjs';
+import { textos } from '../../core/i18n/idioma';
+import { CONFIRM_DIALOG } from './confirm-dialog.i18n';
 
 export interface ConfirmData {
   titulo: string;
@@ -28,9 +30,9 @@ export interface ConfirmData {
     <h2 mat-dialog-title>{{ data.titulo }}</h2>
     <mat-dialog-content>{{ data.mensaje }}</mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="false">Cancelar</button>
+      <button mat-button type="button" [mat-dialog-close]="false">{{ t.cancelar }}</button>
       <button mat-flat-button type="button" [class.peligro]="data.peligroso" [mat-dialog-close]="true" cdkFocusInitial>
-        {{ data.confirmar ?? 'Aceptar' }}
+        {{ data.confirmar ?? t.aceptar }}
       </button>
     </mat-dialog-actions>
   `,
@@ -43,6 +45,7 @@ export interface ConfirmData {
 })
 export class ConfirmDialog {
   protected readonly data = inject<ConfirmData>(MAT_DIALOG_DATA);
+  protected readonly t = textos(CONFIRM_DIALOG);
 }
 
 export interface MotivoData extends ConfirmData {
@@ -65,23 +68,23 @@ export const MAX_MOTIVO = 500;
     <mat-dialog-content>
       <p class="mensaje">{{ data.mensaje }}</p>
       @if (data.sugerencias?.length) {
-        <div class="sugerencias" role="group" aria-label="Motivos frecuentes">
+        <div class="sugerencias" role="group" [attr.aria-label]="t.motivosFrecuentes">
           @for (s of data.sugerencias; track s) {
             <button type="button" class="sugerencia" [attr.aria-pressed]="motivo() === s" (click)="motivo.set(s)">{{ s }}</button>
           }
         </div>
       }
       <mat-form-field appearance="outline" class="campo">
-        <mat-label>Motivo (opcional)</mat-label>
+        <mat-label>{{ t.motivo }}</mat-label>
         <textarea matInput rows="3" [maxlength]="max" [ngModel]="motivo()" (ngModelChange)="motivo.set($event)"></textarea>
-        <mat-hint>Lo verá el autor en su notificación</mat-hint>
+        <mat-hint>{{ t.loVeraElAutor }}</mat-hint>
         <mat-hint align="end">{{ motivo().length }}/{{ max }}</mat-hint>
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
+      <button mat-button type="button" [mat-dialog-close]="undefined">{{ t.cancelar }}</button>
       <button mat-flat-button type="button" class="peligro" [mat-dialog-close]="motivo().trim()">
-        {{ data.confirmar ?? 'Aceptar' }}
+        {{ data.confirmar ?? t.aceptar }}
       </button>
     </mat-dialog-actions>
   `,
@@ -122,6 +125,7 @@ export const MAX_MOTIVO = 500;
 })
 export class MotivoDialog {
   protected readonly data = inject<MotivoData>(MAT_DIALOG_DATA);
+  protected readonly t = textos(CONFIRM_DIALOG);
   protected readonly max = MAX_MOTIVO;
   protected readonly motivo = signal('');
 }

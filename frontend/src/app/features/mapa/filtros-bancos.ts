@@ -4,6 +4,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { BancosApi } from '../../core/api/bancos-api';
 import { FiltroBancos } from '../../core/api/models';
+import { IDIOMA, LOCALES, textos } from '../../core/i18n/idioma';
+import { FILTROS_BANCOS } from './filtros-bancos.i18n';
 
 type Caracteristica = 'accesible' | 'conSombra' | 'conRespaldo';
 
@@ -15,7 +17,7 @@ export const VALORACIONES = [3, 4, 4.5];
   imports: [MatIcon, MatMenu, MatMenuItem, MatMenuTrigger],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="pildoras" role="group" aria-label="Filtrar bancos">
+    <div class="pildoras" role="group" [attr.aria-label]="t.filtrar">
       @for (c of caracteristicas; track c.clave) {
         <button type="button" class="pildora" [class.activa]="!!filtro()[c.clave]"
                 [attr.aria-pressed]="!!filtro()[c.clave]" (click)="alternar(c.clave)">
@@ -25,30 +27,30 @@ export const VALORACIONES = [3, 4, 4.5];
       <button type="button" class="pildora" [class.activa]="filtro().puntuacionMin !== undefined"
               [matMenuTriggerFor]="menuValoracion" aria-haspopup="menu">
         <mat-icon aria-hidden="true">star</mat-icon>
-        {{ filtro().puntuacionMin !== undefined ? formatear(filtro().puntuacionMin!) + '+' : 'Valoración' }}
+        {{ filtro().puntuacionMin !== undefined ? formatear(filtro().puntuacionMin!) + '+' : t.valoracion }}
         <mat-icon aria-hidden="true" class="flecha">expand_more</mat-icon>
       </button>
       <button type="button" class="pildora" [class.activa]="filtro().etiqueta !== undefined"
               [matMenuTriggerFor]="menuEtiqueta" aria-haspopup="menu">
         <mat-icon aria-hidden="true">sell</mat-icon>
-        {{ etiquetaActual() ?? 'Etiqueta' }}
+        {{ etiquetaActual() ?? t.etiqueta }}
         <mat-icon aria-hidden="true" class="flecha">expand_more</mat-icon>
       </button>
       @if (hayFiltros()) {
         <button type="button" class="pildora limpiar" (click)="filtro.set({})">
-          <mat-icon aria-hidden="true">close</mat-icon>Quitar
+          <mat-icon aria-hidden="true">close</mat-icon>{{ t.quitar }}
         </button>
       }
     </div>
 
     <mat-menu #menuValoracion="matMenu">
-      <button mat-menu-item type="button" (click)="actualizar({ puntuacionMin: undefined })">Cualquiera</button>
+      <button mat-menu-item type="button" (click)="actualizar({ puntuacionMin: undefined })">{{ t.cualquiera }}</button>
       @for (v of valoraciones; track v) {
-        <button mat-menu-item type="button" (click)="actualizar({ puntuacionMin: v })">{{ formatear(v) }} o más</button>
+        <button mat-menu-item type="button" (click)="actualizar({ puntuacionMin: v })">{{ t.oMas(formatear(v)) }}</button>
       }
     </mat-menu>
     <mat-menu #menuEtiqueta="matMenu">
-      <button mat-menu-item type="button" (click)="actualizar({ etiqueta: undefined })">Todas</button>
+      <button mat-menu-item type="button" (click)="actualizar({ etiqueta: undefined })">{{ t.todas }}</button>
       @for (etiqueta of etiquetas(); track etiqueta.id) {
         <button mat-menu-item type="button" (click)="actualizar({ etiqueta: etiqueta.id })">{{ etiqueta.nombre }}</button>
       }
@@ -102,13 +104,16 @@ export const VALORACIONES = [3, 4, 4.5];
 export class FiltrosBancos {
   readonly filtro = model<FiltroBancos>({});
 
+  protected readonly t = textos(FILTROS_BANCOS);
+  private readonly locale = LOCALES[inject(IDIOMA)];
+
   protected readonly etiquetas = toSignal(inject(BancosApi).etiquetas(), { initialValue: [] });
   protected readonly valoraciones = VALORACIONES;
 
   protected readonly caracteristicas: { clave: Caracteristica; etiqueta: string; icono: string }[] = [
-    { clave: 'accesible', etiqueta: 'Accesible', icono: 'accessible' },
-    { clave: 'conSombra', etiqueta: 'Sombra', icono: 'park' },
-    { clave: 'conRespaldo', etiqueta: 'Respaldo', icono: 'chair' },
+    { clave: 'accesible', etiqueta: this.t.accesible, icono: 'accessible' },
+    { clave: 'conSombra', etiqueta: this.t.sombra, icono: 'park' },
+    { clave: 'conRespaldo', etiqueta: this.t.respaldo, icono: 'chair' },
   ];
 
   protected readonly etiquetaActual = computed(() => {
@@ -134,6 +139,6 @@ export class FiltrosBancos {
   }
 
   protected formatear(valor: number): string {
-    return valor.toLocaleString('es-ES');
+    return valor.toLocaleString(this.locale);
   }
 }

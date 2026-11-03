@@ -1,0 +1,38 @@
+import { traducciones } from '../../core/i18n/idioma';
+
+export const ADMIN_USUARIOS = traducciones(
+  {
+    titulo: 'Usuarios',
+    leyenda: 'Usuarios registrados y su rol',
+    nombre: 'Nombre',
+    email: 'Email',
+    alta: 'Alta',
+    rol: 'Rol',
+    rolDe: (nombre: string) => `Rol de ${nombre}`,
+    usuario: 'Usuario',
+    administrador: 'Administrador',
+    nota: 'El usuario verá su nuevo rol la próxima vez que se renueve su sesión (como mucho, en una hora).',
+    cambiarRol: 'Cambiar rol',
+    seraAdmin: (nombre: string) => `${nombre} podrá moderar todo el contenido y gestionar usuarios.`,
+    dejaraDeSerAdmin: (nombre: string) => `${nombre} dejará de ser administrador.`,
+    cambiar: 'Cambiar',
+    rolActualizado: (nombre: string) => `Rol de ${nombre} actualizado`,
+  },
+  {
+    titulo: 'Users',
+    leyenda: 'Registered users and their role',
+    nombre: 'Name',
+    email: 'Email',
+    alta: 'Joined',
+    rol: 'Role',
+    rolDe: (nombre) => `${nombre}'s role`,
+    usuario: 'User',
+    administrador: 'Administrator',
+    nota: 'Users will see their new role the next time their session is renewed (within an hour at most).',
+    cambiarRol: 'Change role',
+    seraAdmin: (nombre) => `${nombre} will be able to moderate all content and manage users.`,
+    dejaraDeSerAdmin: (nombre) => `${nombre} will no longer be an administrator.`,
+    cambiar: 'Change',
+    rolActualizado: (nombre) => `${nombre}'s role updated`,
+  },
+);

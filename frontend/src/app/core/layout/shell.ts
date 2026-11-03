@@ -7,9 +7,12 @@ import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { textos } from '../i18n/idioma';
+import { SelectorIdioma } from '../i18n/selector-idioma';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { Notifier } from '../ui/notifier';
 import { CampanaNotificaciones } from './campana-notificaciones';
+import { SHELL } from './shell.i18n';
 
 export interface NavLink {
   path: string;
@@ -30,7 +33,7 @@ export const BREAKPOINT_MOVIL = '(max-width: 767.98px)';
   selector: 'bf-shell',
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, MatButton, MatIcon, MatMenu, MatMenuItem, MatMenuTrigger,
-    CampanaNotificaciones,
+    CampanaNotificaciones, SelectorIdioma,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './shell.html',
@@ -41,6 +44,7 @@ export class Shell {
   private readonly notifier = inject(Notifier);
   protected readonly notificaciones = inject(NotificacionesService);
   protected readonly auth = inject(AuthService);
+  protected readonly t = textos(SHELL);
 
   protected readonly isHandset = toSignal(
     inject(BreakpointObserver).observe(BREAKPOINT_MOVIL).pipe(map((state) => state.matches)),
@@ -57,23 +61,23 @@ export class Shell {
   protected readonly esMapa = computed(() => /^\/mapa(?:[?#/]|$)/.test(this.url()) || this.url() === '/');
 
   protected readonly links = computed<NavLink[]>(() => [
-    { path: '/mapa', label: 'Mapa', icon: 'map' },
-    ...(this.auth.isAuthenticated() ? [{ path: '/bancos/nuevo', label: 'Añadir banco', icon: 'add_location_alt' }] : []),
-    ...(this.auth.isAdmin() ? [{ path: '/admin', label: 'Moderación', icon: 'shield' }] : []),
+    { path: '/mapa', label: this.t.mapa, icon: 'map' },
+    ...(this.auth.isAuthenticated() ? [{ path: '/bancos/nuevo', label: this.t.anadirBanco, icon: 'add_location_alt' }] : []),
+    ...(this.auth.isAdmin() ? [{ path: '/admin', label: this.t.moderacion, icon: 'shield' }] : []),
   ]);
 
   protected readonly linksMovil = computed<NavLink[]>(() => [
-    { path: '/mapa', label: 'Mapa', icon: 'map' },
-    { path: '/bancos/nuevo', label: 'Añadir', icon: 'add', destacado: true },
-    ...(this.auth.isAdmin() ? [{ path: '/admin', label: 'Moderar', icon: 'shield' }] : []),
+    { path: '/mapa', label: this.t.mapa, icon: 'map' },
+    { path: '/bancos/nuevo', label: this.t.anadir, icon: 'add', destacado: true },
+    ...(this.auth.isAdmin() ? [{ path: '/admin', label: this.t.moderar, icon: 'shield' }] : []),
     this.auth.isAuthenticated()
-      ? { path: '/perfil', label: 'Perfil', icon: 'person' }
-      : { path: '/login', label: 'Entrar', icon: 'login' },
+      ? { path: '/perfil', label: this.t.perfil, icon: 'person' }
+      : { path: '/login', label: this.t.entrar, icon: 'login' },
   ]);
 
   protected readonly nombre = computed(() => {
     const session = this.auth.session();
-    return session?.displayName || session?.email || 'Mi cuenta';
+    return session?.displayName || session?.email || this.t.miCuenta;
   });
 
   protected readonly iniciales = computed(() =>
@@ -90,7 +94,7 @@ export class Shell {
   protected async reenviarVerificacion(): Promise<void> {
     await this.conVerificacion(async () => {
       await this.auth.enviarVerificacion();
-      this.notifier.success('Te hemos enviado otro enlace de confirmación');
+      this.notifier.success(this.t.enlaceReenviado);
     });
   }
 
@@ -98,7 +102,7 @@ export class Shell {
   protected async comprobarVerificacion(): Promise<void> {
     await this.conVerificacion(async () => {
       if (!(await this.auth.comprobarVerificacion())) {
-        this.notifier.error('Todavía no está confirmado. Abre el enlace del email y vuelve a probar.');
+        this.notifier.error(this.t.aunSinConfirmar);
       }
     });
   }

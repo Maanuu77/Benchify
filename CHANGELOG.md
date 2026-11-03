@@ -105,6 +105,12 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
   y service worker que guarda la aplicación y las teselas del mapa visitadas para abrirla sin
   conexión. Sin conexión el mapa enseña los últimos bancos cargados (guardados en el navegador, nunca
   respuestas personales de la API) y, cuando hay una versión nueva, se ofrece actualizar (#55).
+- La web está en español e inglés: el idioma se elige con el botón de la cabecera (o se toma del
+  navegador) y se aplica a textos, títulos de página, fechas, números y a la cabecera
+  `Accept-Language` de las peticiones a la API. Los textos están en ficheros `*.i18n.ts` por
+  componente y el compilador exige que la traducción inglesa tenga todas las claves. Los errores de la
+  API y las notificaciones, que el backend genera en español, se muestran en inglés a partir de su
+  código o de su tipo (#62).
 
 ### Cambiado
 

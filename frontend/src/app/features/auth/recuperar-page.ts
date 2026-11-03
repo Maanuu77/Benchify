@@ -6,6 +6,8 @@ import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { mensajeDeErrorAuth } from '../../core/auth/auth-errors';
 import { AuthService } from '../../core/auth/auth.service';
+import { textos } from '../../core/i18n/idioma';
+import { AUTH } from './auth.i18n';
 
 /**
  * Envía el enlace de Firebase para elegir una contraseña nueva. La respuesta es la misma exista o no
@@ -19,38 +21,35 @@ import { AuthService } from '../../core/auth/auth.service';
     <section class="page">
       <aside class="marca-panel" aria-hidden="true">
         <img src="logo-mark.svg" alt="" width="72" height="72" />
-        <p class="lema">Encuentra tu banco.<br />Siéntate. Compártelo.</p>
-        <p class="sub">El mapa colaborativo de los bancos públicos de tu ciudad.</p>
+        <p class="lema">{{ t.lema }}<br />{{ t.lema2 }}</p>
+        <p class="sub">{{ t.sub }}</p>
       </aside>
 
       <div class="form-panel">
         <div class="card">
           <img class="logo-movil" src="logo-mark.svg" alt="" width="44" height="44" />
-          <h1>Recuperar la contraseña</h1>
+          <h1>{{ t.recuperar.titulo }}</h1>
           @if (enviado()) {
-            <p class="intro" role="status">
-              Si hay una cuenta con ese email, te hemos enviado un enlace para elegir una contraseña nueva.
-              Revisa también la carpeta de correo no deseado.
-            </p>
-            <a mat-flat-button routerLink="/login">Volver a iniciar sesión</a>
+            <p class="intro" role="status">{{ t.recuperar.enviado }}</p>
+            <a mat-flat-button routerLink="/login">{{ t.volverALogin }}</a>
           } @else {
-            <p class="intro">Escribe el email de tu cuenta y te enviaremos un enlace para cambiarla.</p>
+            <p class="intro">{{ t.recuperar.intro }}</p>
             <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
               <mat-form-field appearance="outline">
-                <mat-label>Email</mat-label>
+                <mat-label>{{ t.email }}</mat-label>
                 <input matInput type="email" formControlName="email" autocomplete="email" required />
                 @if (form.controls.email.hasError('email')) {
-                  <mat-error>Introduce un email válido</mat-error>
+                  <mat-error>{{ t.emailInvalido }}</mat-error>
                 } @else if (form.controls.email.hasError('required')) {
-                  <mat-error>El email es obligatorio</mat-error>
+                  <mat-error>{{ t.emailObligatorio }}</mat-error>
                 }
               </mat-form-field>
               @if (error(); as mensaje) {
                 <p class="error" role="alert">{{ mensaje }}</p>
               }
-              <button mat-flat-button type="submit" [disabled]="enviando()">Enviar enlace</button>
+              <button mat-flat-button type="submit" [disabled]="enviando()">{{ t.recuperar.enviar }}</button>
             </form>
-            <p class="switch"><a routerLink="/login">Volver a iniciar sesión</a></p>
+            <p class="switch"><a routerLink="/login">{{ t.volverALogin }}</a></p>
           }
         </div>
       </div>
@@ -61,6 +60,7 @@ import { AuthService } from '../../core/auth/auth.service';
 export class RecuperarPage {
   private readonly auth = inject(AuthService);
 
+  protected readonly t = textos(AUTH);
   protected readonly form = inject(NonNullableFormBuilder).group({
     email: ['', [Validators.required, Validators.email]],
   });

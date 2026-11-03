@@ -12,6 +12,7 @@ import { BancosApi, MAX_RESULTADOS_MAPA } from '../../core/api/bancos-api';
 import { BancoCercano, BancoResumen, BoundingBox, FiltroBancos, Lugar, Page } from '../../core/api/models';
 import { GeolocationService } from '../../core/geo/geolocation.service';
 import { BREAKPOINT_MOVIL } from '../../core/layout/shell';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { BenchMap, Punto, Vista } from '../../shared/map/bench-map';
 import { distanciaMetros } from '../../shared/map/distancia';
@@ -23,6 +24,7 @@ import { BuscadorLugares } from './buscador-lugares';
 import { aQueryParams, leerEstadoMapa } from './estado-mapa';
 import { guardarUltimaZona, leerUltimaZona } from './ultima-zona';
 import { FiltrosBancos } from './filtros-bancos';
+import { MAPA_PAGE } from './mapa-page.i18n';
 
 /** Radio de la búsqueda "cerca de mí", en metros. */
 export const RADIO_CERCANIA = 1500;
@@ -50,6 +52,7 @@ export class MapaPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly mapa = viewChild(BenchMap);
+  protected readonly t = textos(MAPA_PAGE);
 
   private readonly inicial = leerEstadoMapa(this.route.snapshot.queryParams);
   protected readonly centroInicial: Punto = this.inicial.vista ?? { lat: environment.map.center[0], lng: environment.map.center[1] };
@@ -163,7 +166,7 @@ export class MapaPage {
       this.cargarCercanos(posicion);
       this.hojaAbierta.set(true);
     } catch (error) {
-      this.notifier.error(error instanceof Error ? error.message : 'No hemos podido obtener tu ubicación.');
+      this.notifier.error(error instanceof Error ? error.message : this.t.sinUbicacion);
     } finally {
       this.localizando.set(false);
     }

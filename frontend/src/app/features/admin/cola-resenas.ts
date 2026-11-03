@@ -6,43 +6,46 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
 import { ResenaModeracion } from '../../core/api/models';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { StarRating } from '../../shared/ui/star-rating';
+import { COLA } from './admin.i18n';
 import { Cola } from './cola';
+import { COLA_RESENAS } from './cola-resenas.i18n';
 
 @Component({
   selector: 'bf-cola-resenas',
   imports: [DatePipe, RouterLink, MatButton, MatIcon, StarRating, LoadingState, ErrorState, EmptyState],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2>Reseñas reportadas ({{ cola.total() }})</h2>
+    <h2>{{ t.titulo }} ({{ cola.total() }})</h2>
     @if (cola.error(); as mensaje) {
       <bf-error-state [message]="mensaje" (retry)="cola.cargar()" />
     } @else if (!cola.cargando() && cola.items().length === 0) {
-      <bf-empty-state icon="verified" message="No hay reseñas reportadas." />
+      <bf-empty-state icon="verified" [message]="t.vacia" />
     } @else {
       <ul class="lista">
         @for (resena of cola.items(); track resena.id) {
           <li class="item">
             <div class="contenido">
               <p class="meta">
-                <strong>{{ resena.numReportes }} reportes</strong> ·
+                <strong>{{ t.reportes(resena.numReportes) }}</strong> ·
                 {{ resena.autorNombre ?? resena.autorId }} · {{ resena.fecha | date: 'short' }} ·
-                <a [routerLink]="['/bancos', resena.bancoId]">ver banco</a>
+                <a [routerLink]="['/bancos', resena.bancoId]">{{ tc.verBanco }}</a>
               </p>
               <bf-star-rating [value]="resena.puntuacion" />
-              <p>{{ resena.comentario ?? '(sin comentario)' }}</p>
+              <p>{{ resena.comentario ?? t.sinComentario }}</p>
             </div>
             <div class="acciones">
               <button mat-stroked-button type="button" [disabled]="ocupado() === resena.id" (click)="mantener(resena)">
-                <mat-icon aria-hidden="true">done</mat-icon> Mantener
+                <mat-icon aria-hidden="true">done</mat-icon> {{ t.mantener }}
               </button>
               <button mat-flat-button type="button" [disabled]="ocupado() === resena.id" (click)="eliminar(resena)">
-                <mat-icon aria-hidden="true">delete</mat-icon> Borrar
+                <mat-icon aria-hidden="true">delete</mat-icon> {{ t.borrar }}
               </button>
             </div>
           </li>
@@ -51,7 +54,7 @@ import { Cola } from './cola';
       @if (cola.cargando()) {
         <bf-loading-state />
       } @else if (cola.hayMas()) {
-        <button mat-stroked-button type="button" (click)="cola.cargarMas()">Cargar más</button>
+        <button mat-stroked-button type="button" (click)="cola.cargarMas()">{{ tc.cargarMas }}</button>
       }
     }
   `,
@@ -61,6 +64,8 @@ export class ColaResenas implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly notifier = inject(Notifier);
   private readonly confirmation = inject(Confirmation);
+  protected readonly t = textos(COLA_RESENAS);
+  protected readonly tc = textos(COLA);
 
   protected readonly cola = new Cola<ResenaModeracion>((page) => this.api.resenasReportadas(page));
   protected readonly ocupado = signal<string | null>(null);
@@ -70,18 +75,18 @@ export class ColaResenas implements OnInit {
   }
 
   protected async mantener(resena: ResenaModeracion): Promise<void> {
-    await this.ejecutar(resena, () => firstValueFrom(this.api.mantenerResena(resena.id)), 'Reseña mantenida');
+    await this.ejecutar(resena, () => firstValueFrom(this.api.mantenerResena(resena.id)), this.t.mantenida);
   }
 
   protected async eliminar(resena: ResenaModeracion): Promise<void> {
     const motivo = await this.confirmation.pedirMotivo({
-      titulo: 'Borrar reseña',
-      mensaje: 'Se borrará y se recalculará la valoración del banco. Su autor recibirá un aviso.',
-      confirmar: 'Borrar',
-      sugerencias: ['Lenguaje ofensivo', 'Spam o publicidad', 'No habla del banco'],
+      titulo: this.t.borrarResena,
+      mensaje: this.t.borrarMensaje,
+      confirmar: this.t.borrar,
+      sugerencias: this.t.sugerencias,
     });
     if (motivo !== undefined) {
-      await this.ejecutar(resena, () => firstValueFrom(this.api.eliminarResena(resena.id, motivo)), 'Reseña borrada');
+      await this.ejecutar(resena, () => firstValueFrom(this.api.eliminarResena(resena.id, motivo)), this.t.borrada);
     }
   }
 

@@ -24,6 +24,7 @@ import { BancosApi } from '../../../core/api/bancos-api';
 import { Banco, BancoRequest, EdicionPendiente, MaterialBanco } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { textos } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
 import { Punto } from '../../../shared/map/bench-map';
 import { LocationPicker, redondear } from '../../../shared/map/location-picker';
@@ -32,6 +33,7 @@ import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { GaleriaImagenes } from '../detalle/galeria-imagenes';
 import { MATERIALES } from '../detalle/banco-detalle-page';
+import { BANCO_FORM } from './banco-form-page.i18n';
 import { ConCambiosSinGuardar } from './cambios-sin-guardar.guard';
 
 export const MAX_ETIQUETAS = 5;
@@ -63,6 +65,7 @@ export class BancoFormPage implements ConCambiosSinGuardar {
   /** Presente al editar (/bancos/:id/editar). */
   readonly id = input<string>();
 
+  protected readonly t = textos(BANCO_FORM);
   protected readonly materiales = Object.entries(MATERIALES) as [MaterialBanco, string][];
   protected readonly maxEtiquetas = MAX_ETIQUETAS;
   protected readonly etiquetas = toSignal(this.api.etiquetas(), { initialValue: [] });
@@ -129,7 +132,7 @@ export class BancoFormPage implements ConCambiosSinGuardar {
     try {
       this.ubicacion.set(redondear(await this.geo.posicionActual()));
     } catch (error) {
-      this.notifier.error(error instanceof Error ? error.message : 'No hemos podido obtener tu ubicación.');
+      this.notifier.error(error instanceof Error ? error.message : this.t.sinUbicacion);
     } finally {
       this.localizando.set(false);
     }
@@ -139,8 +142,8 @@ export class BancoFormPage implements ConCambiosSinGuardar {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.notifier.error(this.form.controls.lat.invalid
-        ? 'Marca en el mapa dónde está el banco.'
-        : 'Revisa los campos marcados.');
+        ? this.t.marcaEnMapa
+        : this.t.revisaCampos);
       return;
     }
     this.guardando.set(true);
@@ -151,16 +154,16 @@ export class BancoFormPage implements ConCambiosSinGuardar {
         const { pendienteDeRevision } = await firstValueFrom(this.api.editar(id, request, this.etag));
         this.form.markAsPristine();
         this.notifier.success(pendienteDeRevision
-          ? 'Cambios enviados: se verán en cuanto los revise un moderador'
-          : 'Cambios guardados');
+          ? this.t.cambiosEnviados
+          : this.t.cambiosGuardados);
         await this.router.navigate(['/bancos', id]);
       } else {
         const banco = await firstValueFrom(this.api.proponer(request));
         this.form.markAsPristine();
         this.creado.set(banco);
         this.notifier.success(banco.estado === 'PUBLICADO'
-          ? 'Banco publicado'
-          : 'Banco enviado: lo publicaremos cuando lo revise un moderador');
+          ? this.t.bancoPublicado
+          : this.t.bancoEnviado);
       }
     } catch (error) {
       this.aplicarErroresDeCampo(error);
@@ -176,9 +179,9 @@ export class BancoFormPage implements ConCambiosSinGuardar {
       return true;
     }
     return this.confirmation.ask({
-      titulo: '¿Salir sin guardar?',
-      mensaje: 'Perderás los cambios que has hecho en el banco.',
-      confirmar: 'Salir',
+      titulo: this.t.salirTitulo,
+      mensaje: this.t.salirMensaje,
+      confirmar: this.t.salir,
       peligroso: true,
     });
   }
@@ -195,7 +198,7 @@ export class BancoFormPage implements ConCambiosSinGuardar {
     try {
       const { banco, etag } = await firstValueFrom(this.api.obtenerParaEditar(id));
       if (!this.auth.isAdmin() && banco.autor.id !== this.auth.session()?.uid) {
-        this.errorCarga.set('Solo quien propuso este banco o un moderador puede editarlo.');
+        this.errorCarga.set(this.t.sinPermiso);
         return;
       }
       this.etag = etag;

@@ -6,8 +6,10 @@ import { switchMap } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
 import { Loadable, loadable } from '../../core/api/api-error';
 import { EstadisticasModeracion } from '../../core/api/models';
+import { textos } from '../../core/i18n/idioma';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
+import { ADMIN_DASHBOARD } from './admin-dashboard.i18n';
 
 @Component({
   selector: 'bf-admin-dashboard',
@@ -15,35 +17,35 @@ import { LoadingState } from '../../shared/ui/loading-state';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (estado().status) {
-      @case ('loading') { <bf-loading-state message="Cargando resumen…" /> }
-      @case ('error') { <bf-error-state message="No hemos podido cargar el resumen." (retry)="recargar()" /> }
+      @case ('loading') { <bf-loading-state [message]="t.cargando" /> }
+      @case ('error') { <bf-error-state [message]="t.error" (retry)="recargar()" /> }
       @case ('success') {
         @let e = estadisticas()!;
-        <h2 class="sr-only">Pendiente de revisar</h2>
+        <h2 class="sr-only">{{ t.pendiente }}</h2>
         <div class="tarjetas">
           <a class="tarjeta pendiente" routerLink="bancos">
             <mat-icon aria-hidden="true">add_location_alt</mat-icon>
-            <strong>{{ e.bancosPendientes }}</strong><span>bancos pendientes</span>
+            <strong>{{ e.bancosPendientes }}</strong><span>{{ t.bancosPendientes(e.bancosPendientes) }}</span>
           </a>
           <a class="tarjeta pendiente" routerLink="ediciones">
             <mat-icon aria-hidden="true">published_with_changes</mat-icon>
-            <strong>{{ e.edicionesPendientes }}</strong><span>ediciones pendientes</span>
+            <strong>{{ e.edicionesPendientes }}</strong><span>{{ t.edicionesPendientes(e.edicionesPendientes) }}</span>
           </a>
           <a class="tarjeta pendiente" routerLink="resenas">
             <mat-icon aria-hidden="true">flag</mat-icon>
-            <strong>{{ e.resenasReportadas }}</strong><span>reseñas reportadas</span>
+            <strong>{{ e.resenasReportadas }}</strong><span>{{ t.resenasReportadas(e.resenasReportadas) }}</span>
           </a>
           <a class="tarjeta pendiente" routerLink="imagenes">
             <mat-icon aria-hidden="true">photo_library</mat-icon>
-            <strong>{{ e.imagenesPendientes }}</strong><span>fotos pendientes</span>
+            <strong>{{ e.imagenesPendientes }}</strong><span>{{ t.fotosPendientes(e.imagenesPendientes) }}</span>
           </a>
         </div>
-        <h2>Contenido</h2>
+        <h2>{{ t.contenido }}</h2>
         <dl class="totales">
-          <div><dt>Bancos publicados</dt><dd>{{ e.bancosPublicados }}</dd></div>
-          <div><dt>Bancos ocultos</dt><dd>{{ e.bancosOcultos }}</dd></div>
-          <div><dt>Reseñas</dt><dd>{{ e.totalResenas }}</dd></div>
-          <div><dt>Usuarios</dt><dd>{{ e.totalUsuarios }}</dd></div>
+          <div><dt>{{ t.bancosPublicados }}</dt><dd>{{ e.bancosPublicados }}</dd></div>
+          <div><dt>{{ t.bancosOcultos }}</dt><dd>{{ e.bancosOcultos }}</dd></div>
+          <div><dt>{{ t.resenas }}</dt><dd>{{ e.totalResenas }}</dd></div>
+          <div><dt>{{ t.usuarios }}</dt><dd>{{ e.totalUsuarios }}</dd></div>
         </dl>
       }
     }
@@ -103,6 +105,7 @@ import { LoadingState } from '../../shared/ui/loading-state';
 export class AdminDashboard {
   private readonly api = inject(AdminApi);
   private readonly recarga = signal(0);
+  protected readonly t = textos(ADMIN_DASHBOARD);
 
   protected readonly estado = toSignal(
     toObservable(this.recarga).pipe(switchMap(() => loadable(this.api.estadisticas()))),

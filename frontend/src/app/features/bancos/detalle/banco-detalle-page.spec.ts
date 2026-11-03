@@ -9,6 +9,7 @@ import { UsuariosApi } from '../../../core/api/usuarios-api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { FakeAuthService } from '../../../core/auth/testing/fake-auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { IDIOMA } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
 import { BenchMap } from '../../../shared/map/bench-map';
 import { AvisosBanco } from './avisos-banco';
@@ -196,6 +197,24 @@ describe('BancoDetallePage', () => {
 
     expect(element.textContent).toContain('pendientes de revisión');
     expect(bancos['edicionPendiente']).toHaveBeenCalledWith(BANCO.id);
+  });
+
+  it('speaks English when that is the chosen language', async () => {
+    TestBed.overrideProvider(IDIOMA, { useValue: 'en' });
+    auth.signIn({ uid: 'autor' });
+    await crear();
+
+    expect(element.textContent).toContain('3 reviews');
+    expect(element.textContent).toContain('2 check-ins');
+    expect(element.textContent).toContain('Shaded');
+    expect(element.textContent).toContain('Stone');
+    expect(element.textContent).toContain('Added by');
+    expect(element.textContent).toContain('Delete');
+    expect(element.textContent).not.toContain('Eliminar');
+
+    Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes("I'm here"))!.click();
+    await fixture.whenStable();
+    expect(notifier.success).toHaveBeenCalledWith('Checked in! You were 12 m away.');
   });
 });
 

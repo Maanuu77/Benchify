@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
+import { IDIOMA, LOCALES, textos } from '../../core/i18n/idioma';
+import { STAR_RATING } from './star-rating.i18n';
 
 /**
  * Puntuación de 1 a 5 estrellas. En modo lectura muestra medias estrellas; en modo edición es
@@ -19,7 +21,7 @@ import { MatIcon } from '@angular/material/icon';
             role="radio"
             class="star"
             [attr.aria-checked]="value() === star"
-            [attr.aria-label]="star + (star === 1 ? ' estrella' : ' estrellas')"
+            [attr.aria-label]="t.estrellas(star)"
             [attr.tabindex]="value() === star || (value() === 0 && star === 1) ? 0 : -1"
             (click)="value.set(star)"
             (keydown)="onKeydown($event)"
@@ -56,9 +58,12 @@ import { MatIcon } from '@angular/material/icon';
   `,
 })
 export class StarRating {
+  protected readonly t = textos(STAR_RATING);
+  private readonly locale = LOCALES[inject(IDIOMA)];
+
   readonly value = model(0);
   readonly editable = input(false);
-  readonly label = input('Puntuación');
+  readonly label = input(this.t.puntuacion);
   /** Marca el grupo como inválido (p. ej. al enviar sin puntuación). */
   readonly invalido = input(false);
   /** Id del mensaje de error o ayuda asociado. */
@@ -76,7 +81,7 @@ export class StarRating {
   );
 
   protected readonly readLabel = computed(
-    () => `${this.value().toLocaleString('es-ES', { maximumFractionDigits: 1 })} de 5 estrellas`,
+    () => this.t.deCinco(this.value().toLocaleString(this.locale, { maximumFractionDigits: 1 })),
   );
 
   protected onKeydown(event: KeyboardEvent): void {

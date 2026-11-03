@@ -1,37 +1,37 @@
 <section aria-labelledby="titulo-resenas">
-  <h2 id="titulo-resenas">Reseñas ({{ total() }})</h2>
+  <h2 id="titulo-resenas">{{ t.titulo(total()) }}</h2>
 
   @if (puedeEscribir()) {
     <form class="formulario" (ngSubmit)="enviar()">
-      <h3>{{ editando() ? 'Editar tu reseña' : '¿Qué te ha parecido?' }}</h3>
-      <bf-star-rating [editable]="true" [(value)]="puntuacion" label="Tu puntuación"
+      <h3>{{ editando() ? t.editarTuResena : t.queTeHaParecido }}</h3>
+      <bf-star-rating [editable]="true" [(value)]="puntuacion" [label]="t.tuPuntuacion"
                       [invalido]="faltaPuntuacion()" [describedBy]="faltaPuntuacion() ? 'error-puntuacion' : null"
                       (valueChange)="faltaPuntuacion.set(false)" />
       @if (faltaPuntuacion()) {
-        <p id="error-puntuacion" class="error-campo" role="alert">Elige una puntuación de 1 a 5 estrellas.</p>
+        <p id="error-puntuacion" class="error-campo" role="alert">{{ t.faltaPuntuacion }}</p>
       }
       <mat-form-field appearance="outline" class="comentario">
-        <mat-label>Comentario (opcional)</mat-label>
+        <mat-label>{{ t.comentario }}</mat-label>
         <textarea matInput name="comentario" [(ngModel)]="comentario" maxlength="1000" rows="3"></textarea>
         <mat-hint align="end">{{ comentario.length }}/1000</mat-hint>
       </mat-form-field>
       <div class="acciones">
         @if (editando()) {
-          <button mat-button type="button" (click)="cancelarEdicion()">Cancelar</button>
+          <button mat-button type="button" (click)="cancelarEdicion()">{{ t.cancelar }}</button>
         }
         <button mat-flat-button type="submit" [disabled]="enviando()">
-          {{ editando() ? 'Guardar cambios' : 'Publicar reseña' }}
+          {{ editando() ? t.guardarCambios : t.publicar }}
         </button>
       </div>
     </form>
   } @else if (!auth.isAuthenticated() && publicado()) {
-    <p class="aviso"><a routerLink="/login">Inicia sesión</a> para dejar tu reseña.</p>
+    <p class="aviso"><a routerLink="/login">{{ t.iniciaSesion }}</a> {{ t.paraDejarResena }}</p>
   }
 
   @if (error(); as mensaje) {
     <bf-error-state [message]="mensaje" (retry)="recargar()" />
   } @else if (!cargando() && resenas().length === 0) {
-    <bf-empty-state icon="rate_review" message="Todavía nadie ha reseñado este banco." />
+    <bf-empty-state icon="rate_review" [message]="t.vacio" />
   } @else {
     <ul class="lista">
       @for (resena of resenas(); track resena.id) {
@@ -39,10 +39,10 @@
           <header>
             <span class="avatar" aria-hidden="true">{{ (resena.autorNombre ?? 'U').charAt(0).toUpperCase() }}</span>
             <div class="quien">
-              <a [routerLink]="['/usuarios', resena.autorId]" class="autor">{{ resena.autorNombre ?? 'Usuario' }}</a>
+              <a [routerLink]="['/usuarios', resena.autorId]" class="autor">{{ resena.autorNombre ?? t.usuario }}</a>
               <span class="cuando">
                 <time [attr.datetime]="resena.fecha">{{ resena.fecha | date: 'mediumDate' }}</time>
-                @if (resena.fechaEdicion) { · editada }
+                @if (resena.fechaEdicion) { · {{ t.editada }} }
               </span>
             </div>
             <bf-star-rating [value]="resena.puntuacion" />
@@ -53,16 +53,16 @@
           @if (resena.autorId === miUid()) {
             <div class="acciones">
               <button mat-button type="button" (click)="empezarEdicion(resena)">
-                <mat-icon aria-hidden="true">edit</mat-icon> Editar
+                <mat-icon aria-hidden="true">edit</mat-icon> {{ t.editar }}
               </button>
               <button mat-button type="button" (click)="borrar(resena)">
-                <mat-icon aria-hidden="true">delete</mat-icon> Borrar
+                <mat-icon aria-hidden="true">delete</mat-icon> {{ t.borrar }}
               </button>
             </div>
           } @else if (auth.isAuthenticated()) {
             <div class="acciones">
-              <button mat-button type="button" (click)="reportar(resena)" [attr.aria-label]="'Reportar la reseña de ' + (resena.autorNombre ?? 'usuario')">
-                <mat-icon aria-hidden="true">flag</mat-icon> Reportar
+              <button mat-button type="button" (click)="reportar(resena)" [attr.aria-label]="t.reportarDe(resena.autorNombre)">
+                <mat-icon aria-hidden="true">flag</mat-icon> {{ t.reportar }}
               </button>
             </div>
           }
@@ -70,9 +70,9 @@
       }
     </ul>
     @if (cargando()) {
-      <bf-loading-state message="Cargando reseñas…" />
+      <bf-loading-state [message]="t.cargando" />
     } @else if (hayMas()) {
-      <button mat-stroked-button type="button" class="mas" (click)="cargarMas()">Ver más reseñas</button>
+      <button mat-stroked-button type="button" class="mas" (click)="cargarMas()">{{ t.verMas }}</button>
     }
   }
 </section>

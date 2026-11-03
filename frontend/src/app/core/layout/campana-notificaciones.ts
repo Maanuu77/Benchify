@@ -4,7 +4,9 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { Router } from '@angular/router';
 import { Notificacion, TipoNotificacion } from '../api/models';
+import { IDIOMA, textos } from '../i18n/idioma';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { CAMPANA, MENSAJES_EN, TITULOS_EN } from './campana-notificaciones.i18n';
 
 const ICONOS: Record<TipoNotificacion, string> = {
   BANCO_APROBADO: 'check_circle',
@@ -24,7 +26,7 @@ const ICONOS: Record<TipoNotificacion, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button type="button" class="campana" [matMenuTriggerFor]="menu" (menuOpened)="cargar()"
-            [attr.aria-label]="servicio.noLeidas() ? 'Notificaciones, ' + servicio.noLeidas() + ' sin leer' : 'Notificaciones'">
+            [attr.aria-label]="servicio.noLeidas() ? t.sinLeer(servicio.noLeidas()) : t.notificaciones">
       <mat-icon aria-hidden="true">{{ servicio.noLeidas() ? 'notifications_active' : 'notifications' }}</mat-icon>
       @if (servicio.noLeidas(); as total) {
         <span class="contador" aria-hidden="true">{{ total > 9 ? '9+' : total }}</span>
@@ -32,23 +34,23 @@ const ICONOS: Record<TipoNotificacion, string> = {
     </button>
     <mat-menu #menu="matMenu" xPosition="before" class="menu-notificaciones">
       <div class="cabecera-menu">
-        <span>Notificaciones</span>
+        <span>{{ t.notificaciones }}</span>
         @if (servicio.noLeidas()) {
-          <button type="button" class="todas" (click)="$event.stopPropagation(); marcarTodas()">Marcar todas como leídas</button>
+          <button type="button" class="todas" (click)="$event.stopPropagation(); marcarTodas()">{{ t.marcarTodas }}</button>
         }
       </div>
       @if (avisos() === null) {
-        <p class="vacio">Cargando…</p>
+        <p class="vacio">{{ t.cargando }}</p>
       } @else if (avisos()!.length === 0) {
-        <p class="vacio">No tienes notificaciones.</p>
+        <p class="vacio">{{ t.vacio }}</p>
       } @else {
         @for (aviso of avisos(); track aviso.id) {
           <button mat-menu-item type="button" class="aviso" [class.no-leido]="!aviso.leida" (click)="abrir(aviso)">
             <mat-icon aria-hidden="true">{{ iconos[aviso.tipo] }}</mat-icon>
             <span class="texto">
-              <span class="titulo">{{ aviso.titulo }}</span>
+              <span class="titulo">{{ titulo(aviso) }}</span>
               @if (aviso.mensaje) {
-                <span class="mensaje">{{ aviso.mensaje }}</span>
+                <span class="mensaje">{{ mensaje(aviso.mensaje) }}</span>
               }
               <span class="fecha">{{ aviso.fecha | date: 'd MMM, HH:mm' }}</span>
             </span>
@@ -138,8 +140,19 @@ export class CampanaNotificaciones {
   protected readonly servicio = inject(NotificacionesService);
   private readonly router = inject(Router);
 
+  protected readonly t = textos(CAMPANA);
+  private readonly idioma = inject(IDIOMA);
   protected readonly iconos = ICONOS;
   protected readonly avisos = signal<Notificacion[] | null>(null);
+
+  protected titulo(aviso: Notificacion): string {
+    const banco = /«(.+)»/.exec(aviso.titulo)?.[1];
+    return this.idioma === 'en' && banco ? TITULOS_EN[aviso.tipo](banco) : aviso.titulo;
+  }
+
+  protected mensaje(mensaje: string): string {
+    return this.idioma === 'en' ? (MENSAJES_EN[mensaje] ?? mensaje) : mensaje;
+  }
 
   protected async cargar(): Promise<void> {
     this.avisos.set(null);

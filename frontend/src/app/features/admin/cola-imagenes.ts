@@ -1,42 +1,45 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, LOCALE_ID, OnInit, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AdminApi } from '../../core/api/admin-api';
-import { EstadoImagen, ImagenModeracion, ImagenParecida } from '../../core/api/models';
+import { ImagenModeracion, ImagenParecida } from '../../core/api/models';
+import { textos } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { ImagenSrc } from '../../shared/imagenes/imagen-src';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { EmptyState } from '../../shared/ui/empty-state';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
+import { COLA } from './admin.i18n';
 import { Cola } from './cola';
+import { COLA_IMAGENES } from './cola-imagenes.i18n';
 
 @Component({
   selector: 'bf-cola-imagenes',
   imports: [DatePipe, RouterLink, MatButton, MatIcon, LoadingState, ErrorState, EmptyState, ImagenSrc],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2>Fotos pendientes ({{ cola.total() }})</h2>
+    <h2>{{ t.titulo }} ({{ cola.total() }})</h2>
     @if (cola.error(); as mensaje) {
       <bf-error-state [message]="mensaje" (retry)="cola.cargar()" />
     } @else if (!cola.cargando() && cola.items().length === 0) {
-      <bf-empty-state icon="photo_library" message="No hay fotos pendientes." />
+      <bf-empty-state icon="photo_library" [message]="t.vacia" />
     } @else {
       <ul class="galeria">
         @for (imagen of cola.items(); track imagen.id; let i = $index) {
           <li>
             <img [bfImagenSrc]="imagen.thumbUrl" [autenticada]="imagen.requiereAutenticacion"
-                 [alt]="'Foto pendiente ' + (i + 1)" loading="lazy" />
+                 [alt]="t.fotoPendiente(i + 1)" loading="lazy" />
             <p class="meta">
               {{ imagen.fechaSubida | date: 'short' }} · {{ tamano(imagen.tamanoBytes) }} ·
-              <a [routerLink]="['/bancos', imagen.bancoId]">ver banco</a>
+              <a [routerLink]="['/bancos', imagen.bancoId]">{{ tc.verBanco }}</a>
             </p>
             @if (imagen.parecidas.length) {
               <div class="parecidas" role="note">
-                <p><mat-icon aria-hidden="true">content_copy</mat-icon> Se parece a {{ imagen.parecidas.length === 1 ? 'otra foto' : imagen.parecidas.length + ' fotos' }}</p>
+                <p><mat-icon aria-hidden="true">content_copy</mat-icon> {{ t.seParece(imagen.parecidas.length) }}</p>
                 <ul>
                   @for (p of imagen.parecidas; track p.id) {
                     <li>
@@ -46,7 +49,7 @@ import { Cola } from './cola';
                         } @else {
                           <span class="sin-foto"><mat-icon aria-hidden="true">hide_image</mat-icon></span>
                         }
-                        <span class="etiqueta">{{ p.mismoBanco ? 'Este banco' : 'Otro banco' }} · {{ estados[p.estado] }}</span>
+                        <span class="etiqueta">{{ p.mismoBanco ? t.esteBanco : t.otroBanco }} · {{ t.estados[p.estado] }}</span>
                       </a>
                     </li>
                   }
@@ -54,8 +57,8 @@ import { Cola } from './cola';
               </div>
             }
             <div class="acciones">
-              <button mat-flat-button type="button" [disabled]="ocupado() === imagen.id" (click)="aprobar(imagen)">Aprobar</button>
-              <button mat-stroked-button type="button" [disabled]="ocupado() === imagen.id" (click)="rechazar(imagen)">Rechazar</button>
+              <button mat-flat-button type="button" [disabled]="ocupado() === imagen.id" (click)="aprobar(imagen)">{{ t.aprobar }}</button>
+              <button mat-stroked-button type="button" [disabled]="ocupado() === imagen.id" (click)="rechazar(imagen)">{{ t.rechazar }}</button>
             </div>
           </li>
         }
@@ -63,7 +66,7 @@ import { Cola } from './cola';
       @if (cola.cargando()) {
         <bf-loading-state />
       } @else if (cola.hayMas()) {
-        <button mat-stroked-button type="button" (click)="cola.cargarMas()">Cargar más</button>
+        <button mat-stroked-button type="button" (click)="cola.cargarMas()">{{ tc.cargarMas }}</button>
       }
     }
   `,
@@ -131,6 +134,9 @@ export class ColaImagenes implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly notifier = inject(Notifier);
   private readonly confirmation = inject(Confirmation);
+  private readonly locale = inject(LOCALE_ID);
+  protected readonly t = textos(COLA_IMAGENES);
+  protected readonly tc = textos(COLA);
 
   protected readonly cola = new Cola<ImagenModeracion>((page) => this.api.imagenesPendientes(page), 24);
   protected readonly ocupado = signal<string | null>(null);
@@ -139,33 +145,29 @@ export class ColaImagenes implements OnInit {
     void this.cola.cargar();
   }
 
-  protected readonly estados: Record<EstadoImagen, string> = {
-    APROBADA: 'publicada', PENDIENTE: 'pendiente', RECHAZADA: 'rechazada',
-  };
-
   protected descripcion(parecida: ImagenParecida): string {
-    return `Foto parecida (${parecida.mismoBanco ? 'de este banco' : 'de otro banco'}, ${this.estados[parecida.estado]})`;
+    return this.t.parecida(parecida.mismoBanco, this.t.estados[parecida.estado]);
   }
 
   protected tamano(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${(bytes / (1024 * 1024)).toLocaleString('es-ES', { maximumFractionDigits: 1 })} MB`;
+    return `${(bytes / (1024 * 1024)).toLocaleString(this.locale, { maximumFractionDigits: 1 })} MB`;
   }
 
   protected aprobar(imagen: ImagenModeracion): Promise<void> {
-    return this.ejecutar(imagen, () => firstValueFrom(this.api.aprobarImagen(imagen.id)), 'Foto aprobada');
+    return this.ejecutar(imagen, () => firstValueFrom(this.api.aprobarImagen(imagen.id)), this.t.aprobada);
   }
 
   protected async rechazar(imagen: ImagenModeracion): Promise<void> {
     const motivo = await this.confirmation.pedirMotivo({
-      titulo: 'Rechazar foto',
-      mensaje: 'La foto se borrará. Puedes explicar el motivo a quien la subió.',
-      confirmar: 'Rechazar',
-      sugerencias: ['No se ve el banco', 'Foto borrosa u oscura', 'Aparecen personas', 'Contenido inapropiado'],
+      titulo: this.t.rechazarFoto,
+      mensaje: this.t.rechazarMensaje,
+      confirmar: this.t.rechazar,
+      sugerencias: this.t.sugerencias,
     });
     if (motivo === undefined) return;
-    await this.ejecutar(imagen, () => firstValueFrom(this.api.rechazarImagen(imagen.id, motivo)), 'Foto rechazada y borrada');
+    await this.ejecutar(imagen, () => firstValueFrom(this.api.rechazarImagen(imagen.id, motivo)), this.t.rechazada);
   }
 
   private async ejecutar(imagen: ImagenModeracion, accion: () => Promise<unknown>, mensaje: string): Promise<void> {

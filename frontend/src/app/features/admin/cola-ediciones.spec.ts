@@ -6,6 +6,7 @@ import { DatosBancoModeracion, EdicionModeracion, Page } from '../../core/api/mo
 import { Notifier } from '../../core/ui/notifier';
 import { Confirmation } from '../../shared/ui/confirm-dialog';
 import { cambios, ColaEdiciones } from './cola-ediciones';
+import { COLA_EDICIONES } from './cola-ediciones.i18n';
 
 const pagina = <T>(content: T[]): Page<T> => ({ content, page: 0, size: 20, totalElements: content.length, totalPages: 1 });
 
@@ -49,6 +50,13 @@ describe('ColaEdiciones', () => {
       { campo: 'Accesible', antes: 'Sí', despues: 'No' },
     ]);
     expect(cambios(edicion('x', {}))).toEqual([]);
+  });
+
+  it('names the fields in the language of the texts it gets', () => {
+    expect(cambios(edicion('x', { titulo: 'Nuevo', accesible: false }), COLA_EDICIONES.en)).toEqual([
+      { campo: 'Title', antes: 'Glorieta', despues: 'Nuevo' },
+      { campo: 'Accessible', antes: 'Yes', despues: 'No' },
+    ]);
   });
 
   it('shows the differences and applies or discards each edit', async () => {

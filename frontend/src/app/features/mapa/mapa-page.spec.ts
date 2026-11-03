@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 import { BancosApi } from '../../core/api/bancos-api';
 import { BancoResumen, BoundingBox, Lugar } from '../../core/api/models';
 import { GeolocationService } from '../../core/geo/geolocation.service';
+import { IDIOMA } from '../../core/i18n/idioma';
 import { Notifier } from '../../core/ui/notifier';
 import { BenchMap, Punto } from '../../shared/map/bench-map';
 import { MapaPage, RADIO_CERCANIA } from './mapa-page';
@@ -222,5 +223,41 @@ describe('MapaPage', () => {
 
     expect(notifier.error).toHaveBeenCalledWith('Necesitamos permiso para usar tu ubicación.');
     expect(api.cercanos).not.toHaveBeenCalled();
+  });
+});
+
+describe('MapaPage in English', () => {
+  it('describes the visible benches in English', async () => {
+    vi.useFakeTimers();
+    try {
+      TestBed.configureTestingModule({
+        providers: [
+          provideRouter([]),
+          { provide: IDIOMA, useValue: 'en' },
+          { provide: BancosApi, useValue: { enArea: vi.fn(() => of([banco('a', 3, { numResenas: 2 }), banco('b', 4.5)])), etiquetas: vi.fn(() => of([])) } },
+          { provide: GeolocationService, useValue: {} },
+          { provide: Notifier, useValue: {} },
+        ],
+      });
+      TestBed.overrideComponent(MapaPage, {
+        remove: { imports: [BenchMap, BuscadorLugares] },
+        add: { imports: [BenchMapStub, BuscadorStub] },
+      });
+      const fixture = TestBed.createComponent(MapaPage);
+      const element: HTMLElement = fixture.nativeElement;
+      fixture.detectChanges();
+      fixture.debugElement.query((d) => d.componentInstance instanceof BenchMapStub).componentInstance.areaChange.emit(AREA);
+      await vi.advanceTimersByTimeAsync(300);
+      fixture.detectChanges();
+
+      expect(element.querySelector('h1')?.textContent).toContain('Benches on the map');
+      expect(element.textContent).toContain('2 benches in this area');
+      expect(element.textContent).toContain('2 reviews');
+      expect(element.textContent).toContain('Near me');
+      expect(element.textContent).toContain('Rating');
+    } finally {
+      vi.useRealTimers();
+      localStorage.clear();
+    }
   });
 });

@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { textos } from '../../core/i18n/idioma';
+import { ERROR_STATE } from './error-state.i18n';
 
 /** Error recuperable con botón de reintento. */
 @Component({
@@ -12,7 +14,7 @@ import { MatIcon } from '@angular/material/icon';
       <span class="icono" aria-hidden="true"><mat-icon>cloud_off</mat-icon></span>
       <p>{{ message() }}</p>
       @if (retryable()) {
-        <button matButton="tonal" type="button" (click)="retry.emit()"><mat-icon>refresh</mat-icon> Reintentar</button>
+        <button matButton="tonal" type="button" (click)="retry.emit()"><mat-icon>refresh</mat-icon> {{ t.reintentar }}</button>
       }
     </div>
   `,
@@ -48,7 +50,8 @@ import { MatIcon } from '@angular/material/icon';
   `,
 })
 export class ErrorState {
-  readonly message = input('Algo ha salido mal.');
+  protected readonly t = textos(ERROR_STATE);
+  readonly message = input(this.t.algoHaSalidoMal);
   readonly retryable = input(true);
   readonly retry = output<void>();
 }

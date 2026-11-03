@@ -1,15 +1,15 @@
-<a class="skip-link" href="#contenido">Saltar al contenido</a>
+<a class="skip-link" href="#contenido">{{ t.saltar }}</a>
 
 <div class="app" [class.app--mapa]="esMapa()" [class.app--movil]="isHandset()">
   @if (!isHandset() || !esMapa()) {
     <header class="cabecera bf-glass" role="banner">
-      <a class="marca" routerLink="/mapa" aria-label="Benchify, ir al mapa">
+      <a class="marca" routerLink="/mapa" [attr.aria-label]="t.irAlMapa">
         <img src="logo-mark.svg" alt="" width="28" height="28" />
         <span>Benchify</span>
       </a>
 
       @if (!isHandset()) {
-        <nav class="enlaces" aria-label="Principal">
+        <nav class="enlaces" [attr.aria-label]="t.navPrincipal">
           @for (link of links(); track link.path) {
             <a [routerLink]="link.path" routerLinkActive="activo" ariaCurrentWhenActive="page">
               <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
@@ -20,10 +20,11 @@
       }
 
       <span class="espacio"></span>
+      <bf-selector-idioma />
 
       @if (auth.isAuthenticated()) {
         <bf-campana-notificaciones />
-        <button type="button" class="avatar-boton" [matMenuTriggerFor]="userMenu" [attr.aria-label]="'Menú de ' + nombre()">
+        <button type="button" class="avatar-boton" [matMenuTriggerFor]="userMenu" [attr.aria-label]="t.menuDe(nombre())">
           <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
           @if (!isHandset()) {
             <span class="avatar-nombre">{{ nombre() }}</span>
@@ -33,15 +34,15 @@
           <p class="menu-name" aria-hidden="true">{{ nombre() }}</p>
           <a mat-menu-item routerLink="/perfil">
             <mat-icon aria-hidden="true">person</mat-icon>
-            <span>Mi perfil</span>
+            <span>{{ t.miPerfil }}</span>
           </a>
           <button mat-menu-item type="button" (click)="logout()">
             <mat-icon aria-hidden="true">logout</mat-icon>
-            <span>Cerrar sesión</span>
+            <span>{{ t.cerrarSesion }}</span>
           </button>
         </mat-menu>
       } @else if (!auth.isLoading()) {
-        <a mat-flat-button routerLink="/login">Entrar</a>
+        <a mat-flat-button routerLink="/login">{{ t.entrar }}</a>
       }
     </header>
   }
@@ -50,9 +51,9 @@
     @if (!sesion.emailVerificado) {
       <div class="aviso-verificacion" role="status">
         <mat-icon aria-hidden="true">mark_email_unread</mat-icon>
-        <p>Confirma tu email con el enlace que te hemos enviado para poder añadir bancos, fotos y reseñas.</p>
-        <button mat-button type="button" [disabled]="verificando()" (click)="reenviarVerificacion()">Reenviar</button>
-        <button mat-flat-button type="button" [disabled]="verificando()" (click)="comprobarVerificacion()">Ya lo he confirmado</button>
+        <p>{{ t.confirmaEmail }}</p>
+        <button mat-button type="button" [disabled]="verificando()" (click)="reenviarVerificacion()">{{ t.reenviar }}</button>
+        <button mat-flat-button type="button" [disabled]="verificando()" (click)="comprobarVerificacion()">{{ t.yaConfirmado }}</button>
       </div>
     }
   }
@@ -62,14 +63,14 @@
   </main>
 
   @if (isHandset()) {
-    <nav class="barra-inferior bf-glass" aria-label="Principal">
+    <nav class="barra-inferior bf-glass" [attr.aria-label]="t.navPrincipal">
       @for (link of linksMovil(); track link.path) {
         <a [routerLink]="link.path" routerLinkActive="activo" ariaCurrentWhenActive="page"
            [class.destacado]="link.destacado">
           <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
           <span>{{ link.label }}</span>
           @if (link.path === '/perfil' && notificaciones.noLeidas()) {
-            <span class="punto"><span class="sr-only">, {{ notificaciones.noLeidas() }} notificaciones sin leer</span></span>
+            <span class="punto"><span class="sr-only">{{ t.sinLeer(notificaciones.noLeidas()) }}</span></span>
           }
         </a>
       }

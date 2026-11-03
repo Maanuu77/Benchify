@@ -18,14 +18,28 @@ import { catchError, combineLatest, firstValueFrom, of, switchMap } from 'rxjs';
 import { IncidenciasApi } from '../../../core/api/incidencias-api';
 import { TipoIncidencia } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
+import { textos, textosActuales } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
+import { AVISOS_BANCO } from './avisos-banco.i18n';
 
-export const TIPOS_INCIDENCIA: Record<TipoIncidencia, { etiqueta: string; icono: string }> = {
-  ROTO: { etiqueta: 'Está roto', icono: 'construction' },
-  SUCIO: { etiqueta: 'Está sucio', icono: 'cleaning_services' },
-  DESAPARECIDO: { etiqueta: 'Ya no está', icono: 'location_off' },
-  OTRO: { etiqueta: 'Otro problema', icono: 'report' },
+const ICONOS_INCIDENCIA: Record<TipoIncidencia, string> = {
+  ROTO: 'construction',
+  SUCIO: 'cleaning_services',
+  DESAPARECIDO: 'location_off',
+  OTRO: 'report',
 };
+
+/** Etiqueta en el idioma indicado e icono de cada tipo de incidencia. */
+function tiposIncidencia(
+  etiquetas: Record<TipoIncidencia, string>,
+): Record<TipoIncidencia, { etiqueta: string; icono: string }> {
+  const tipos = Object.keys(ICONOS_INCIDENCIA) as TipoIncidencia[];
+  return Object.fromEntries(
+    tipos.map((tipo) => [tipo, { etiqueta: etiquetas[tipo], icono: ICONOS_INCIDENCIA[tipo] }]),
+  ) as Record<TipoIncidencia, { etiqueta: string; icono: string }>;
+}
+
+export const TIPOS_INCIDENCIA = tiposIncidencia(textosActuales(AVISOS_BANCO).tipos);
 
 export const MAX_COMENTARIO_INCIDENCIA = 500;
 
@@ -43,25 +57,25 @@ export interface AvisoIncidencia {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>Avisar de un problema</h2>
+    <h2 mat-dialog-title>{{ t.titulo }}</h2>
     <mat-dialog-content>
-      <p class="mensaje">¿Qué le pasa a «{{ titulo }}»? Lo revisará el equipo de moderación.</p>
-      <div class="tipos" role="radiogroup" aria-label="Tipo de problema">
-        @for (t of tipos; track t) {
-          <button type="button" class="tipo" role="radio" [attr.aria-checked]="tipo() === t" (click)="tipo.set(t)">
-            <mat-icon aria-hidden="true">{{ info[t].icono }}</mat-icon>{{ info[t].etiqueta }}
+      <p class="mensaje">{{ t.queLePasa(titulo) }}</p>
+      <div class="tipos" role="radiogroup" [attr.aria-label]="t.tipoDeProblema">
+        @for (opcion of tipos; track opcion) {
+          <button type="button" class="tipo" role="radio" [attr.aria-checked]="tipo() === opcion" (click)="tipo.set(opcion)">
+            <mat-icon aria-hidden="true">{{ info[opcion].icono }}</mat-icon>{{ info[opcion].etiqueta }}
           </button>
         }
       </div>
       <mat-form-field appearance="outline" class="campo">
-        <mat-label>{{ tipo() === 'OTRO' ? 'Cuéntanos qué pasa' : 'Detalles (opcional)' }}</mat-label>
+        <mat-label>{{ tipo() === 'OTRO' ? t.cuentanos : t.detalles }}</mat-label>
         <textarea matInput rows="3" [maxlength]="max" [ngModel]="comentario()" (ngModelChange)="comentario.set($event)"></textarea>
         <mat-hint align="end">{{ comentario().length }}/{{ max }}</mat-hint>
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button type="button" [mat-dialog-close]="undefined">Cancelar</button>
-      <button mat-flat-button type="button" [disabled]="!valido()" [mat-dialog-close]="aviso()">Enviar aviso</button>
+      <button mat-button type="button" [mat-dialog-close]="undefined">{{ t.cancelar }}</button>
+      <button mat-flat-button type="button" [disabled]="!valido()" [mat-dialog-close]="aviso()">{{ t.enviar }}</button>
     </mat-dialog-actions>
   `,
   styles: `
@@ -108,7 +122,8 @@ export interface AvisoIncidencia {
 })
 export class IncidenciaDialog {
   protected readonly titulo = inject<string>(MAT_DIALOG_DATA);
-  protected readonly info = TIPOS_INCIDENCIA;
+  protected readonly t = textos(AVISOS_BANCO);
+  protected readonly info = tiposIncidencia(this.t.tipos);
   protected readonly tipos = Object.keys(TIPOS_INCIDENCIA) as TipoIncidencia[];
   protected readonly max = MAX_COMENTARIO_INCIDENCIA;
   protected readonly tipo = signal<TipoIncidencia | null>(null);
@@ -133,7 +148,7 @@ export class IncidenciaDialog {
       <div class="aviso" role="status">
         <mat-icon aria-hidden="true">warning_amber</mat-icon>
         <p>
-          <strong>La comunidad avisa:</strong>
+          <strong>{{ t.comunidadAvisa }}</strong>
           @for (r of resumen(); track r.tipo; let ultimo = $last) {
             {{ info[r.tipo].etiqueta.toLowerCase() }} ({{ r.total }}){{ ultimo ? '' : ' · ' }}
           }
@@ -143,7 +158,7 @@ export class IncidenciaDialog {
     @if (publicado()) {
       <button type="button" class="avisar" [disabled]="enviando()" (click)="avisar()">
         <mat-icon aria-hidden="true">flag</mat-icon>
-        ¿Algún problema con este banco? Avísanos
+        {{ t.avisanos }}
       </button>
     }
   `,
@@ -206,7 +221,8 @@ export class AvisosBanco {
   /** Solo se puede avisar de bancos publicados. */
   readonly publicado = input(true);
 
-  protected readonly info = TIPOS_INCIDENCIA;
+  protected readonly t = textos(AVISOS_BANCO);
+  protected readonly info = tiposIncidencia(this.t.tipos);
   protected readonly enviando = signal(false);
   private readonly recarga = signal(0);
 
@@ -228,7 +244,7 @@ export class AvisosBanco {
     this.enviando.set(true);
     try {
       await firstValueFrom(this.api.reportar(this.bancoId(), aviso.tipo, aviso.comentario));
-      this.notifier.success('Gracias por avisar. Te contaremos qué hacemos.');
+      this.notifier.success(this.t.gracias);
       this.recarga.update((n) => n + 1);
     } catch (error) {
       this.notifier.error(error);

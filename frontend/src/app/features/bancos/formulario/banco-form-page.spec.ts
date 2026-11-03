@@ -9,6 +9,7 @@ import { Banco } from '../../../core/api/models';
 import { AuthService } from '../../../core/auth/auth.service';
 import { FakeAuthService } from '../../../core/auth/testing/fake-auth.service';
 import { GeolocationService } from '../../../core/geo/geolocation.service';
+import { IDIOMA } from '../../../core/i18n/idioma';
 import { Notifier } from '../../../core/ui/notifier';
 import { Punto } from '../../../shared/map/bench-map';
 import { LocationPicker, redondear } from '../../../shared/map/location-picker';
@@ -183,6 +184,19 @@ describe('BancoFormPage', () => {
     await fixture.whenStable();
 
     expect(element.textContent).toContain('Entre -90 y 90');
+  });
+
+  it('speaks English when that is the chosen language', async () => {
+    TestBed.overrideProvider(IDIOMA, { useValue: 'en' });
+    await crear();
+
+    expect(element.querySelector('h1')?.textContent).toContain('Add a bench');
+    expect(element.querySelector('legend')?.textContent).toContain('Features');
+    expect(element.textContent).toContain('Wheelchair accessible');
+
+    escribir('titulo', 'Bench');
+    await enviar();
+    expect(notifier.error).toHaveBeenCalledWith('Mark on the map where the bench is.');
   });
 });
 

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { IDIOMA } from '../../core/i18n/idioma';
 import { StarRating } from './star-rating';
 
 describe('StarRating', () => {
@@ -58,5 +59,22 @@ describe('StarRating', () => {
     expect(fixture.componentInstance.value()).toBe(5);
     buttons[4].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
     expect(fixture.componentInstance.value()).toBe(1);
+  });
+});
+
+describe('StarRating in English', () => {
+  it('labels the stars in English with English number formatting', async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: IDIOMA, useValue: 'en' }] });
+    const fixture = TestBed.createComponent(StarRating);
+    const element: HTMLElement = fixture.nativeElement;
+    fixture.componentRef.setInput('value', 3.5);
+    await fixture.whenStable();
+    expect(element.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('3.5 out of 5 stars');
+
+    fixture.componentRef.setInput('editable', true);
+    await fixture.whenStable();
+    expect(element.querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBe('Rating');
+    const etiquetas = Array.from(element.querySelectorAll('button[role="radio"]')).map((b) => b.getAttribute('aria-label'));
+    expect(etiquetas.slice(0, 2)).toEqual(['1 star', '2 stars']);
   });
 });
