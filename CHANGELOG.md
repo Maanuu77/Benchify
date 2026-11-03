@@ -26,6 +26,13 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 
 ### Seguridad
 
+- Análisis de seguridad en el CI: CodeQL (Java, TypeScript y workflows, consultas
+  `security-extended`) en cada PR y cada semana, Trivy sobre la imagen del backend (falla con
+  vulnerabilidades críticas que ya tienen arreglo, incluidas las librerías del jar),
+  `npm audit` de las dependencias de producción y *dependency review* en los PRs. `@grpc/grpc-js`
+  (dependencia de Firestore, que la web no usa) se fija en 1.13.6 o superior (#64).
+- Dependabot ignora las versiones mayores, que se actualizan a propósito, y agrupa las menores; las
+  actions del CI pasan a sus últimas versiones (#63).
 - Las fotos pendientes de moderación ya no son públicas: se guardan en `pendientes/` y solo las
   ven su autor y los administradores a través de la API; al aprobarlas pasan a la ruta pública.
   `storage.rules` deja de permitir listar carpetas y las fotos públicas ya no se cachean como

@@ -1,4 +1,7 @@
 version: 2
+# Las versiones mayores se actualizan a propósito y no desde Dependabot: Angular con `ng update`
+# (aplica migraciones), TypeScript y Vitest al ritmo que admite Angular, y Java y Node solo de LTS en
+# LTS. Las menores y los parches llegan agrupados para no llenar la lista de PRs.
 updates:
   - package-ecosystem: maven
     directory: /backend
@@ -8,6 +11,11 @@ updates:
     groups:
       spring:
         patterns: ["org.springframework*", "org.springdoc*"]
+      backend-menores:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: npm
@@ -18,6 +26,11 @@ updates:
     groups:
       angular:
         patterns: ["@angular/*", "@angular-devkit/*", "angular-eslint"]
+      frontend-menores:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
@@ -25,9 +38,18 @@ updates:
     schedule:
       interval: monthly
     target-branch: develop
+    groups:
+      actions:
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directories: ["/backend", "/docker/firebase-emulators"]
     schedule:
       interval: monthly
     target-branch: develop
+    ignore:
+      # Imágenes base: solo se cambia de versión mayor de LTS en LTS (Java 21 → 25, Node 22 → 24)
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
