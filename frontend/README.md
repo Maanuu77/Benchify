@@ -30,8 +30,8 @@ En local puedes usar un navegador instalado en lugar de descargar Chromium:
 
 - `src/environments/environment.ts`: desarrollo, apunta a `http://localhost:8080/api/v1` y al
   emulador de Auth del proyecto `demo-benchify`.
-- `src/environments/environment.prod.ts`: producción; rellena la configuración web de Firebase
-  y la URL de Cloud Run antes de desplegar.
+- `src/environments/environment.prod.ts`: producción; `deploy/configurar-frontend.mjs` escribe la
+  configuración web de Firebase y la URL de la API antes de desplegar.
 
 Usuarios de prueba en desarrollo (los crea el backend al arrancar con el perfil `dev`):
 `admin@benchify.dev` (administrador) y `ana@benchify.dev`, con la contraseña definida en

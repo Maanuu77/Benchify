@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  * <p>Las subidas de fotos tienen su propio cubo, más estricto, y no gastan del de escrituras. Las
  * búsquedas de direcciones, aunque son lecturas, también se limitan: cada una puede acabar en una
  * petición a un servicio externo con un cupo compartido por todos los usuarios.
- * Los cubos viven en la memoria de cada instancia: con varias instancias de Cloud Run el límite
+ * Los cubos viven en la memoria de cada instancia: con varias instancias del backend el límite
  * efectivo se multiplica por su número.
  */
 public class RateLimitFilter extends OncePerRequestFilter {

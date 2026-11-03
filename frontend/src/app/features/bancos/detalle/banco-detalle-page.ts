@@ -10,6 +10,7 @@ import { Router, RouterLink } from '@angular/router';
 import { catchError, combineLatest, filter, firstValueFrom, of, startWith, switchMap } from 'rxjs';
 import { Loadable, loadable } from '../../../core/api/api-error';
 import { BancosApi } from '../../../core/api/bancos-api';
+import { API_URL } from '../../../core/config/api-url';
 import { Banco, BancoResumen } from '../../../core/api/models';
 import { UsuariosApi } from '../../../core/api/usuarios-api';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -51,6 +52,7 @@ export class BancoDetallePage {
   private readonly router = inject(Router);
   private readonly title = inject(Title);
   private readonly seo = inject(Seo);
+  private readonly apiUrl = inject(API_URL);
   protected readonly auth = inject(AuthService);
   protected readonly t = textos(BANCO_DETALLE);
 
@@ -170,8 +172,10 @@ export class BancoDetallePage {
   protected async compartir(): Promise<void> {
     const b = this.banco();
     if (!b) return;
-    // /s/{id} lo sirve el backend con las etiquetas Open Graph para que el enlace se vea bien al compartirlo
-    const url = location.origin + this.router.serializeUrl(this.router.createUrlTree(['/s', b.id]));
+    // /s/{id} lo sirve el backend con las etiquetas Open Graph para que el enlace se vea bien al compartirlo:
+    // se enlaza en el dominio de la API, que es quien responde a esa ruta
+    const origenApi = new URL(this.apiUrl, location.origin).origin;
+    const url = origenApi + this.router.serializeUrl(this.router.createUrlTree(['/s', b.id]));
     try {
       if (navigator.share) {
         await navigator.share({ title: b.titulo, text: this.t.compartirTexto(b.titulo), url });

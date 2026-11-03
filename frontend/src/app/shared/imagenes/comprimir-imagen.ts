@@ -1,4 +1,4 @@
-/** Lado mayor con el que se suben las fotos. El backend las vuelve a recodificar a 2048 px como mucho. */
+/** Lado mayor con el que se suben las fotos; el backend tampoco guarda más (ImagenProcesada.LADO_MAXIMO). */
 export const LADO_MAXIMO = 1600;
 /** Por debajo de este tamaño y de LADO_MAXIMO la foto se sube tal cual. */
 const BYTES_SIN_COMPRIMIR = 1024 * 1024;

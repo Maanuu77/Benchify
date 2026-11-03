@@ -5,8 +5,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * Configuración de Firebase. Las credenciales nunca se configuran aquí: en producción se usan
- * las Application Default Credentials (cuenta de servicio de Cloud Run o
- * {@code GOOGLE_APPLICATION_CREDENTIALS}); con emuladores no hacen falta.
+ * las Application Default Credentials ({@code GOOGLE_APPLICATION_CREDENTIALS}); con emuladores no
+ * hacen falta.
  *
  * @param enabled       {@code false} en tests, donde un verificador de tokens simulado sustituye a Firebase
  * @param projectId     ID del proyecto de Firebase

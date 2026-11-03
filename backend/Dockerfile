@@ -30,10 +30,12 @@ COPY --from=build /workspace/target/extracted/dependencies/ ./
 COPY --from=build /workspace/target/extracted/snapshot-dependencies/ ./
 COPY --from=build /workspace/target/extracted/application/ ./
 
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
+# Pensado para instancias pequeñas (512 MB en el plan gratuito de Render): el heap deja sitio a
+# metaspace, caché de código e hilos, y SerialGC es el recolector que menos memoria y CPU consume
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+UseSerialGC -Xss512k -XX:ReservedCodeCacheSize=64m -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
 
 # Class Data Sharing: se arranca el contexto una vez (perfil cds, sin base de datos ni credenciales)
-# y la JVM guarda las clases que carga. En Cloud Run cada instancia nueva las lee ya preparadas:
+# y la JVM guarda las clases que carga. Cada arranque las lee ya preparadas:
 # el arranque en frío baja de ~7 s a ~4,5 s en las pruebas locales (#66)
 RUN java -XX:ArchiveClassesAtExit=app.jsa -Dspring.profiles.active=cds -Dspring.context.exit=onRefresh -jar app.jar
 

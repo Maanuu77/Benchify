@@ -47,7 +47,7 @@ class ThumbnailatorProcesadorImagenesAdapterTest {
     void limitsTheLongSideAndBuildsAThumbnail() {
         ImagenProcesada procesada = procesar("image/png", TestImages.png(3000, 1500));
 
-        assertThat(dimensiones(procesada.contenido())).containsExactly(ImagenProcesada.LADO_MAXIMO, 1024);
+        assertThat(dimensiones(procesada.contenido())).containsExactly(ImagenProcesada.LADO_MAXIMO, ImagenProcesada.LADO_MAXIMO / 2);
         assertThat(dimensiones(procesada.miniatura())).containsExactly(ImagenProcesada.LADO_MAXIMO_MINIATURA, 240);
     }
 

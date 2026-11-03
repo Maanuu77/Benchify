@@ -18,7 +18,7 @@ public record ImagenProcesada(byte[] contenido, byte[] miniatura, long huella) {
     public static final String CONTENT_TYPE = "image/jpeg";
 
     /** Lado mayor de la foto publicada, en píxeles: las más grandes se reducen. */
-    public static final int LADO_MAXIMO = 2048;
+    public static final int LADO_MAXIMO = 1600;
 
     /** Lado mayor de la miniatura (tarjetas de la galería y cola de moderación). */
     public static final int LADO_MAXIMO_MINIATURA = 480;

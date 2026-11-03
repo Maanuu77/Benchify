@@ -1,24 +1,37 @@
-# Production (Cloud Run + Neon): every secret and endpoint comes from environment variables
+# Production (Render free plan + Neon): every secret and endpoint comes from environment variables
 spring:
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: ${DB_POOL_SIZE:5}
+      maximum-pool-size: ${DB_POOL_SIZE:3}
       # Neon suspends the database after a few idle minutes: keep no idle connections that would wake
       # it up, and renew open ones before Neon drops them
-      minimum-idle: 1
+      minimum-idle: 0
       idle-timeout: 60000
       max-lifetime: 240000
       keepalive-time: 0
+
+server:
+  tomcat:
+    # The free instance has 512 MB and a fraction of a CPU: few threads are enough and use less memory
+    threads:
+      max: 20
+      min-spare: 2
 
 benchify:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID}
-    storage-bucket: ${FIREBASE_STORAGE_BUCKET}
+    # Firebase Storage needs the paid plan: photos are kept in the database instead (see below)
+    storage-bucket: ${FIREBASE_STORAGE_BUCKET:}
+  almacen:
+    tipo: ${ALMACEN_TIPO:postgres}
+    # Public address of this API, used to build the URLs of approved photos. Render sets
+    # RENDER_EXTERNAL_URL on every service
+    url-publica: ${API_PUBLIC_URL:${RENDER_EXTERNAL_URL:}}
 
 springdoc:
   # Public documentation is opt-in in production

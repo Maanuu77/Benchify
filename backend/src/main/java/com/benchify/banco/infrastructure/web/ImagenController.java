@@ -43,7 +43,7 @@ class ImagenController {
 
     @PostMapping(path = "/api/v1/bancos/{bancoId}/imagenes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Subir una foto (JPEG, PNG o WebP, máximo 10 MB)",
-            description = "Se guarda como JPEG sin metadatos (EXIF, GPS), con el lado mayor limitado a 2048 px y "
+            description = "Se guarda como JPEG sin metadatos (EXIF, GPS), con el lado mayor limitado a 1600 px y "
                     + "con una miniatura. Queda pendiente de moderación salvo que la suba un administrador; mientras "
                     + "tanto no es pública y sus url apuntan a la API (requiereAutenticacion).")
     @SecurityRequirement(name = "firebase")

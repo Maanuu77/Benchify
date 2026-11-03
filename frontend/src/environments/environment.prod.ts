@@ -1,10 +1,8 @@
 import { Environment } from './environment.model';
 
 /**
- * Producción (Firebase Hosting). Sustituye los valores de Firebase por los de la app web de tu
- * proyecto (Consola de Firebase → Configuración del proyecto → Tus apps). La API va por el mismo
- * dominio: Firebase Hosting reenvía /api/** a Cloud Run (firebase.json), así que no hay CORS y el
- * service worker puede guardar sus respuestas para usarlas sin conexión.
+ * Producción (Firebase Hosting + API en Render). No se edita a mano: deploy/configurar-frontend.mjs
+ * escribe la dirección de la API y la configuración web de Firebase antes de compilar.
  */
 export const environment: Environment = {
   production: true,
