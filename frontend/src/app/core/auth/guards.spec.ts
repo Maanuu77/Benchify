@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRouteSnapshot, provideRouter, Router, RouterStateSnapshot, UrlSegment, UrlTree } from '@angular/router';
+import {
+  ActivatedRouteSnapshot, PartialMatchRouteSnapshot, provideRouter, Router, RouterStateSnapshot, UrlSegment, UrlTree,
+} from '@angular/router';
 import { AuthService } from './auth.service';
 import { adminGuard, anonymousGuard, authGuard, revalidarRutaAlPerderAcceso } from './guards';
 import { FakeAuthService } from './testing/fake-auth.service';
@@ -19,7 +21,7 @@ describe('guards', () => {
   const runAuth = () => TestBed.runInInjectionContext(() =>
     authGuard({} as ActivatedRouteSnapshot, { url: '/bancos/nuevo' } as RouterStateSnapshot));
   const runAdmin = () => TestBed.runInInjectionContext(() =>
-    adminGuard({}, [new UrlSegment('admin', {}), new UrlSegment('bancos', {})]));
+    adminGuard({}, [new UrlSegment('admin', {}), new UrlSegment('bancos', {})], {} as PartialMatchRouteSnapshot));
   const runAnonymous = () => TestBed.runInInjectionContext(() =>
     anonymousGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot));
 

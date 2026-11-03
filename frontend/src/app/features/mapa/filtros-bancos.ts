@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, model } from '@an
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { catchError, of } from 'rxjs';
 import { BancosApi } from '../../core/api/bancos-api';
 import { FiltroBancos } from '../../core/api/models';
 import { IDIOMA, LOCALES, textos } from '../../core/i18n/idioma';
@@ -107,7 +108,10 @@ export class FiltrosBancos {
   protected readonly t = textos(FILTROS_BANCOS);
   private readonly locale = LOCALES[inject(IDIOMA)];
 
-  protected readonly etiquetas = toSignal(inject(BancosApi).etiquetas(), { initialValue: [] });
+  // Sin catálogo (p. ej. sin conexión) el filtro de etiquetas queda vacío en lugar de lanzar un error
+  protected readonly etiquetas = toSignal(inject(BancosApi).etiquetas().pipe(catchError(() => of([]))), {
+    initialValue: [],
+  });
   protected readonly valoraciones = VALORACIONES;
 
   protected readonly caracteristicas: { clave: Caracteristica; etiqueta: string; icono: string }[] = [

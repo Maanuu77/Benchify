@@ -50,6 +50,9 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 
 ### Corregido
 
+- La cabecera de la ficha tapaba la tarjeta del banco en cuanto cargaban las teselas del mapa; si el
+  catálogo de etiquetas no carga (p. ej. sin conexión), el filtro y el formulario siguen funcionando sin
+  errores en consola.
 - Frontend: las primeras peticiones tras recargar ya llevan el token, los guards no se quedan
   esperando si falla la restauración de la sesión, y ante un 401/403 se pide un token nuevo y se
   reintenta una vez; perder la sesión o el rol en otra pestaña saca de la página protegida (#15, #17, #18).
@@ -121,6 +124,8 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 
 ### Cambiado
 
+- Frontend en Angular 22 y TypeScript 6. AngularFire se sustituye por el SDK de Firebase: la app es
+  zoneless y solo usa autenticación, así que el envoltorio sobraba y era lo que impedía actualizar (#68).
 - En producción la API va por el dominio de Firebase Hosting (`/api/**` → Cloud Run): sin CORS ni
   URL de Cloud Run en el build. Solo los ficheros con hash se cachean como inmutables (antes también
   `leaflet.css`, que no lo lleva) (#55).
