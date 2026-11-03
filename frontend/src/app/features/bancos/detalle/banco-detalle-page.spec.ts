@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { BancosApi } from '../../../core/api/bancos-api';
+import { API_URL } from '../../../core/config/api-url';
 import { Banco } from '../../../core/api/models';
 import { UsuariosApi } from '../../../core/api/usuarios-api';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -71,6 +72,7 @@ describe('BancoDetallePage', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
+        { provide: API_URL, useValue: 'https://api.benchify.test/api/v1' },
         { provide: AuthService, useValue: auth },
         { provide: BancosApi, useValue: bancos },
         { provide: UsuariosApi, useValue: usuarios },
@@ -106,7 +108,7 @@ describe('BancoDetallePage', () => {
       Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Compartir'))!.click();
       await fixture.whenStable();
 
-      expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: `${location.origin}/s/${BANCO.id}` }));
+      expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: `https://api.benchify.test/s/${BANCO.id}` }));
     } finally {
       delete (navigator as { share?: unknown }).share;
     }

@@ -36,7 +36,7 @@ spring:
 server:
   port: ${PORT:8080}
   shutdown: graceful
-  # Cloud Run terminates TLS at the load balancer and forwards X-Forwarded-* headers
+  # The hosting platform (Render) terminates TLS at its proxy and forwards X-Forwarded-* headers
   forward-headers-strategy: framework
 
 benchify:
@@ -50,7 +50,7 @@ benchify:
     storage-bucket: ${FIREBASE_STORAGE_BUCKET:demo-benchify.appspot.com}
   rate-limit:
     # Writes under /api/** per user (client IP when anonymous). Buckets live in memory, so every
-    # Cloud Run instance enforces its own limit
+    # instance enforces its own limit
     writes:
       capacity: 30
       period: 1m
@@ -76,7 +76,7 @@ management:
         include: health,info
   endpoint:
     health:
-      # /actuator/health/liveness and /readiness for Cloud Run startup and liveness probes
+      # /actuator/health/liveness and /readiness for the platform health checks
       probes:
         enabled: true
       show-details: never

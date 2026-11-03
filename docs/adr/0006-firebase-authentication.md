@@ -23,8 +23,9 @@ cuenta. El secreto, además, estaba en el repositorio.
   `@CurrentActor`, y los casos de uso deciden permisos con él.
 - El usuario local (`usuarios`) se identifica por el UID de Firebase y se crea en su primera
   petición autenticada.
-- Credenciales: Application Default Credentials (cuenta de servicio de Cloud Run o
-  `GOOGLE_APPLICATION_CREDENTIALS`). Nunca ficheros en el repositorio.
+- Credenciales: Application Default Credentials (`GOOGLE_APPLICATION_CREDENTIALS`, en producción un
+  *Secret File* de Render, ver [ADR-0010](0010-neon-y-despliegue-continuo.md)). Nunca ficheros en el
+  repositorio.
 - Desarrollo: Firebase Emulator Suite con un proyecto `demo-benchify`. Tests: un
   `IdTokenVerifier` simulado que acepta tokens `test:<uid>[:ROL]`.
 

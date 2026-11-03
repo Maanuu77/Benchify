@@ -124,10 +124,19 @@ Desde la 1.0.1 los números `#n` son issues de GitHub
 
 ### Cambiado
 
+- Despliegue gratuito y sin tarjeta: Firebase en el plan Spark (Authentication y Hosting), la API en
+  el plan gratuito de Render (`render.yaml`, se despliega al llegar a `main`) y la base de datos en
+  Neon (PostgreSQL 17 con PostGIS). Las fotos se guardan en la base de datos (V16) y la API las sirve
+  con caché de un año, porque Firebase Storage es de pago; se reducen a 1600 px. Un workflow avisa a
+  la API cada 10 minutos para que Render no la duerma. El frontend se publica en Hosting desde GitHub
+  Actions con Workload Identity Federation, sin claves, y con canal de vista previa en los PRs;
+  `deploy/preparar-proyecto.sh` lo prepara una vez y no necesita facturación (#67).
+- Arranque en frío del backend más corto con Class Data Sharing en la imagen: de ~7 s a ~4,5 s en las
+  pruebas locales. La JVM se ajusta para caber en 512 MB (#66).
 - Frontend en Angular 22 y TypeScript 6. AngularFire se sustituye por el SDK de Firebase: la app es
   zoneless y solo usa autenticación, así que el envoltorio sobraba y era lo que impedía actualizar (#68).
-- En producción la API va por el dominio de Firebase Hosting (`/api/**` → Cloud Run): sin CORS ni
-  URL de Cloud Run en el build. Solo los ficheros con hash se cachean como inmutables (antes también
+- La dirección de la API se escribe en el build (`deploy/configurar-frontend.mjs`) y los enlaces para
+  compartir apuntan a ella. Solo los ficheros con hash se cachean como inmutables (antes también
   `leaflet.css`, que no lo lleva) (#55).
 - Publicar bancos, reseñas o fotos exige haber verificado el email (403 `EMAIL_NO_VERIFICADO`);
   los administradores quedan exentos (#54).

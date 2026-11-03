@@ -1,0 +1,22 @@
+name: Keep backend awake
+
+# El plan gratuito de Render duerme el backend tras 15 minutos sin peticiones y la primera visita
+# después tarda en torno a un minuto. Un aviso cada 10 minutos lo mantiene despierto: un único
+# servicio encendido todo el mes cabe en las 750 horas gratuitas. La comprobación no toca la base de
+# datos, así que Neon sigue suspendiéndose cuando no hay uso.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    name: Ping
+    if: vars.API_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Health check
+        run: curl --fail --silent --show-error --max-time 120 --retry 2 "${{ vars.API_URL }}/actuator/health/liveness"

@@ -8,11 +8,14 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.cloud.StorageClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @ConditionalOnBooleanProperty(name = "benchify.firebase.enabled", matchIfMissing = true)
+// Con benchify.almacen.tipo=postgres las fotos van a la base de datos (PostgresAlmacenConfig)
+@ConditionalOnProperty(name = "benchify.almacen.tipo", havingValue = "firebase", matchIfMissing = true)
 class FirebaseStorageConfig {
 
     static final String FIREBASE_DOWNLOAD_HOST = "https://firebasestorage.googleapis.com";

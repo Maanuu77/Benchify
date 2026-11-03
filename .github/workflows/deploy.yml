@@ -1,0 +1,72 @@
+name: Deploy
+
+# El backend lo despliega Render solo, con cada cambio del backend que llega a main (render.yaml).
+# Este workflow publica el frontend en Firebase Hosting al llegar a main y, en los PRs que tocan el
+# frontend, en un canal de vista previa. Se autentica en Google con Workload Identity Federation (sin
+# claves): deploy/preparar-proyecto.sh crea la identidad. Sin las variables del repositorio no hace nada.
+on:
+  push:
+    branches: [main]
+    paths: ['frontend/**', 'firebase.json', 'deploy/configurar-frontend.mjs', '.github/workflows/deploy.yml']
+  pull_request:
+    paths: ['frontend/**', 'firebase.json', 'deploy/configurar-frontend.mjs', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  # Un despliegue de producción a medias no se cancela; una vista previa antigua, sí
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  hosting:
+    name: Frontend → Firebase Hosting
+    # Los PRs de forks y de Dependabot no pueden pedir credenciales de Google: no tienen vista previa
+    if: >-
+      vars.FIREBASE_PROJECT_ID != '' &&
+      (github.event_name != 'pull_request' ||
+       (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'))
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Configure API and Firebase web app
+        env:
+          API_URL: ${{ vars.API_URL }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
+        run: node deploy/configurar-frontend.mjs
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      # firebase.json compila el frontend antes de subirlo (predeploy)
+      - name: Deploy to production
+        if: github.event_name != 'pull_request'
+        run: npx --yes firebase-tools@15 deploy --only hosting --project "${PROJECT_ID}" --non-interactive
+
+      - name: Deploy preview channel
+        if: github.event_name == 'pull_request'
+        run: |
+          npx --yes firebase-tools@15 hosting:channel:deploy "pr-${{ github.event.pull_request.number }}" \
+            --expires 7d --project "${PROJECT_ID}" --non-interactive --json > "${RUNNER_TEMP}/canal.json"
+          URL="$(jq -r '.result[].url' "${RUNNER_TEMP}/canal.json" | head -1)"
+          echo "Vista previa: ${URL}" >> "${GITHUB_STEP_SUMMARY}"
